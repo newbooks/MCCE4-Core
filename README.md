@@ -27,4 +27,10 @@ Work in progress
 Work in progress
 
 ## Documentation
-Work in progress
+Please refer to individual documentation pages under the `docs` [directory](docs/README.md), or visit the following links:
+
+### User Documentation
+
+
+### Developer Documentation 
+
