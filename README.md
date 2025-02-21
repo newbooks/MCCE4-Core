@@ -27,7 +27,7 @@ Work in progress
 Work in progress
 
 ## Documentation
-Please refer to individual documentation pages under the `docs` [directory](docs/README.md), or visit the following links:
+Please refer to individual documentation pages under the `docs` [directory](docs/), or visit the following links:
 
 ### User Documentation
 
