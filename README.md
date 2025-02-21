@@ -26,11 +26,6 @@ Work in progress
 ## Quick Start: An Example of pKa Calculation
 Work in progress
 
-## Documentation
-Please refer to individual documentation pages under the `docs` [directory](docs/), or visit the following links:
-
-### User Documentation
-
-
-### Developer Documentation 
+## Comprehensive Documentation
+Please refer to dedicated documentation pages under the `docs` [directory](docs/).
 
