@@ -1,24 +1,16 @@
 # MCCE4-Core
+MCCE is a biophysics simulation program developed at Gunner Lab at City College of New York.
+
+MCCE combines continuum electrostatics and molecular mechanics. It simulates protein side chain motions explicitly while modeling the dielectric effect of solvent and bulk protein material using continuum electrostatics.
+
+## Capabilities of MCCE
+MCCE can calculate:
+- Residue pKa, cofactor Em, and protein pI in protein-solvent systems
+- Protein structural responses to changes in charge
+- Residue ionization changes in response to protein structural changes
+- Location and stoichiometry of proton transfers coupled to electron transfer
 
 MCCE4-Core project is a streamlined version of the MCCE4 project available at [GunnerLab/MCCE4](https://github.com/GunnerLab/MCCE4) (private repository). The goal is to enhance code simplicity and compatibility by implementing only the core functions and essential tools, while retaining all the original algorithms.
-
-## Folders
-```
-MCCE4-Core
-├── bin                     # Executables
-│   └── mcce                # MCCE modules required by executables
-├── config                  # MCCE configuration files
-├── docs                    # Documentation
-├── LICENSE                 # License file
-├── param                   # Parameter files for protein structure interpretation
-│   ├── ftpl-default        # Topology files of molecules
-│   └── ideal_structures    # Ideal structures of molecules, used as templates
-├── README.md               # Readme file
-└── tests                   # Basic test suite for debugging and verification
-```
-
-## Core Functions and Tools
-Work in progress
 
 ## How to Install
 Work in progress
