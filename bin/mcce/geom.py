@@ -71,6 +71,7 @@ if __name__ == "__main__":
 
     # test basic vector operations
     print("v1 + v2:", v1 + v2)
+    print("v0 + v1 + v2:", v0 + v1 + v2)
     print("v1 - v2:", v1 - v2)
     print("v1 * 2:", v1 * 2)
     print("v1 / 2:", v1 / 2)

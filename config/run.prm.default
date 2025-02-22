@@ -35,7 +35,6 @@ step 1:
 t      Step1. Label terminal residues as separate NTER and CTR?     (TERMINALS)
 2.0    Step1. Distance limit for reporting clashes                  (CLASH_DISTANCE)
 0.05   Step1. Remove water with %SAS exceeding this cutoff value    (H2O_SASCUTOFF)
-t      Step1. Ignore hydrogens in input structure                   (IGNORE_INPUT_H)
 
 step 2:
 f      Step2. Use specific control (head1.lst) on rotamer making    (ROT_SPECIF)
