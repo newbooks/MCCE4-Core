@@ -13,15 +13,11 @@ logging_format_debug = "%(asctime)s %(levelname)s [%(module)s]: %(message)s"
 logging_datefmt='%Y-%m-%d %H:%M:%S'
 
 
-
-
-
-
 def parse_arguments():
     helpmsg = "MCCE4 Step 1: Read PDB file and generate a mcce protein object"
     parser = argparse.ArgumentParser(description=helpmsg)
     parser.add_argument("pdb_file", nargs='?', default="", help="PDB file")
-    parser.add_argument("-s", metavar="cutoff", type=float, default=0.05, help="SAS cutoff, default is 0.05")
+    parser.add_argument("-s", metavar="cutoff", default="", help="SAS cutoff, default is 0.05")
     parser.add_argument("-f", metavar="ftpl_folder", default="", help="Load from this ftpl folder")
     parser.add_argument("-r", metavar="prm", nargs="+", default=[], help="Load additional runprm files, in order")
     parser.add_argument("--no_ter", default=False, action="store_true", help="Do not make terminal ressidues")
@@ -39,7 +35,8 @@ if __name__ == "__main__":
         logging.basicConfig(level=logging.INFO, format=logging_format, datefmt=logging_datefmt)
 
     logging.info("Step 1: Read PDB file and generate a mcce protein object")
-    prm = Runprm()
-    prm.update_by_files(args.r)
-    prm.dump(comment="Step 1 uses these runprm parameters")
+    prm = Runprm()                  # Load default runprm file
+    prm.update_by_cmd(args)         # Update by command line arguments
+    prm.update_by_files(args.r)     # Update by additional runprm files
+    prm.dump(comment="Step 1 uses these runprm parameters") # Dump to run.prm.record
 
