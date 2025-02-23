@@ -40,5 +40,6 @@ if __name__ == "__main__":
 
     logging.info("Step 1: Read PDB file and generate a mcce protein object")
     prm = Runprm()
-    prm.dump(comment="# test")
+    prm.update_by_files(args.r)
+    prm.dump(comment="Step 1 uses these runprm parameters")
 
