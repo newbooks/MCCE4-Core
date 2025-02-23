@@ -5,7 +5,12 @@ Description:
 This module provides MCCE protein and parameter data structure and input/output functions.
 """
 
-from geom import Vector
+import os
+import logging
+import datetime
+from .constants import *
+from .geom import Vector
+
 
 class Atom:
     """
@@ -74,3 +79,92 @@ class Protein:
         self.residues = []          # list of residues in the protein
 
 
+
+class Runprm:
+    """
+    Runprm class
+    This class stores the parameters from a runprm file.
+    ---------------------------------------
+    Example runprm file:
+    ---------------------------------------
+    step 1:
+    t      Step1. Label terminal residues as separate NTER and CTR?     (TERMINALS)
+    2.0    Step1. Distance limit for reporting clashes                  (CLASH_DISTANCE)
+    0.05   Step1. Remove water with %SAS exceeding this cutoff value    (H2O_SASCUTOFF)
+    ---------------------------------------
+    
+    The last field in parentheses is the parameter name, which will be used as a class attribute.
+    The first field is the default value, stored as a string, if the last field qualifies as a parameter name.
+    Anything in between is the description.
+
+    Runprm class attributes come from multiple sources:
+    1. Default values from run.prm.default in the distribution.
+    2. Optionally, the values can be updated by command line options using update_by_cmd().
+    3. Optionally, the values can be updated by additional runprm files using update_by_files().
+    4. Optionally, the values can be updated by direct assignment.
+
+    Runprm class has a method dump() to print the parameters in the format of a runprm file.
+    """
+    class Record:
+        """
+        Record class
+        """
+        def __init__(self, value, description, set_by):
+            self.value = value
+            self.description = description
+            self.set_by = set_by
+
+    def __init__(self):
+        dist_path = os.path.abspath(os.path.join(__file__, "../../.."))
+        runprm_default = os.path.join(dist_path, RUNPRM_DEFAULT)
+        if os.path.exists(runprm_default):
+            logging.info(f"   Loading default runprm file {runprm_default}")
+            self.update_by_files([runprm_default])
+        else:
+            logging.warning(f"   Default runprm file {runprm_default} not found.")
+        
+
+    def update_by_files(self, files):
+        """
+        Update runprm object by runprm files.
+        """
+        for file in files:
+            if not os.path.exists(file):
+                logging.warning(f"   Runprm file {file} not found.")
+                continue
+
+            with open(file) as f:
+                for line in f:
+                    entry_str = line.split("#")[0].strip()
+                    fields = entry_str.split()
+                    if len(fields) > 1 and fields[-1].startswith("(") and fields[-1].endswith(")"):
+                        key = fields[-1][1:-1].strip()
+                        value = fields[0]
+                        description = " ".join(fields[1:-1])
+                        filename = os.path.basename(file)
+                        set_by = f"#Set by {filename}"
+                        setattr(self, key, self.Record(value, description, set_by))
+            
+
+    def dump(self, comment=""):
+        """
+        Dump the parameters in the format of a runprm file.
+        """
+        attributes = vars(self)
+        date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        with open(RUNPRM_DUMP, "w") as f:
+            f.write(f"# This runprm file is recorded on {date}\n{comment}\n")
+            for key, value in attributes.items():
+                if key.startswith("_"):
+                    continue
+                value_len = len(value.value)
+                if value_len < 10:
+                    line = "%-10s %-60s %-16s %s\n" % (value.value, value.description, f"({key})", value.set_by)
+                else:
+                    description = value.description.ljust(60-value_len+10)
+                    line = "%-10s %s %-16s %s\n" % (value.value, description, f"({key})", value.set_by)
+                f.write(line)
+        logging.info(f"   MCCE runprm parameters are recorded in file {RUNPRM_DUMP}")
+                
+
+        

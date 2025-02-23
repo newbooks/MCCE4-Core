@@ -8,16 +8,16 @@ MCCE4 CONFIGURATION FILE (default 02/21/2025)
 Most modified entries
 ------------------------------------------------------------------------------
 Input and Output:
-prot.pdb  Step1. PDB file name; leave as is if file is soft-linked as prot.pdb       (INPDB)
-delphi    Step3. Poisson-Boltzmann Equation solver name: delphi, apbs, ngpb, or zap  (PBE_SOLVER)
+prot.pdb  Step1. Input PDB file name                                (INPDB)
+delphi    Step3. Default PBE solver: delphi, apbs, ngpb, or zap     (PBE_SOLVER)
 ==============================================================================
 
 Less modified entries
 ------------------------------------------------------------------------------
-4.0   Step2. Protein dielectric constant. Use 8 for small, soluble proteins  (EPSILON_PROT)
-param/ftpl_default Step2 & Step3. Topologies .ftpl files folder              (FTPL_FOLDER)
-param/extra.ftpl  Step2 & Step4. Extra param file                            (EXTRA)
-config/name.txt Step1. Renaming rules for atoms and groups                   (RENAME_RULES)
+4.0   Step2. Protein dielectric constant.                       (EPSILON_PROT)
+param/ftpl_default Step2 & Step3. Topologies files folder       (FTPL_FOLDER)
+param/extra.ftpl  Step2 & Step4. Extra param file               (EXTRA)
+config/name.txt Step1. Renaming rules for atoms and groups      (RENAME_RULES)
 
 ph    Step4. Titration type: "ph" or "eh"                       (TITR_TYPE)
 0.0   Step4. Initial pH                                         (TITR_PH0)
@@ -32,12 +32,12 @@ MODIFYING FOLLOWING ENTRIES REQUIRE ADVANCED KNOWLEDGE:
 # Options specific to each step:
 
 step 1:
-t      Step1. Label terminal residues as separate NTER and CTR?     (TERMINALS)
+t      Step1. Label terminal residues as separate NTR and CTR?      (TERMINALS)
 2.0    Step1. Distance limit for reporting clashes                  (CLASH_DISTANCE)
 0.05   Step1. Remove water with %SAS exceeding this cutoff value    (H2O_SASCUTOFF)
 
 step 2:
-f      Step2. Use specific control (head1.lst) on rotamer making    (ROT_SPECIF)
+f      Step2. Use head1.lst on rotamer making                       (ROT_SPECIF)
 f      Step2. Rebuild sidechain based on torsion minima             (REBUILD_SC)
 t      Step2. Do swap (stereo isotope)                              (ROT_SWAP)
 f      Step2. Do rotate?                                            (PACK)
@@ -48,7 +48,7 @@ f      Step2. Do swing?                                             (SWING)
 10.0   Step2. Cutoff of self vdw in kcal/mol                        (VDW_CUTOFF)
 500    Step2. Number of repacks                                     (REPACKS)
 0.01   Step2. Occupancy cutoff of repacks                           (REPACK_CUTOFF)
-t      Step2. H-bond directed rotamer making. Requires 't' on PACK  (HDIRECTED)
+t      Step2. H-bond directed rotamer making.                       (HDIRECTED)
 1.0    Step2. Threshold for two conformers being different          (HDIRDIFF)
 36     Step2. Limit number of the H-bond conformers                 (HDIRLIMT)
 t      Step2. Do pruning?                                           (PRUNE)
