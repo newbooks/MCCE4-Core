@@ -2,5 +2,40 @@
 
 ## User Documentation
 
-## Developer Documentation 
+## Developer Documentation
 
+### Command line options
+The main program will handle command line options. The following command options are recommended for use across all programs:
+
+```
+-f ftpl_folder    Load from this ftpl folder
+-r prm [prm ...]  Load additional runprm files, in order
+--debug           Print debug information
+```
+
+### Logging
+The default logging level INFO should show program progress, and the debugging information will be logged at DEBUG Level.
+
+These are two general rules:
+- Print module name in DEBUG logging level.
+- Indent by 3 characters if logging is not called in main program.
+
+
+
+### Folders
+```
+MCCE4-Core
+├── bin                     # Executables
+│   └── mcce                # MCCE modules required by executables
+├── config                  # MCCE configuration files
+├── docs                    # Documentation
+├── LICENSE                 # License file
+├── param                   # Parameter files for protein structure interpretation
+│   ├── ftpl-default        # Topology files of molecules
+│   └── ideal_structures    # Ideal structures of molecules, used as templates
+├── README.md               # Readme file
+└── tests                   # Basic test suite for debugging and verification
+```
+
+### Core Functions and Tools
+Work in progress
