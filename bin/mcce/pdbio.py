@@ -8,6 +8,7 @@ This module provides MCCE protein and parameter data structure and input/output 
 import os
 import logging
 import datetime
+import copy
 from .constants import *
 from .geom import Vector
 
@@ -115,8 +116,10 @@ class Runprm:
             self.set_by = set_by
 
     def __init__(self):
-        dist_path = os.path.abspath(os.path.join(__file__, "../../.."))
-        runprm_default = os.path.join(dist_path, RUNPRM_DEFAULT)
+        # Load default runprm file
+        self._dist_path = os.path.abspath(os.path.join(__file__, "../../.."))
+        runprm_default = os.path.join(self._dist_path, RUNPRM_DEFAULT)
+
         if os.path.exists(runprm_default):
             logging.info(f"   Loading default runprm file {runprm_default}")
             self.update_by_files([runprm_default])
@@ -144,7 +147,56 @@ class Runprm:
                         filename = os.path.basename(file)
                         set_by = f"#Set by {filename}"
                         setattr(self, key, self.Record(value, description, set_by))
-            
+
+        # convert relative paths to absolute paths for special entries
+        special_entries = RUNPRM_SPECIAL_ENTRIES
+        for entry in special_entries:
+            if hasattr(self, entry):
+                attr = getattr(self, entry)
+                if not os.path.isabs(attr.value):
+                    setattr(self, f"_{entry}", copy.deepcopy(attr))
+                    getattr(self, f"_{entry}").value = os.path.join(self._dist_path, attr.value)
+                else:
+                    setattr(self, f"_{entry}", attr)
+
+                
+    def update_by_cmd(self, args):
+        """
+        Update the runprm object using command line arguments.
+
+        Command line options can set runprm key:value pairs in two ways:
+        1. Directly by recognizing key and value, such as "-s cutoff".
+        2. Using "-r runprm_file" to load additional runprm files.
+
+        Notes:
+        While each script handles its own command line options, the following options are recommended for consistency:
+        -f ftpl_folder    Load from this ftpl folder
+        -r prm [prm ...]  Load additional runprm files, in order
+        --debug           Print debug information
+        """
+        if args.pdb_file:
+            self.INPDB.value = args.pdb_file
+            self.INPDB.set_by = "#Set by command line"
+        
+        if args.f:
+            self.FTPL_FOLDER.value = args.f
+            self.FTPL_FOLDER.set_by = "#Set by command line"
+
+        if args.s:
+            self.SAS_CUTOFF.value = str(args.s)
+            self.SAS_CUTOFF.set_by = "#Set by command line"
+        
+        if args.no_ter:
+            self.TERMINALS.value = "f"
+            self.TERMINALS.set_by = "#Set by command line"
+        
+        if args.no_hoh:
+            self.NO_HOH.value = "t"
+            self.NO_HOH.set_by = "#Set by command line"
+
+        # loading additional runprm files should be done at the very end to overwrite previous settings
+        if args.r:
+            self.update_by_files(args.r)    # set by additional runprm files specified by command line
 
     def dump(self, comment=""):
         """

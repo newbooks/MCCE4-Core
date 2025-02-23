@@ -1,0 +1,57 @@
+# This runprm file is recorded on 2025-02-23 14:46:20
+Step 1 uses these runprm parameters
+prot.pdb   Step1. Input PDB file name                                   (INPDB)          #Set by run.prm.default
+delphi     Step3. Default PBE solver: delphi, apbs, ngpb, or zap        (PBE_SOLVER)     #Set by run.prm.default
+4.0        Step2. Protein dielectric constant.                          (EPSILON_PROT)   #Set by run.prm.default
+param/ftpl_default Step2 & Step3. Topologies files folder               (FTPL_FOLDER)    #Set by run.prm.default
+param/extra.ftpl Step2 & Step4. Extra param file                        (EXTRA)          #Set by run.prm.default
+config/name.txt Step1. Renaming rules for atoms and groups              (RENAME_RULES)   #Set by run.prm.default
+ph         Step4. Titration type: "ph" or "eh"                          (TITR_TYPE)      #Set by run.prm.default
+0.0        Step4. Initial pH                                            (TITR_PH0)       #Set by run.prm.default
+1.0        Step4. pH interval                                           (TITR_PHD)       #Set by run.prm.default
+0.0        Step4. Initial Eh                                            (TITR_EH0)       #Set by run.prm.default
+30.0       Step4. Eh interval (in mV)                                   (TITR_EHD)       #Set by run.prm.default
+15         Step4. Number of titration points                            (TITR_STEPS)     #Set by run.prm.default
+t          Step1. Label terminal residues as separate NTR and CTR?      (TERMINALS)      #Set by run.prm.default
+2.0        Step1. Distance limit for reporting clashes                  (CLASH_DISTANCE) #Set by run.prm.default
+0.05       Step1. Remove cofactors with %SAS exceeding this value       (SAS_CUTOFF)     #Set by run.prm.default
+f          Step1. Remove all HOH                                        (NO_HOH)         #Set by run.prm.default
+f          Step2. Use head1.lst on rotamer making                       (ROT_SPECIF)     #Set by run.prm.default
+f          Step2. Rebuild sidechain based on torsion minima             (REBUILD_SC)     #Set by run.prm.default
+t          Step2. Do swap (stereo isotope)                              (ROT_SWAP)       #Set by run.prm.default
+f          Step2. Do rotate?                                            (PACK)           #Set by run.prm.default
+f          Step2. Do swing?                                             (SWING)          #Set by run.prm.default
+10.0       Step2. phi in degrees of swing                               (PHI_SWING)      #Set by run.prm.default
+6          Step2. Number of rotamers in a bond rotation                 (ROTATIONS)      #Set by run.prm.default
+10.0       Step2. Cutoff of self vdw in kcal/mol                        (VDW_CUTOFF)     #Set by run.prm.default
+500        Step2. Number of repacks                                     (REPACKS)        #Set by run.prm.default
+0.01       Step2. Occupancy cutoff of repacks                           (REPACK_CUTOFF)  #Set by run.prm.default
+t          Step2. H-bond directed rotamer making.                       (HDIRECTED)      #Set by run.prm.default
+1.0        Step2. Threshold for two conformers being different          (HDIRDIFF)       #Set by run.prm.default
+36         Step2. Limit number of the H-bond conformers                 (HDIRLIMT)       #Set by run.prm.default
+t          Step2. Do pruning?                                           (PRUNE)          #Set by run.prm.default
+32.6       Step2. Pruning vdw cutoff from min 3*PH2KCAL*8               (PRUNE_VDW)      #Set by run.prm.default
+0.5        Step2. Root mean square deviation cutoff for clustering      (PRUNE_RMSD)     #Set by run.prm.default
+80.0       Step3. Solvent dielectric constant for DelPhi                (EPSILON_SOLV)   #Set by run.prm.default
+65         Step3. Number of grids in each DelPhi                        (GRIDS_DELPHI)   #Set by run.prm.default
+2.0        Step3. The target grids per angstrom for DelPhi              (GRIDS_PER_ANG)  #Set by run.prm.default
+1.4        Step3. Radius of the probe                                   (RADIUS_PROBE)   #Set by run.prm.default
+2.0        Step3. Ion radius                                            (IONRAD)         #Set by run.prm.default
+0.15       Step3. Salt                                                  (SALT)           #Set by run.prm.default
+bin/delphi Step3. Delphi executable                                     (DELPHI_EXE)     #Set by run.prm.default
+bin/apbs   Step3. APBS executable                                       (APBS_EXE)       #Set by run.prm.default
+5.0        Step4. Big pairwise threshold to make big list               (BIG_PAIRWISE)   #Set by run.prm.default
+-1         Step4. Random seed, -1 uses time as random seed              (MONTE_SEED)     #Set by run.prm.default
+298.15     Step4. Temperature                                           (MONTE_T)        #Set by run.prm.default
+3          Step4. Number of flips                                       (MONTE_FLIPS)    #Set by run.prm.default
+100        Step4. Annealing = MONTE_NSTART * confs                      (MONTE_NSTART)   #Set by run.prm.default
+300        Step4. Equilibration = MONTE_NEQ * confs                     (MONTE_NEQ)      #Set by run.prm.default
+0.001      Step4. Cutoff occupancy of the reduction                     (MONTE_REDUCE)   #Set by run.prm.default
+6          Step4. Number of independent Monte Carlo samplings           (MONTE_RUNS)     #Set by run.prm.default
+2000       Step4. Sampling = MONTE_NITER * confs                        (MONTE_NITER)    #Set by run.prm.default
+50000      Step4. Trace energy each MONTE_TRACE steps, 0: no trace      (MONTE_TRACE)    #Set by run.prm.default
+1000000    Step4. Maximum microstates for analytical solution           (NSTATE_MAX)     #Set by run.prm.default
+t          Step4. Do entropy correction                                 (MONTE_TSX)      #Set by run.prm.default
+1          Step3. PBE solver. Start conformer number, 0 based           (PBE_START)      #Set by run.prm.default
+99999      Step3. PBE solver. End conformer number, self included       (PBE_END)        #Set by run.prm.default
+/tmp       Step3. PBE solver. Temporary file folder                     (PBE_FOLDER)     #Set by run.prm.default
