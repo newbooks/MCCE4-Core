@@ -291,3 +291,17 @@ class Tpl:
                     if key not in self:
                         self[key] = []
                     self[key].append(value)
+
+            logging.debug(f"   Loaded ftpl file {file}")
+    
+    def dump(self, comment=""):
+        """
+        Dump the parameters in the format of a tpl file.
+        """
+        date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        with open(FTPL_DUMP, "w") as f:
+            f.write(f"# This tpl file is recorded on {date}\n{comment}\n")
+            for key, values in self.items():
+                for value in values:
+                    f.write(f"{key}: {value}\n")
+        logging.info(f"   MCCE ftpl parameters are recorded in file {FTPL_DUMP}")
