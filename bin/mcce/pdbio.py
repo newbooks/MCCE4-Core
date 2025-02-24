@@ -250,6 +250,80 @@ class Tpl:
     def items(self):
         return self._db.items()
 
+    # FTPL key is a tuple of up to 3 strings
+    # FTPL value is determined by the type of record, so we have to define one by one.
+    # The value types are
+    # 1. list of strings (example: CONFLIST)
+    # 2. float point number (example: CHARGE)
+    # 3. complex object (example: CONNECT)
+    class CONNECT_param:
+        """
+        CONNECT parameter class
+        """
+        def __init__(self, value_str):
+            fields = value_str.split(",")
+            self.orbital = fields[0].strip()
+            self.connected = [f.strip().strip('"') for f in fields[1:]]
+
+        def __str__(self):
+            values = [self.orbital]
+            values.extend(['"%s"'%a for a in self.connected])
+            value_str = ", ".join(values)
+            return value_str
+
+    class RADIUS_param:
+        """
+        RADII parameter class
+        """
+        def __init__(self, value_str):
+            fields = value_str.split(",")
+            self.r_bound = float(fields[0].strip())
+            self.r_vdw = float(fields[1].strip())
+            self.e_vdw = float(fields[2].strip())
+
+        def __str__(self):
+            return f"{self.r_bound}, {self.r_vdw}, {self.e_vdw}"
+
+    class CONFORMER_param:
+        """
+        CONFORMER parameter class
+        """
+        def __init__(self, value_str):
+            fields = value_str.split(",")
+            for f in fields:
+                k, v = f.split("=")
+                setattr(self, k.strip().lower(), float(v.strip()))
+
+        def __str__(self):
+            return ", ".join([f"{k}={v}" for k, v in vars(self).items()])
+
+    class ROTATE_param:
+        """
+        ROTATE parameter class
+        Example: ROTATE, ASP: " CA " - " CB ", " CB " - " CG "
+        """
+        def __init__(self, value_str):
+            fields = value_str.split(",")
+            rotatables = [tuple([a.strip().strip('"') for a in f.split("-")]) for f in fields]
+            self.rotatables = rotatables
+
+        def __str__(self):
+            return ", ".join([f'"{a}" - "{b}"' for a, b in self.rotatables])
+
+    class ROT_SWAP_param:
+        """
+        ROT_SWAP parameter class
+        Example: ROT_SWAP, HIS: " ND1" - " CD2",  " CE1" - " NE2"
+        """
+        def __init__(self, value_str):
+            fields = value_str.split(",")
+            swapables = [tuple([a.strip().strip('"') for a in f.split("-")]) for f in fields]
+            self.swapables = swapables
+
+        def __str__(self):
+            return ", ".join([f'"{a}" - "{b}"' for a, b in self.swapables])
+        
+
     # MCCE specific methods            
     def load_ftpl_folder(self, ftpl_folder):
         """
@@ -286,14 +360,58 @@ class Tpl:
                 entry_str = line.split("#")[0].strip()
                 fields = entry_str.split(":")
                 if len(fields) == 2:
-                    key = fields[0].strip()
-                    value = fields[1].strip()
-                    if key not in self:
-                        self[key] = []
-                    self[key].append(value)
+                    key_str = fields[0].strip()
+                    # we have up to 3 keys, separated by ","
+                    keys = key_str.split(",")
+                    key1 = keys[0].strip().strip('"')
+                    key2 = keys[1].strip().strip('"') if len(keys) > 1 else ""
+                    key3 = keys[2].strip().strip('"') if len(keys) > 2 else ""
+                    
+                    value_str = fields[1].strip()
+                    warn_duplicate_msg = "   Duplicate key {}. Overwriting its value ..."
 
+                    # We have to handle the value case by case here, once for all.
+                    if key1 == "CONFLIST":  # value stored as a list of strings
+                        #print(value_str)
+                        key = (key1, key2)
+                        if key in self:
+                            logging.warning(warn_duplicate_msg.format(key))
+                        self[key] = [v.strip() for v in value_str.split(",")]
+                    elif key1 == "CONNECT":  # value stored as a complex object
+                        key = (key1, key2, key3)
+                        if key in self:
+                            logging.warning(warn_duplicate_msg.format(key))
+                        self[key] = self.CONNECT_param(value_str)
+                    elif key1 == "RADIUS":
+                        key = (key1, key2, key3)
+                        if key in self:
+                            logging.warning(warn_duplicate_msg.format(key))
+                        self[key] = self.RADIUS_param(value_str)
+                    elif key1 == "CONFORMER":
+                        key = (key1, key2)
+                        if key in self:
+                            logging.warning(warn_duplicate_msg.format(key))
+                        self[key] = self.CONFORMER_param(value_str)
+                    elif key1 == "CHARGE":  # value stored as a float point number
+                        key = (key1, key2, key3)
+                        if key in self:
+                            logging.warning(warn_duplicate_msg.format(key))
+                        self[key] = float(value_str)
+                    elif key1 == "ROTATE":
+                        key = (key1, key2)
+                        if key in self:
+                            logging.warning(warn_duplicate_msg.format(key))
+                        self[key] = self.ROTATE_param(value_str)
+                    elif key1 == "ROT_SWAP":
+                        key = (key1, key2)
+                        if key in self:
+                            logging.warning(warn_duplicate_msg.format(key))
+                        self[key] = self.ROT_SWAP_param(value_str)
+            
             logging.debug(f"   Loaded ftpl file {file}")
     
+
+
     def dump(self, comment=""):
         """
         Dump the parameters in the format of a tpl file.
@@ -301,7 +419,10 @@ class Tpl:
         date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         with open(FTPL_DUMP, "w") as f:
             f.write(f"# This tpl file is recorded on {date}\n{comment}\n")
-            for key, values in self.items():
-                for value in values:
-                    f.write(f"{key}: {value}\n")
+            for key, value in self.items():
+                # wrap double quotes if a key has leading or ending spaces, and are 4 characters long
+                key_str = ", ".join(f'"{k}"' if len(k) == 4 and (k[0] == " " or k[-1] == " ") else k for k in key)
+                value_str = str(value).strip("[]").replace("'", "")  # remove brackets and single quotes in case it comes from a list
+                line = "%s: %s\n" % (key_str, value_str)
+                f.write(line)
         logging.info(f"   MCCE ftpl parameters are recorded in file {FTPL_DUMP}")
