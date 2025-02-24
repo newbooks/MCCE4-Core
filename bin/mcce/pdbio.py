@@ -9,6 +9,7 @@ import os
 import logging
 import datetime
 import copy
+import glob
 from .constants import *
 from .geom import Vector
 
@@ -217,6 +218,45 @@ class Runprm:
                     line = "%-10s %s %-16s %s\n" % (value.value, description, f"({key})", value.set_by)
                 f.write(line)
         logging.info(f"   MCCE runprm parameters are recorded in file {RUNPRM_DUMP}")
-                
 
-        
+
+class Tpl:
+    """
+    Tpl class
+    This class stores parameters from ftpl files.
+    """
+    # Make Tpl a dictionary-like object
+    def __init__(self):
+        self._db = {}
+
+    def __getitem__(self, key):
+        return self._db[key]
+
+    def __setitem__(self, key, value):
+        self._db[key] = value
+
+    def __delitem__(self, key):
+        del self._db[key]
+
+    def __contains__(self, key):
+        return key in self._db
+
+    def keys(self):
+        return self._db.keys()
+
+    def values(self):
+        return self._db.values()
+
+    def items(self):
+        return self._db.items()
+
+    # MCCE specific methods            
+    def load_ftpl_folder(self, ftpl_folder):
+        """
+        Load ftpl files from the ftpl folder.
+        """
+        files =glob.glob(os.path.join(ftpl_folder, "*.ftpl"))
+        files.sort()    # sort the files to ensure the order, once can be used to overwrite the other
+        for file in files:
+            print(file)
+    
