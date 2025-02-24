@@ -1,4 +1,4 @@
-# This runprm file is recorded on 2025-02-23 21:21:41
+# This runprm file is recorded on 2025-02-23 21:32:01
 Step 1 uses these runprm parameters
 prot.pdb   Step1. Input PDB file name                                   (INPDB)          #Set by run.prm.default
 delphi     Step3. Default PBE solver: delphi, apbs, ngpb, or zap        (PBE_SOLVER)     #Set by run.prm.default

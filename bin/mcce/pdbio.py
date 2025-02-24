@@ -257,6 +257,37 @@ class Tpl:
         """
         files =glob.glob(os.path.join(ftpl_folder, "*.ftpl"))
         files.sort()    # sort the files to ensure the order, once can be used to overwrite the other
+        logging.info(f"   Loading ftpl files from folder {ftpl_folder}")
         for file in files:
-            print(file)
+            self.load_ftpl_file(file)
     
+    def load_ftpl_file(self, file):
+        """
+        Load a ftpl file.
+        Sample ftpl file:
+        ---------------------------------------
+        # Values of the same key are appended and separated by ","
+        CONFLIST, ASP: ASPBK, ASP01, ASP02, ASP-1
+
+        # Atom definition
+        CONNECT, " N  ", ASPBK: sp2, " ?  ", " CA ", " H  "
+        CONNECT, " H  ", ASPBK: s, " N  "
+        CONNECT, " CA ", ASPBK: sp3, " N  ", " C  ", " CB ", " HA "
+        CONNECT, " HA ", ASPBK: s, " CA "
+        CONNECT, " C  ", ASPBK: sp2, " CA ", " O  ", " ?  "
+        ---------------------------------------
+        : separates key and value
+        The key is the fields (up to 3) before the first : in a line.
+        The value is the fields after the first : in a line.
+        """
+
+        with open(file) as f:
+            for line in f:
+                entry_str = line.split("#")[0].strip()
+                fields = entry_str.split(":")
+                if len(fields) == 2:
+                    key = fields[0].strip()
+                    value = fields[1].strip()
+                    if key not in self:
+                        self[key] = []
+                    self[key].append(value)
