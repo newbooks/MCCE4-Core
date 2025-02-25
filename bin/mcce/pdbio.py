@@ -513,8 +513,7 @@ class Pdb:
                 self.message = "Multi-model pdb file is not supported. Please split the file into single model files."
                 return
 
-            # detect is the altloc happens on backbone atoms
-
+            # read the pdb file
             f.seek(0)
             for line in f:
                 if line.startswith("ATOM  ") or line.startswith("HETATM"):
@@ -529,4 +528,8 @@ class Pdb:
                     atom.xyz = Vector([float(line[30:38]), float(line[38:46]), float(line[46:54])])
                     atom.element = line[76:78].strip()
                     self.atoms.append(atom)
+
+            # detect is the altloc happens on backbone atoms
+
+
             self.mcce_ready = True
