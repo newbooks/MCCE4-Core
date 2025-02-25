@@ -39,6 +39,20 @@ class Atom:
         self.conn14 = []            # list of atoms that are 1-4 bonded
         self.parent_conf = None     # parent conformer
 
+    def load_pdbline(self, line):
+        """
+        Load the atom from a pdb line.
+        """
+        self.record = line[0:6]
+        self.atomname = line[12:16]
+        self.altloc = line[16]
+        self.resname = line[17:20]
+        self.chain = line[21]
+        self.sequence = int(line[22:26])
+        self.insertion = line[26]
+        self.xyz = Vector([float(line[30:38]), float(line[38:46]), float(line[46:54])])
+        self.element = line[76:78]
+
 
 class Conformer:
     """
@@ -510,7 +524,7 @@ class Pdb:
                     n_model += 1
             if n_model > 1:
                 self.mcce_ready = False
-                self.message = "Multi-model pdb file is not supported. Please split the file into single model files."
+                self.message = "Multi-model pdb file is not supported. Use split_nmr.py to divide the file into individual models."
                 return
 
             # read the pdb file
@@ -518,18 +532,19 @@ class Pdb:
             for line in f:
                 if line.startswith("ATOM  ") or line.startswith("HETATM"):
                     atom = Atom()
-                    atom.record = line[0:6]
-                    atom.atomname = line[12:16].strip()
-                    atom.altloc = line[16]
-                    atom.resname = line[17:20].strip()
-                    atom.chain = line[21]
-                    atom.sequence = int(line[22:26])
-                    atom.insertion = line[26]
-                    atom.xyz = Vector([float(line[30:38]), float(line[38:46]), float(line[46:54])])
-                    atom.element = line[76:78].strip()
+                    atom.load_pdbline(line)
                     self.atoms.append(atom)
 
             # detect is the altloc happens on backbone atoms
-
+            altloc_on_backbone = False
+            for atom in self.atoms:
+                if atom.atomname in BACKBONE_ATOMS and atom.resname in RESIDUE_NAMES and atom.altloc != " ":
+                    altloc_on_backbone = True
+                    logging.warning("   altLoc backbone atom: %4s%c%3s %c%4d" %(atom.atomname, atom.altloc, atom.resname, atom.chain, atom.sequence))
+                    
+            if altloc_on_backbone:
+                self.mcce_ready = False
+                self.message = f"Backbone atoms with altLoc are not supported. Use split_altloc.py to split the pdb file."
+                return
 
             self.mcce_ready = True

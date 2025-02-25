@@ -14,3 +14,12 @@ RUNPRM_SPECIAL_ENTRIES = ["FTPL_FOLDER", "EXTRA", "RENAME_RULES", "DELPHI_EXE", 
 ROOMT = 298.15
 PH2KCAL = 1.364
 KCAL2KT = 1.688
+
+
+# This is for split_altloc()
+# A backbone atom should have residue name AND name match the following to be considered as backbone
+BACKBONE_ATOMS = {" N  ", " CA ", " C  ", " O  "}
+RESIDUE_NAMES = {"ALA", "ARG", "ASN", "ASP", "CYS", "CYD", "GLN", "GLU", "GLY",
+                 "HIL", "HIS", "ILE", "LEU", "LYS", "MET", "MEL", "PHE", "PRO",
+                 "SER", "THR", "TRP", "TYR", "VAL"}
+
