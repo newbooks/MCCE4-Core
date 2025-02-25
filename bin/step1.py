@@ -47,4 +47,15 @@ if __name__ == "__main__":
     tpl.load_ftpl_folder(prm._FTPL_FOLDER.value) # Load the ftpl folder specified in runprm
     tpl.dump(comment="Step 1 uses these tpl parameters") # Save the parameters to tpl.dat.record
 
-    # Get protein object
+    # Get pdb
+    # Attempt to load the pdb file to a Pdb object.
+    # The Pdb object has these attributes that are relavent to the next part of step 1:
+    #   - pdb.mcce_ready: a boolean value indicating whether the pdb file is ready for mcce
+    #   - pdb.message: a string message indicating the why the pdb file is not mcce ready
+    #   - pdb.atoms: a list of Atom objects
+    pdb = Pdb(prm.INPDB.value)  # Create a Pdb instance and load the pdb file to atoms
+    if not pdb.mcce_ready:
+        logging.error(f"{pdb.message}")
+        exit(1)
+    
+
