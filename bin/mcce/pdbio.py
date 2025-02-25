@@ -322,7 +322,41 @@ class Tpl:
 
         def __str__(self):
             return ", ".join([f'"{a}" - "{b}"' for a, b in self.swapables])
-        
+    
+
+    class LIGAND_ID_param:
+        """
+        LIGAND_ID parameter class
+        Examples:
+        LIGAND_ID, CYS, CYS: " SG " - " SG "; 2.00 +- 0.20; CYL, CYL
+        LIGAND_ID, HIS, HEM: " NE2" - "FE  "; 2.50 +- 0.25; HIL, HEM
+        LIGAND_ID, HIS, HEA: " NE2" - "FE  "; 2.50 +- 0.25; HIL, HEA
+        LIGAND_ID, HIS, HEB: " NE2" - "FE  "; 2.50 +- 0.25; HIL, HEB
+        LIGAND_ID, HIS, HEC: " NE2" - "FE  "; 2.50 +- 0.25; HIL, HEC
+        LIGAND_ID, MET, HEA: " SD " - "FE  "; 2.50 +- 0.25; HIL, HEA
+        LIGAND_ID, MET, HEB: " SD " - "FE  "; 2.50 +- 0.25; HIL, HEB
+        LIGAND_ID, MET, HEC: " SD " - "FE  "; 2.50 +- 0.25; HIL, HEC
+        """
+        def __init__(self, value_str):
+            fields = value_str.split(";")
+            # atom pair
+            atom1, atom2 = fields[0].strip().split("-")
+            self.atom1 = atom1.strip().strip('"')
+            self.atom2 = atom2.strip().strip('"')
+            # ligand bond distance and tolerance
+            distance, tolerance = fields[1].strip().split("+-")
+            self.distance = float(distance.strip())
+            self.tolerance = float(tolerance.strip())
+            # residue rename to
+            name1, name2 = fields[2].strip().split(",")
+            self.res1_name = name1.strip()
+            self.res2_name = name2.strip()  
+
+        def __str__(self):
+            value_str = f'"{self.atom1}" - "{self.atom2}"; {self.distance} +- {self.tolerance}; {self.res1_name}, {self.res2_name}'
+            return value_str
+
+
 
     # MCCE specific methods            
     def load_ftpl_folder(self, ftpl_folder):
@@ -407,7 +441,25 @@ class Tpl:
                         if key in self:
                             logging.warning(warn_duplicate_msg.format(key))
                         self[key] = self.ROT_SWAP_param(value_str)
-            
+                    elif key1 == "TORSION":
+                        logging.debug(f"   TORSION parameters are not used in this version of MCCE.")
+                    elif key1 == "LIGAND_ID":
+                        key = (key1, key2, key3)
+                        if key in self:
+                            logging.warning(warn_duplicate_msg.format(key))
+                        self[key] = self.LIGAND_ID_param(value_str)
+                    elif key1 == "EXTRA" or key1 == "SCALING":  # captures 2-key float value type parameters
+                        key = (key1, key2)
+                        if key in self:
+                            logging.warning(warn_duplicate_msg.format(key))
+                        self[key] = float(value_str)
+                    else:
+                        logging.warning(f"   {key1} parameters are not defined in {__file__}, value treated as string.")
+                        key = (key1, key2, key3)
+                        if key in self:
+                            logging.warning(warn_duplicate_msg.format(key))
+                        self[key] = value_str
+
             logging.debug(f"   Loaded ftpl file {file}")
     
 
