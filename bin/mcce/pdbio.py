@@ -20,6 +20,7 @@ class Atom:
     """
     def __init__(self):
         # defined by pdb file
+        self.record = ""            # record name "ATOM" or "HETATM"
         self.atomname = ""          # atom name
         self.altloc = ""            # alternate location indicator
         self.resname = ""           # residue name
@@ -478,3 +479,57 @@ class Tpl:
                 line = "%s: %s\n" % (key_str, value_str)
                 f.write(line)
         logging.info(f"   MCCE ftpl parameters are recorded in file {FTPL_DUMP}")
+
+
+class Pdb:
+    """
+    Pdb class
+    This class stores the protein data from a pdb file.
+    """
+    def __init__(self, pdb_file):
+        self.pdb_file = pdb_file
+        self.atoms = []
+        self.mcce_ready = False
+        self.message = ""
+        self.load_pdb()
+
+    def load_pdb(self):
+        """
+        Load the pdb file to atoms.
+        """ 
+        if not os.path.exists(self.pdb_file):
+            self.mcce_ready = False
+            self.message = f"PDB file {self.pdb_file} not found."
+            return
+
+        with open(self.pdb_file) as f:
+            # detect if this is a multi-model pdb file
+            n_model = 0
+            for line in f:
+                if line.startswith("MODEL"):
+                    n_model += 1
+            if n_model > 1:
+                self.mcce_ready = False
+                self.message = "Multi-model pdb file is not supported. Please split the file into single model files."
+                return
+
+            # read the pdb file
+            f.seek(0)
+            for line in f:
+                if line.startswith("ATOM  ") or line.startswith("HETATM"):
+                    atom = Atom()
+                    atom.record = line[0:6]
+                    atom.atomname = line[12:16].strip()
+                    atom.altloc = line[16]
+                    atom.resname = line[17:20].strip()
+                    atom.chain = line[21]
+                    atom.sequence = int(line[22:26])
+                    atom.insertion = line[26]
+                    atom.xyz = Vector([float(line[30:38]), float(line[38:46]), float(line[46:54])])
+                    atom.element = line[76:78].strip()
+                    self.atoms.append(atom)
+
+            # detect is the altloc happens on backbone atoms
+
+
+            self.mcce_ready = True
