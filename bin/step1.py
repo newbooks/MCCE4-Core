@@ -35,8 +35,16 @@ if __name__ == "__main__":
         logging.basicConfig(level=logging.INFO, format=logging_format, datefmt=logging_datefmt)
 
     logging.info("Step 1: Read PDB file and generate a mcce protein object")
-    prm = Runprm()                  # Load default runprm file
-    prm.update_by_cmd(args)         # Update by command line arguments
-    prm.update_by_files(args.r)     # Update by additional runprm files
-    prm.dump(comment="Step 1 uses these runprm parameters") # Dump to run.prm.record
+    
+    # Get prm
+    prm = Runprm()                  # Create a Runprm instance and load the default runprm file
+    prm.update_by_cmd(args)         # Update parameters using command line arguments
+    prm.update_by_files(args.r)     # Update parameters using additional runprm files
+    prm.dump(comment="Step 1 uses these runprm parameters") # Save the parameters to run.prm.record
 
+    # Get tpl
+    tpl = Tpl()                     # Create a Tpl instance
+    tpl.load_ftpl_folder(prm._FTPL_FOLDER.value) # Load the ftpl folder specified in runprm
+    tpl.dump(comment="Step 1 uses these tpl parameters") # Save the parameters to tpl.dat.record
+
+    # Get protein object

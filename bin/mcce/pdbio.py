@@ -9,6 +9,7 @@ import os
 import logging
 import datetime
 import copy
+import glob
 from .constants import *
 from .geom import Vector
 
@@ -217,6 +218,263 @@ class Runprm:
                     line = "%-10s %s %-16s %s\n" % (value.value, description, f"({key})", value.set_by)
                 f.write(line)
         logging.info(f"   MCCE runprm parameters are recorded in file {RUNPRM_DUMP}")
-                
 
-        
+
+class Tpl:
+    """
+    Tpl class
+    This class stores parameters from ftpl files.
+    """
+    # Make Tpl a dictionary-like object
+    def __init__(self):
+        self._db = {}
+
+    def __getitem__(self, key):
+        return self._db[key]
+
+    def __setitem__(self, key, value):
+        self._db[key] = value
+
+    def __delitem__(self, key):
+        del self._db[key]
+
+    def __contains__(self, key):
+        return key in self._db
+
+    def keys(self):
+        return self._db.keys()
+
+    def values(self):
+        return self._db.values()
+
+    def items(self):
+        return self._db.items()
+
+    # FTPL key is a tuple of up to 3 strings
+    # FTPL value is determined by the type of record, so we have to define one by one.
+    # The value types are
+    # 1. list of strings (example: CONFLIST)
+    # 2. float point number (example: CHARGE)
+    # 3. complex object (example: CONNECT)
+    class CONNECT_param:
+        """
+        CONNECT parameter class
+        """
+        def __init__(self, value_str):
+            fields = value_str.split(",")
+            self.orbital = fields[0].strip()
+            self.connected = [f.strip().strip('"') for f in fields[1:]]
+
+        def __str__(self):
+            values = [self.orbital]
+            values.extend(['"%s"'%a for a in self.connected])
+            value_str = ", ".join(values)
+            return value_str
+
+    class RADIUS_param:
+        """
+        RADII parameter class
+        """
+        def __init__(self, value_str):
+            fields = value_str.split(",")
+            self.r_bound = float(fields[0].strip())
+            self.r_vdw = float(fields[1].strip())
+            self.e_vdw = float(fields[2].strip())
+
+        def __str__(self):
+            return f"{self.r_bound}, {self.r_vdw}, {self.e_vdw}"
+
+    class CONFORMER_param:
+        """
+        CONFORMER parameter class
+        """
+        def __init__(self, value_str):
+            fields = value_str.split(",")
+            for f in fields:
+                k, v = f.split("=")
+                setattr(self, k.strip().lower(), float(v.strip()))
+
+        def __str__(self):
+            return ", ".join([f"{k}={v}" for k, v in vars(self).items()])
+
+    class ROTATE_param:
+        """
+        ROTATE parameter class
+        Example: ROTATE, ASP: " CA " - " CB ", " CB " - " CG "
+        """
+        def __init__(self, value_str):
+            fields = value_str.split(",")
+            rotatables = [tuple([a.strip().strip('"') for a in f.split("-")]) for f in fields]
+            self.rotatables = rotatables
+
+        def __str__(self):
+            return ", ".join([f'"{a}" - "{b}"' for a, b in self.rotatables])
+
+    class ROT_SWAP_param:
+        """
+        ROT_SWAP parameter class
+        Example: ROT_SWAP, HIS: " ND1" - " CD2",  " CE1" - " NE2"
+        """
+        def __init__(self, value_str):
+            fields = value_str.split(",")
+            swapables = [tuple([a.strip().strip('"') for a in f.split("-")]) for f in fields]
+            self.swapables = swapables
+
+        def __str__(self):
+            return ", ".join([f'"{a}" - "{b}"' for a, b in self.swapables])
+    
+
+    class LIGAND_ID_param:
+        """
+        LIGAND_ID parameter class
+        Examples:
+        LIGAND_ID, CYS, CYS: " SG " - " SG "; 2.00 +- 0.20; CYL, CYL
+        LIGAND_ID, HIS, HEM: " NE2" - "FE  "; 2.50 +- 0.25; HIL, HEM
+        LIGAND_ID, HIS, HEA: " NE2" - "FE  "; 2.50 +- 0.25; HIL, HEA
+        LIGAND_ID, HIS, HEB: " NE2" - "FE  "; 2.50 +- 0.25; HIL, HEB
+        LIGAND_ID, HIS, HEC: " NE2" - "FE  "; 2.50 +- 0.25; HIL, HEC
+        LIGAND_ID, MET, HEA: " SD " - "FE  "; 2.50 +- 0.25; HIL, HEA
+        LIGAND_ID, MET, HEB: " SD " - "FE  "; 2.50 +- 0.25; HIL, HEB
+        LIGAND_ID, MET, HEC: " SD " - "FE  "; 2.50 +- 0.25; HIL, HEC
+        """
+        def __init__(self, value_str):
+            fields = value_str.split(";")
+            # atom pair
+            atom1, atom2 = fields[0].strip().split("-")
+            self.atom1 = atom1.strip().strip('"')
+            self.atom2 = atom2.strip().strip('"')
+            # ligand bond distance and tolerance
+            distance, tolerance = fields[1].strip().split("+-")
+            self.distance = float(distance.strip())
+            self.tolerance = float(tolerance.strip())
+            # residue rename to
+            name1, name2 = fields[2].strip().split(",")
+            self.res1_name = name1.strip()
+            self.res2_name = name2.strip()  
+
+        def __str__(self):
+            value_str = f'"{self.atom1}" - "{self.atom2}"; {self.distance} +- {self.tolerance}; {self.res1_name}, {self.res2_name}'
+            return value_str
+
+
+
+    # MCCE specific methods            
+    def load_ftpl_folder(self, ftpl_folder):
+        """
+        Load ftpl files from the ftpl folder.
+        """
+        files =glob.glob(os.path.join(ftpl_folder, "*.ftpl"))
+        files.sort()    # sort the files to ensure the order, once can be used to overwrite the other
+        logging.info(f"   Loading ftpl files from folder {ftpl_folder}")
+        for file in files:
+            self.load_ftpl_file(file)
+    
+    def load_ftpl_file(self, file):
+        """
+        Load a ftpl file.
+        Sample ftpl file:
+        ---------------------------------------
+        # Values of the same key are appended and separated by ","
+        CONFLIST, ASP: ASPBK, ASP01, ASP02, ASP-1
+
+        # Atom definition
+        CONNECT, " N  ", ASPBK: sp2, " ?  ", " CA ", " H  "
+        CONNECT, " H  ", ASPBK: s, " N  "
+        CONNECT, " CA ", ASPBK: sp3, " N  ", " C  ", " CB ", " HA "
+        CONNECT, " HA ", ASPBK: s, " CA "
+        CONNECT, " C  ", ASPBK: sp2, " CA ", " O  ", " ?  "
+        ---------------------------------------
+        : separates key and value
+        The key is the fields (up to 3) before the first : in a line.
+        The value is the fields after the first : in a line.
+        """
+
+        with open(file) as f:
+            for line in f:
+                entry_str = line.split("#")[0].strip()
+                fields = entry_str.split(":")
+                if len(fields) == 2:
+                    key_str = fields[0].strip()
+                    # we have up to 3 keys, separated by ","
+                    keys = key_str.split(",")
+                    key1 = keys[0].strip().strip('"')
+                    key2 = keys[1].strip().strip('"') if len(keys) > 1 else ""
+                    key3 = keys[2].strip().strip('"') if len(keys) > 2 else ""
+                    
+                    value_str = fields[1].strip()
+                    warn_duplicate_msg = "   Duplicate key {}. Overwriting its value ..."
+
+                    # We have to handle the value case by case here, once for all.
+                    if key1 == "CONFLIST":  # value stored as a list of strings
+                        #print(value_str)
+                        key = (key1, key2)
+                        if key in self:
+                            logging.warning(warn_duplicate_msg.format(key))
+                        self[key] = [v.strip() for v in value_str.split(",")]
+                    elif key1 == "CONNECT":  # value stored as a complex object
+                        key = (key1, key2, key3)
+                        if key in self:
+                            logging.warning(warn_duplicate_msg.format(key))
+                        self[key] = self.CONNECT_param(value_str)
+                    elif key1 == "RADIUS":
+                        key = (key1, key2, key3)
+                        if key in self:
+                            logging.warning(warn_duplicate_msg.format(key))
+                        self[key] = self.RADIUS_param(value_str)
+                    elif key1 == "CONFORMER":
+                        key = (key1, key2)
+                        if key in self:
+                            logging.warning(warn_duplicate_msg.format(key))
+                        self[key] = self.CONFORMER_param(value_str)
+                    elif key1 == "CHARGE":  # value stored as a float point number
+                        key = (key1, key2, key3)
+                        if key in self:
+                            logging.warning(warn_duplicate_msg.format(key))
+                        self[key] = float(value_str)
+                    elif key1 == "ROTATE":
+                        key = (key1, key2)
+                        if key in self:
+                            logging.warning(warn_duplicate_msg.format(key))
+                        self[key] = self.ROTATE_param(value_str)
+                    elif key1 == "ROT_SWAP":
+                        key = (key1, key2)
+                        if key in self:
+                            logging.warning(warn_duplicate_msg.format(key))
+                        self[key] = self.ROT_SWAP_param(value_str)
+                    elif key1 == "TORSION":
+                        logging.debug(f"   TORSION parameters are not used in this version of MCCE.")
+                    elif key1 == "LIGAND_ID":
+                        key = (key1, key2, key3)
+                        if key in self:
+                            logging.warning(warn_duplicate_msg.format(key))
+                        self[key] = self.LIGAND_ID_param(value_str)
+                    elif key1 == "EXTRA" or key1 == "SCALING":  # captures 2-key float value type parameters
+                        key = (key1, key2)
+                        if key in self:
+                            logging.warning(warn_duplicate_msg.format(key))
+                        self[key] = float(value_str)
+                    else:
+                        logging.warning(f"   {key1} parameters are not defined in {__file__}, value treated as string.")
+                        key = (key1, key2, key3)
+                        if key in self:
+                            logging.warning(warn_duplicate_msg.format(key))
+                        self[key] = value_str
+
+            logging.debug(f"   Loaded ftpl file {file}")
+    
+
+
+    def dump(self, comment=""):
+        """
+        Dump the parameters in the format of a tpl file.
+        """
+        date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        with open(FTPL_DUMP, "w") as f:
+            f.write(f"# This tpl file is recorded on {date}\n{comment}\n")
+            for key, value in self.items():
+                # wrap double quotes if a key has leading or ending spaces, and are 4 characters long
+                key_str = ", ".join(f'"{k}"' if len(k) == 4 and (k[0] == " " or k[-1] == " ") else k for k in key)
+                value_str = str(value).strip("[]").replace("'", "")  # remove brackets and single quotes in case it comes from a list
+                line = "%s: %s\n" % (key_str, value_str)
+                f.write(line)
+        logging.info(f"   MCCE ftpl parameters are recorded in file {FTPL_DUMP}")
