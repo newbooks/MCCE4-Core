@@ -536,13 +536,12 @@ class Pdb:
                     self.atoms.append(atom)
 
             # detect is the altloc happens on backbone atoms
-            altloc_on_backbone = False
+            altloc_on_backbone = set()
             for atom in self.atoms:
                 if atom.atomname in BACKBONE_ATOMS and atom.resname in RESIDUE_NAMES and atom.altloc != " ":
-                    altloc_on_backbone = True
-                    logging.warning("   altLoc backbone atom: %4s%c%3s %c%4d" %(atom.atomname, atom.altloc, atom.resname, atom.chain, atom.sequence))
+                    altloc_on_backbone.add(atom.altloc)
                     
-            if altloc_on_backbone:
+            if len(altloc_on_backbone) > 1:
                 self.mcce_ready = False
                 self.message = f"Backbone atoms with altLoc are not supported. Use split_altloc.py to split the pdb file."
                 return
