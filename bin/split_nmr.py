@@ -31,26 +31,29 @@ if __name__ == "__main__":
     # Read the PDB files
     for pdb_file in args.pdb_files:
         if os.path.isfile(pdb_file):
-            with open(pdb_file, "r") as f:
-                pdblines = f.readlines()
+            pdblines = open(pdb_file).readlines()
 
             # Split the models
             model = []
             model_number = None
+            pdb_file_base = os.path.splitext(pdb_file)[0]
+            fnames = []
             for line in pdblines:
                 if line.startswith("MODEL"):
                     model = []
                     model_number = int(line.split()[1])
                 elif line.startswith("ENDMDL"):
-                    with open(f"{pdb_file}.model{model_number}.pdb", "w") as f:
+                    with open(f"{pdb_file_base}.model{model_number}.pdb", "w") as f:
                         f.writelines(model)
+                        fnames.append(f"{pdb_file_base}.model{model_number}.pdb")
                 model.append(line)
             if model_number is not None:
-                with open(f"{pdb_file}.model{model_number}.pdb", "w") as f:
+                with open(f"{pdb_file_base}.model{model_number}.pdb", "w") as f:
                     f.writelines(model)
-                logging.info(f"Split {pdb_file} into {model_number} models")
+                    fnames.append(f"{pdb_file_base}.model{model_number}.pdb")
+                logging.info(f"Split {pdb_file} into {model_number} models: {', '.join(fnames)}")
             else:
-                logging.warning(f"No models found in {pdb_file}")
+                logging.info(f"No models found in {pdb_file}")
         else:
             logging.error(f"File \"{pdb_file}\" not found")
             exit(1)
