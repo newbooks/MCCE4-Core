@@ -550,6 +550,24 @@ class Pdb:
 
     def rename(self, rules):
         """
-        Rename atoms according to the rules in runprm.
+        Rename pdb lines according to the rules in runprm.
         """
         logging.info(f"   Atoms are renamed according to the rules in {rules}")
+        # loading rules from the file
+        if os.path.exists(rules):
+            with open(rules) as f:
+                rename_rules = []  # a list of tuples in the form of (str_from, str_to)
+                for line in f:
+                    entry = line.split("#")[0]
+                    if len(entry) >= 30:    # str_from 14 + separator 2 + str_to 14
+                        str_from = entry[:14]
+                        str_to = entry[16:30]
+                        rename_rules.append((str_from, str_to))
+            
+            # renaming atoms
+
+
+        else:
+            logging.warning(f"   Rename rules file {rules} not found. Nothing is renamed.")
+            
+        
