@@ -547,3 +547,9 @@ class Pdb:
                 return
 
             self.mcce_ready = True
+
+    def rename(self, rules):
+        """
+        Rename atoms according to the rules in runprm.
+        """
+        logging.info(f"   Atoms are renamed according to the rules in {rules}")
