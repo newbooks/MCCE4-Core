@@ -5,6 +5,7 @@ Description:
 This module provides MCCE protein and parameter data structure and input/output functions.
 """
 
+import sys
 import os
 import logging
 import datetime
@@ -21,6 +22,7 @@ class Atom:
     def __init__(self):
         # defined by pdb file
         self.record = ""            # record name "ATOM" or "HETATM"
+        self.serial = 0             # atom serial number
         self.atomname = ""          # atom name
         self.altloc = ""            # alternate location indicator
         self.resname = ""           # residue name
@@ -49,9 +51,37 @@ class Atom:
         self.resname = line[17:20]
         self.chain = line[21]
         self.sequence = int(line[22:26])
-        self.insertion = line[26]
+        if line[26] == " ":
+            self.insertion = "_"
+        else:
+            self.insertion = line[26]
         self.xyz = Vector([float(line[30:38]), float(line[38:46]), float(line[46:54])])
-        self.element = line[76:78]
+        #self.element = line[76:78] # Use atom name to detemin element so it covers non standard PDB files
+        if len(self.atomname.strip()) == 4 and self.atomname[0] == "H":
+            self.element = " H"
+        else:
+            self.element = self.atomname[:2]
+
+    def as_mccepdb_line(self):
+        """
+        Return the atom as a pdb line.
+        """
+        serial = self.serial % 100000
+        return "ATOM  %5d %4s %3s %c%04d%c%03d%8.3f%8.3f%8.3f%8.3f%12.3f      %s\n" % (
+            serial,
+            self.atomname,
+            self.resname,
+            self.chain,
+            self.sequence,
+            self.insertion,
+            self.parent_conf.confnum,
+            self.xyz.x,
+            self.xyz.y,
+            self.xyz.z,
+            self.r_boundary,
+            self.charge,
+            self.parent_conf.history
+        )
 
 
 class Conformer:
@@ -95,6 +125,22 @@ class Protein:
     def __init__(self):
         self.residues = []          # list of residues in the protein
 
+    def dump(self, fname, prepend=[], append=[]):
+        lines = prepend
+        for res in self.residues:
+            lines.append("# Residue: %s %s%04d%c\n" % (res.resname, res.chain, res.sequence, res.insertion))
+            for conf in res.conformers:
+                lines.append("## Conformer %s: %s %s\n" % (conf.confid, conf.conftype, conf.history))
+                for atom in conf.atoms:
+                    lines.append(atom.as_mccepdb_line())
+                lines.append("#%s\n" % ("-" * 89))
+            lines.append("#%s\n" % ("=" * 89))
+        lines.extend(append)
+        if fname is None:
+            sys.stdout.writelines(lines)
+        else:
+            with open(fname, "w") as f:
+                f.writelines(lines)
 
 
 class Runprm:
@@ -533,7 +579,8 @@ class Pdb:
                 if line.startswith("ATOM  ") or line.startswith("HETATM"):
                     atom = Atom()
                     atom.load_pdbline(line)
-                    self.atoms.append(atom)
+                    if not is_H(atom.atomname):
+                        self.atoms.append(atom)
 
             # detect is the altloc happens on backbone atoms
             altloc_on_backbone = set()
@@ -595,3 +642,56 @@ class Pdb:
                     f"1.00  0.00          {atom.element:2}\n"
                 )
                 f.write(line)
+
+    def convert_to_protein(self, tpl):
+        """
+        Convert pdb atoms to Protein object.
+        Protein is a hirarchy of Residue -> Conformer -> Atom.
+        """
+
+        protein = Protein()
+        for atom in self.atoms:
+            # create a new conformer if the residue does not exist
+            residue = None
+            for res in protein.residues:
+                if res.resid == (atom.resname, atom.chain, atom.sequence, atom.insertion):
+                    residue = res
+                    break
+            if residue is None:
+                residue = Residue()
+                residue.resname = atom.resname
+                residue.chain = atom.chain
+                residue.sequence = atom.sequence
+                residue.insertion = atom.insertion
+                residue.resid = (atom.resname, atom.chain, atom.sequence, atom.insertion)
+                protein.residues.append(residue)
+
+            # create a new conformer if the conformer does not exist
+            conformer = None
+            for conf in residue.conformers:
+                if conf.confid == f"{atom.resname}{atom.chain}{atom.sequence:04d}{atom.insertion}000": # conformer number assumed to be 0
+                    conformer = conf
+                    break
+            if conformer is None:
+                conformer = Conformer()
+                conformer.confnum = 0
+                conformer.confid = f"{atom.resname}{atom.chain}{atom.sequence:04d}{atom.insertion}000" # use 000 as conformer number
+                conformer.conftype = "NA"
+                conformer.history = "From_PDB"
+                conformer.altloc = atom.altloc
+                conformer.resname = atom.resname
+                conformer.chain = atom.chain
+                conformer.sequence = atom.sequence
+                conformer.insertion = atom.insertion
+                conformer.parent_residue = residue
+                residue.conformers.append(conformer)
+
+            # add this atom to conformer
+            atom.parent_conf = conformer
+            conformer.atoms.append(atom)
+
+        return protein
+
+def is_H(atom_name):
+    # It is an H atom when full 4 chars starts with H, or less than 4-char but the 2nd char is H
+    return (len(atom_name.strip()) == 4 and atom_name[0] == "H") or (len(atom_name.strip()) < 4 and atom_name[1] == "H" )

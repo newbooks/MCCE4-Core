@@ -61,4 +61,5 @@ if __name__ == "__main__":
 
     # pdb.dump_pdb("renamed.pdb")  # Check if renaming is correct
     
-
+    protein = pdb.convert_to_protein(tpl)  # Convert the pdb to a Protein object
+    protein.dump("step1_out.pdb")  # Save the protein to a pdb file
