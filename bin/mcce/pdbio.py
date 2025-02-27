@@ -552,21 +552,30 @@ class Pdb:
         """
         Rename pdb lines according to the rules in runprm.
         """
-        logging.info(f"   Atoms are renamed according to the rules in {rules}")
-        # loading rules from the file
+
+        def match_rule2string(rule, string):
+            return all(r == "*" or r == s for r, s in zip(rule, string))
+
+        def rename_rule2string(rule, string):
+            return "".join([r if r != "*" else s for r, s in zip(rule, string)])
+
         if os.path.exists(rules):
             with open(rules) as f:
-                rename_rules = []  # a list of tuples in the form of (str_from, str_to)
-                for line in f:
-                    entry = line.split("#")[0]
-                    if len(entry) >= 30:    # str_from 14 + separator 2 + str_to 14
-                        str_from = entry[:14]
-                        str_to = entry[16:30]
-                        rename_rules.append((str_from, str_to))
-            
-            # renaming atoms
+                rename_rules = [(line[:14], line[16:30]) for line in f if len(line.split("#")[0]) >= 30]
 
-
+            for atom in self.atoms:
+                for rule, newname in rename_rules:
+                    if match_rule2string(rule[:4], atom.atomname):
+                        atom.atomname = rename_rule2string(newname[:4], atom.atomname)
+                    if rule[4] == "*" or rule[4] == atom.altloc:
+                        atom.altloc = newname[4] if rule[4] == "*" else atom.altloc
+                    if match_rule2string(rule[5:8], atom.resname):
+                        atom.resname = rename_rule2string(newname[5:8], atom.resname)
+                    if rule[9] == "*" or rule[9] == atom.chain:
+                        atom.chain = newname[9] if rule[9] == "*" else atom.chain
+                    if match_rule2string(rule[10:14], f"{atom.sequence:4d}"):
+                        atom.sequence = int(rename_rule2string(newname[10:14], f"{atom.sequence:4d}"))
+            logging.info(f"   Atoms are renamed according to the rules in {rules}")
         else:
             logging.warning(f"   Rename rules file {rules} not found. Nothing is renamed.")
             
