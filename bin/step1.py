@@ -59,5 +59,5 @@ if __name__ == "__main__":
         exit(1)
     pdb.rename(prm._RENAME_RULES.value)  # Rename atoms according to the rules in runprm
 
-    
+    pdb.dump_pdb("step1_out.pdb")  # Save the pdb file to the output file specified in runprm
 
