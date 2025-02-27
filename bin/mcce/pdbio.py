@@ -565,7 +565,13 @@ class Pdb:
 
             for atom in self.atoms:
                 for rule, newname in rename_rules:
-                    if match_rule2string(rule[:4], atom.atomname) and (rule[4] == "*" or rule[4] == atom.altloc) and match_rule2string(rule[5:8], atom.resname) and (rule[9] == "*" or rule[9] == atom.chain) and match_rule2string(rule[10:14], f"{atom.sequence:4d}"):
+                    if (
+                        match_rule2string(rule[:4], atom.atomname) and
+                        (rule[4] == "*" or rule[4] == atom.altloc) and
+                        match_rule2string(rule[5:8], atom.resname) and
+                        (rule[9] == "*" or rule[9] == atom.chain) and
+                        match_rule2string(rule[10:14], f"{atom.sequence:4d}")
+                    ):
                         atom.atomname = rename_rule2string(newname[:4], atom.atomname)
                         atom.altloc = newname[4] if rule[4] != "*" else atom.altloc
                         atom.resname = rename_rule2string(newname[5:8], atom.resname)
@@ -577,12 +583,15 @@ class Pdb:
             
     def dump_pdb(self, fname):
         """
-        Dump atoms to a new file.
+        Dump atoms to a pdb file.
         """
         with open(fname, "w") as f:
             counter = 0
             for atom in self.atoms:
                 counter += 1
-                line = f"{atom.record:6}{counter:5d} {atom.atomname:4}{atom.altloc:1}{atom.resname:3} {atom.chain:1}{atom.sequence:4}{atom.insertion:1}   {atom.xyz.x:8.3f}{atom.xyz.y:8.3f}{atom.xyz.z:8.3f}  1.00  0.00          {atom.element:2}\n"
+                line = (
+                    f"{atom.record:6}{counter:5d} {atom.atomname:4}{atom.altloc:1}{atom.resname:3} "
+                    f"{atom.chain:1}{atom.sequence:4}{atom.insertion:1}   {atom.xyz.x:8.3f}{atom.xyz.y:8.3f}{atom.xyz.z:8.3f}  "
+                    f"1.00  0.00          {atom.element:2}\n"
+                )
                 f.write(line)
-        logging.info(f"   MCCE pdb file is recorded in file {fname}")
