@@ -533,7 +533,8 @@ class Pdb:
                 if line.startswith("ATOM  ") or line.startswith("HETATM"):
                     atom = Atom()
                     atom.load_pdbline(line)
-                    self.atoms.append(atom)
+                    if not is_H(atom.atomname):
+                        self.atoms.append(atom)
 
             # detect is the altloc happens on backbone atoms
             altloc_on_backbone = set()
@@ -595,3 +596,53 @@ class Pdb:
                     f"1.00  0.00          {atom.element:2}\n"
                 )
                 f.write(line)
+
+    def convert_to_protein(self, ftpl):
+        """
+        Convert pdb atoms to Protein object.
+        Protein is a hirarchy of Residue -> Conformer -> Atom.
+        """
+
+        protein = Protein()
+        for atom in self.atoms:
+            # create a new conformer if the residue does not exist
+            residue = None
+            for res in protein.residues:
+                if res.resid == (atom.resname, atom.chain, atom.sequence, atom.insertion):
+                    residue = res
+                    break
+            if residue is None:
+                residue = Residue()
+                residue.resname = atom.resname
+                residue.chain = atom.chain
+                residue.sequence = atom.sequence
+                residue.insertion = atom.insertion
+                residue.resid = (atom.resname, atom.chain, atom.sequence, atom.insertion)
+                protein.residues.append(residue)
+
+            # create a new conformer if the conformer does not exist
+            conformer = None
+            for conf in residue.conformers:
+                if conf.confid == f"{atom.resname}{atom.chain}{atom.sequence:04d}{atom.insertion}000": # conformer number assumed to be 0
+                    conformer = conf
+                    break
+            if conformer is None:
+                conformer = Conformer()
+                conformer.confid = f"{atom.resname}{atom.chain}{atom.sequence}{atom.insertion}000" # use 000 as conformer number
+                conformer.altloc = atom.altloc
+                conformer.resname = atom.resname
+                conformer.chain = atom.chain
+                conformer.sequence = atom.sequence
+                conformer.insertion = atom.insertion
+                conformer.parent_residue = residue
+                residue.conformers.append(conformer)
+
+            # add this atom to conformer
+            atom.parent_conf = conformer
+            conformer.atoms.append(atom)
+
+        return protein
+
+def is_H(atom_name):
+    # It is an H atom when full 4 chars starts with H, or less than 4-char but the 2nd char is H
+    return (len(atom_name.strip()) == 4 and atom_name[0] == "H") or (len(atom_name.strip()) < 4 and atom_name[1] == "H" )
