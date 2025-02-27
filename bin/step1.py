@@ -57,5 +57,8 @@ if __name__ == "__main__":
     if not pdb.mcce_ready:
         logging.error(f"{pdb.message}")
         exit(1)
+    pdb.rename(prm._RENAME_RULES.value)  # Rename atoms according to the rules in runprm
+
+    # pdb.dump_pdb("renamed.pdb")  # Check if renaming is correct
     
 

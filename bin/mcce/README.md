@@ -22,3 +22,17 @@ The importable modules are categorized by their functions:
 
 ## Private Modules
 File names starting with an underscore ("_") are private modules. These modules are imported and used by importable modules and are hidden from regular developers and users.
+
+## Special Entries in Runprm Class
+The special is defifined by
+```
+RUNPRM_SPECIAL_ENTRIES = ["FTPL_FOLDER", "EXTRA", "RENAME_RULES", "DELPHI_EXE", "APBS_EXE"]
+```
+in file mcce/constants.py and handled in mcce/pdbio.py to
+- add an underscore as prefix to the entry name to hold the absolute path, if the value was a relative path.
+- original value was retained
+
+The absolute path base is the distribution path.
+
+The program just need to access the value by `prm._EXTRA.value`.
+
