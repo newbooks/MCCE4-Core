@@ -90,11 +90,6 @@ class Conformer:
     """
     def __init__(self):
         self.confid = ""            # conformer name, unique ID in the protein. resname+chain+sequence+insertion+confnum
-        self.altloc = ""            # alternate location indicator
-        self.resname = ""           # residue name
-        self.chain = ""             # chain ID
-        self.sequence = 0           # residue sequence number
-        self.insertion = ""         # insertion code
         self.conftype = ""          # conformer type, as defined in the ftpl file
         self.confnum = 0            # conformer number
         self.atoms = []             # list of atoms in the conformer
@@ -128,9 +123,9 @@ class Protein:
     def dump(self, fname, prepend=[], append=[]):
         lines = prepend
         for res in self.residues:
-            lines.append("# Residue: %s %s%04d%c\n" % (res.resname, res.chain, res.sequence, res.insertion))
+            lines.append("# Residue: %s %s%4d%c\n" % (res.resname, res.chain, res.sequence, " " if res.insertion == "_" else res.insertion))
             for conf in res.conformers:
-                lines.append("## Conformer %s: %s %s\n" % (conf.confid, conf.conftype, conf.history))
+                lines.append("## Conformer ID=%s Type=%s History=%s\n" % (conf.confid, conf.conftype, conf.history))
                 for atom in conf.atoms:
                     lines.append(atom.as_mccepdb_line())
                 lines.append("#%s\n" % ("-" * 89))
