@@ -63,6 +63,7 @@ if __name__ == "__main__":
     protein = pdb.convert_to_protein(tpl)  # Convert the pdb to a Protein object
     
     if prm.TERMINALS.value.lower() == "t":
+        logging.info("   Making terminal residues")
         protein.make_ter_residues()  # Add terminal residues if necessary
 
 
