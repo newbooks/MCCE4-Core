@@ -57,8 +57,9 @@ if __name__ == "__main__":
     if not pdb.mcce_ready:
         logging.error(f"{pdb.message}")
         exit(1)
-    pdb.rename(prm._RENAME_RULES.value)  # Rename atoms according to the rules in runprm
+
     pdb.identify_ligands(tpl)   # Identify ligands in the pdb file
+    pdb.rename(prm._RENAME_RULES.value)  # Rename atoms according to the rules in runprm
 
     # Convert the pdb to a Protein object
     protein = pdb.convert_to_protein(tpl)  # Convert the pdb to a Protein object
