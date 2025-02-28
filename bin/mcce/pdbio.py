@@ -11,6 +11,8 @@ import logging
 import datetime
 import copy
 import glob
+from collections import defaultdict
+
 from .constants import *
 from .geom import Vector
 
@@ -40,6 +42,31 @@ class Atom:
         self.conn13 = []            # list of atoms that are 1-3 bonded
         self.conn14 = []            # list of atoms that are 1-4 bonded
         self.parent_conf = None     # parent conformer
+
+    def clone(self):
+        """
+        Clone the atom.
+        """
+        new_atom = Atom()
+        new_atom.record = self.record
+        new_atom.serial = self.serial
+        new_atom.atomname = self.atomname
+        new_atom.altloc = self.altloc
+        new_atom.resname = self.resname
+        new_atom.chain = self.chain
+        new_atom.sequence = self.sequence
+        new_atom.insertion = self.insertion
+        new_atom.xyz = self.xyz.copy()
+        new_atom.r_boundary = self.r_boundary
+        new_atom.charge = self.charge
+        new_atom.r_vdw = self.r_vdw
+        new_atom.e_vdw = self.e_vdw
+        new_atom.element = self.element
+        new_atom.conn12 = []    # do not clone connections
+        new_atom.conn13 = []    # do not clone connections
+        new_atom.conn14 = []    # do not clone connections   
+        new_atom.parent_conf = self.parent_conf
+        return new_atom
 
     def load_pdbline(self, line):
         """
@@ -92,13 +119,28 @@ class Conformer:
         self.confid = ""            # conformer name, unique ID in the protein. resname+chain+sequence+insertion+confnum
         self.conftype = ""          # conformer type, as defined in the ftpl file
         self.confnum = 0            # conformer number
-        self.atoms = []             # list of atoms in the conformer
         self.parent_residue = None  # parent residue
         self.occ = 0.0              # occupancy
         self.history = ""           # history string
         self.charge = 0.0           # net charge
         self.calculated = False     # flag for calculated conformer
+        self.atoms = []             # list of atoms in the conformer
 
+    def clone(self):
+        """
+        Clone the conformer.
+        """
+        new_conf = Conformer()
+        new_conf.confid = self.confid
+        new_conf.conftype = self.conftype
+        new_conf.confnum = self.confnum
+        new_conf.parent_residue = self.parent_residue
+        new_conf.occ = self.occ
+        new_conf.history = self.history
+        new_conf.charge = self.charge
+        new_conf.calculated = False # newly created conformer is not calculated
+        new_conf.atoms = [atom.clone() for atom in self.atoms]
+        return new_conf
 
 class Residue:
     """
@@ -120,16 +162,84 @@ class Protein:
     def __init__(self):
         self.residues = []          # list of residues in the protein
 
+    def make_ter_residues(self):
+        """
+        Split terminal residues into NTR and CTR.
+        """
+        # find chains
+        chains = sorted(list(set(res.chain for res in self.residues)))
+
+        aminoacids_in_chains = defaultdict(list)
+        nonaminoacids_in_chains = defaultdict(list)
+        for res in self.residues:
+            if res.resname in AMINO_ACIDS:
+                aminoacids_in_chains[res.chain].append(res)
+            else:
+                nonaminoacids_in_chains[res.chain].append(res)
+
+        # within each chain group, 
+        # 1. find the first amino acid and split to NTR
+        # 2. find the last amino acit and split to CTR
+        for chain in chains:
+            res_chain = aminoacids_in_chains[chain]
+            # NTR
+            if res_chain[0].resname not in TERMINAL_RESIDUES:
+                ntr = Residue()
+                ntr.resname = "NTR"
+                ntr.chain = chain
+                ntr.sequence = res_chain[0].sequence  # Use the same sequence number as the first amino acid
+                ntr.insertion = res_chain[0].insertion
+                ntr.resid = (ntr.resname, ntr.chain, ntr.sequence, ntr.insertion)
+                ntr.conformers = []
+                for conf in res_chain[0].conformers:
+                    # clone the conformer and only keep the NTR atoms
+                    new_conf = conf.clone()
+                    new_conf.parent_residue = ntr
+                    new_conf.atoms = [atom.clone() for atom in conf.atoms if atom.atomname in NTR_ATOMS]
+                    # remove the NTR atoms from the original conformer
+                    conf.atoms = [atom for atom in conf.atoms if atom.atomname not in NTR_ATOMS]
+                    if new_conf.atoms:  # only add the conformer if it has atoms
+                        ntr.conformers.append(new_conf)
+                if ntr.conformers:  # only add the residue if it has conformers
+                    res_chain.insert(0, ntr)
+                
+            # CTR
+            if res_chain[-1].resname not in TERMINAL_RESIDUES:
+                ctr = Residue()
+                ctr.resname = "CTR"
+                ctr.chain = chain
+                ctr.sequence = res_chain[-1].sequence  # Use the same sequence number as the last amino acid
+                ctr.insertion = res_chain[-1].insertion
+                ctr.resid = (ctr.resname, ctr.chain, ctr.sequence, ctr.insertion)
+                ctr.conformers = []
+                for conf in res_chain[-1].conformers:
+                    # clone the conformer and only keep the CTR atoms
+                    new_conf = conf.clone()
+                    new_conf.parent_residue = ctr
+                    new_conf.atoms = [atom.clone() for atom in conf.atoms if atom.atomname in CTR_ATOMS]
+                    # remove the CTR atoms from the original conformer
+                    conf.atoms = [atom for atom in conf.atoms if atom.atomname not in CTR_ATOMS]
+                    if new_conf.atoms:
+                        ctr.conformers.append(new_conf)
+                if ctr.conformers:
+                    res_chain.append(ctr)                    
+
+        # assemble the residues in groups back into one array self.residues
+        self.residues = [res for chain in chains for res in aminoacids_in_chains[chain] + nonaminoacids_in_chains[chain]]
+
+
+
+
+
     def dump(self, fname, prepend=[], append=[]):
         lines = prepend
         for res in self.residues:
-            lines.append("# Residue: %s %s%4d%c\n" % (res.resname, res.chain, res.sequence, " " if res.insertion == "_" else res.insertion))
+            lines.append(f"# Residue: {res.resname} {res.chain}{res.sequence:4d}{' ' if res.insertion == '_' else res.insertion}\n")
             for conf in res.conformers:
-                lines.append("## Conformer ID=%s Type=%s History=%s\n" % (conf.confid, conf.conftype, conf.history))
-                for atom in conf.atoms:
-                    lines.append(atom.as_mccepdb_line())
-                lines.append("#%s\n" % ("-" * 89))
-            lines.append("#%s\n" % ("=" * 89))
+                lines.append(f"## Conformer ID={conf.confid} Type={conf.conftype} History={conf.history}\n")
+                lines.extend(atom.as_mccepdb_line() for atom in conf.atoms)
+                lines.append("#" + "-" * 89 + "\n")
+            lines.append("#" + "=" * 89 + "\n")
         lines.extend(append)
         if fname is None:
             sys.stdout.writelines(lines)

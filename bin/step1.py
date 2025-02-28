@@ -59,7 +59,15 @@ if __name__ == "__main__":
         exit(1)
     pdb.rename(prm._RENAME_RULES.value)  # Rename atoms according to the rules in runprm
 
-    # pdb.dump_pdb("renamed.pdb")  # Check if renaming is correct
-    
+    # Convert the pdb to a Protein object
     protein = pdb.convert_to_protein(tpl)  # Convert the pdb to a Protein object
-    protein.dump("step1_out.pdb")  # Save the protein to a pdb file
+    
+    if prm.TERMINALS.value.lower() == "t":
+        logging.info("   Making terminal residues")
+        protein.make_ter_residues()  # Add terminal residues if necessary
+
+
+    protein.dump(STEP1_OUT)  # Save the protein to a pdb file
+    logging.info(f"Step 1 completed.")
+    logging.info(f"Output:")  
+    logging.info(f"  {STEP1_OUT}: Protein object saved to this mccepdb file")

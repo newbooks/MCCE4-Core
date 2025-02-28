@@ -15,6 +15,11 @@ ROOMT = 298.15
 PH2KCAL = 1.364
 KCAL2KT = 1.688
 
+# Output file names
+STEP1_OUT = "step1_out.pdb"
+STEP1_HEAD = "head2.lst"
+STEP2_OUT = "step2_out.pdb"
+
 
 # This is for split_altloc()
 # A backbone atom should have residue name AND name match the following to be considered as backbone
@@ -23,3 +28,11 @@ RESIDUE_NAMES = {"ALA", "ARG", "ASN", "ASP", "CYS", "CYD", "GLN", "GLU", "GLY",
                  "HIL", "HIS", "ILE", "LEU", "LYS", "MET", "MEL", "PHE", "PRO",
                  "SER", "THR", "TRP", "TYR", "VAL"}
 
+# This list what names qualify terminal residues and what names qualify amino acids
+# They are used in make_ter_residues() in Protein class
+TERMINAL_RESIDUES = {"NTR", "NTG", "CTR"}
+AMINO_ACIDS = {"ALA", "ARG", "ASN", "ASP", "CYS", "CYD", "GLN", "GLU", "GLY",
+               "HIL", "HIS", "ILE", "LEU", "LYS", "MET", "MEL", "PHE", "PRO",
+               "SER", "THR", "TRP", "TYR", "VAL"}
+NTR_ATOMS = {" N  ", " CA "}  # heavy atoms only
+CTR_ATOMS = {" C  ", " O  ", " OXT"}  # heavy atoms only
