@@ -58,6 +58,9 @@ class Vector:
     def angle(self, other):
         return np.arccos(self.dot(other) / (self.norm() * other.norm()))
     
+    def distance(self, other):
+        return (self - other).norm()
+    
     def copy(self):
         return Vector([self.x, self.y, self.z])
 

@@ -160,6 +160,8 @@ class Protein:
     Protein class
     """
     def __init__(self):
+        self.prepend_lines = []     # lines to prepend to the output
+        self.append_lines = []      # lines to append to the output
         self.residues = []          # list of residues in the protein
 
     def make_ter_residues(self):
@@ -229,10 +231,8 @@ class Protein:
 
 
 
-
-
-    def dump(self, fname, prepend=[], append=[]):
-        lines = prepend
+    def dump(self, fname):
+        lines = self.append_lines
         for res in self.residues:
             lines.append(f"# Residue: {res.resname} {res.chain}{res.sequence:4d}{' ' if res.insertion == '_' else res.insertion}\n")
             for conf in res.conformers:
@@ -240,7 +240,7 @@ class Protein:
                 lines.extend(atom.as_mccepdb_line() for atom in conf.atoms)
                 lines.append("#" + "-" * 89 + "\n")
             lines.append("#" + "=" * 89 + "\n")
-        lines.extend(append)
+        lines.extend(self.append_lines)
         if fname is None:
             sys.stdout.writelines(lines)
         else:
@@ -656,6 +656,8 @@ class Pdb:
         self.atoms = []
         self.mcce_ready = False
         self.message = ""
+        self.prepend_lines = []  # lines to prepend to the pdb file, linkages, etc.
+        self.append_lines = []   # lines to append to the pdb
         self.load_pdb()
 
     def load_pdb(self):
@@ -748,6 +750,66 @@ class Pdb:
                 )
                 f.write(line)
 
+    def identify_ligands(self, tpl):
+        """
+        Identify ligands in the pdb file. The ligands detection rules are in ligand_detect_rules.ftpl
+        Sample rules:
+        ---------------------------------------
+        LIGAND_ID, CYS, CYS: " SG " - " SG "; 2.03 +- 0.90; CYD, CYD
+        LIGAND_ID, CYS, HEC: " SG " - " CA*"; 1.90 +- 1.00; CYL, HEC
+        LIGAND_ID, CYS, HEM: " SG " - " CA*"; 1.90 +- 1.00; CYL, HEM
+        """
+        logging.info("   Identifying ligands in the pdb file.")
+
+
+        link_lines = []
+        ssbond_serial = 1  # counter for SSBOND serial number starting from 1
+
+        # group atoms by residue, the residues should be in the order of appearance in the pdb file after Python 3.7
+        residue_atoms = defaultdict(list)
+        for atom in self.atoms:
+            residue_atoms[(atom.resname, atom.chain, atom.sequence, atom.insertion)].append(atom)
+        
+        # loop over residues from 1 to the second last residue
+        resids = list(residue_atoms.keys())
+        for i in range(len(resids) - 1):
+            res1_id = resids[i]
+            for j in range(i+1, len(resids)):
+                res2_id = resids[j]
+                # check if the two residues can form a ligand
+                key1 = ("LIGAND_ID", res1_id[0], res2_id[0])
+                key2 = ("LIGAND_ID", res2_id[0], res1_id[0])
+                if key1 in tpl or key2 in tpl:      # key is found, potential ligand pair
+                    res1, res2 = (res1_id, res2_id) if key1 in tpl else (res2_id, res1_id)
+                    ligand_param = tpl[key1 if key1 in tpl else key2]
+                    # check if the two residues are close enough to form a ligand
+                    # print(res1, res2, ligand_param)
+                    atom1_name = ligand_param.atom1
+                    atom2_name = ligand_param.atom2
+                    distance = ligand_param.distance
+                    tolerance = ligand_param.tolerance
+                    #find atom1 and atom2 in the residues
+                    atom1 = None
+                    atom2 = None
+                    for atom in residue_atoms[res1]:
+                        if atom.atomname == atom1_name:
+                            atom1 = atom
+                            break
+                    for atom in residue_atoms[res2]:
+                        if atom.atomname == atom2_name:
+                            atom2 = atom
+                            break
+                    if atom1 is not None and atom2 is not None:
+                        # calculate the distance between the two atoms
+                        d = atom1.xyz.distance(atom2.xyz)
+                        if distance - tolerance <= d <= distance + tolerance:
+                            # create a link line
+                            logging.debug(f"   Ligand detected between {atom1.atomname} {res1} and {atom2.atomname} {res2} with distance {d:.2f}")
+
+                
+                
+
+
     def convert_to_protein(self, tpl):
         """
         Convert pdb atoms to Protein object.
@@ -794,6 +856,10 @@ class Pdb:
             # add this atom to conformer
             atom.parent_conf = conformer
             conformer.atoms.append(atom)
+
+        # update prepend and append lines
+        protein.prepend_lines = self.prepend_lines
+        protein.append_lines = self.append_lines
 
         return protein
 
