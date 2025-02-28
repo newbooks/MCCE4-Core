@@ -15,6 +15,11 @@ ROOMT = 298.15
 PH2KCAL = 1.364
 KCAL2KT = 1.688
 
+# Output file names
+STEP1_OUT = "step1_out.pdb"
+STEP1_HEAD = "head2.lst"
+STEP2_OUT = "step2_out.pdb"
+
 
 # This is for split_altloc()
 # A backbone atom should have residue name AND name match the following to be considered as backbone

@@ -11,6 +11,8 @@ import logging
 import datetime
 import copy
 import glob
+from collections import defaultdict
+
 from .constants import *
 from .geom import Vector
 
@@ -120,16 +122,35 @@ class Protein:
     def __init__(self):
         self.residues = []          # list of residues in the protein
 
+    def make_ter_residues(self):
+        """
+        Split terminal residues into NTR and CTR.
+        """
+        # find chains
+        chains = sorted(list(set(res.chain for res in self.residues)))
+
+        res_in_chains = defaultdict(list)
+        for res in self.residues:
+            res_in_chains[res.chain].append(res)
+
+        # within each chain group, 
+        # 1. find the first amino acid and split to NTR
+        # 2. find the last amino acit and split to CTR
+
+
+        # assemble the residues in groups back into one array self.residues
+
+
+
     def dump(self, fname, prepend=[], append=[]):
         lines = prepend
         for res in self.residues:
-            lines.append("# Residue: %s %s%4d%c\n" % (res.resname, res.chain, res.sequence, " " if res.insertion == "_" else res.insertion))
+            lines.append(f"# Residue: {res.resname} {res.chain}{res.sequence:4d}{' ' if res.insertion == '_' else res.insertion}\n")
             for conf in res.conformers:
-                lines.append("## Conformer ID=%s Type=%s History=%s\n" % (conf.confid, conf.conftype, conf.history))
-                for atom in conf.atoms:
-                    lines.append(atom.as_mccepdb_line())
-                lines.append("#%s\n" % ("-" * 89))
-            lines.append("#%s\n" % ("=" * 89))
+                lines.append(f"## Conformer ID={conf.confid} Type={conf.conftype} History={conf.history}\n")
+                lines.extend(atom.as_mccepdb_line() for atom in conf.atoms)
+                lines.append("#" + "-" * 89 + "\n")
+            lines.append("#" + "=" * 89 + "\n")
         lines.extend(append)
         if fname is None:
             sys.stdout.writelines(lines)
