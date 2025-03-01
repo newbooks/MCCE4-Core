@@ -31,7 +31,7 @@ RESIDUE_NAMES = {"ALA", "ARG", "ASN", "ASP", "CYS", "CYD", "GLN", "GLU", "GLY",
 # This list what names qualify terminal residues and what names qualify amino acids
 # They are used in make_ter_residues() in Protein class
 TERMINAL_RESIDUES = {"NTR", "NTG", "CTR"}
-AMINO_ACIDS = {"ALA", "ARG", "ASN", "ASP", "CYS", "CYD", "GLN", "GLU", "GLY",
+AMINO_ACIDS = {"ALA", "ARG", "ASN", "ASP", "CYS", "CYD", "CYL", "GLN", "GLU", "GLY",
                "HIL", "HIS", "ILE", "LEU", "LYS", "MET", "MEL", "PHE", "PRO",
                "SER", "THR", "TRP", "TYR", "VAL"}
 NTR_ATOMS = {" N  ", " CA "}  # heavy atoms only
