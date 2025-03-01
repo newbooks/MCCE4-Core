@@ -59,7 +59,7 @@ if __name__ == "__main__":
         exit(1)
 
     pdb.identify_ligands(tpl)   # Identify ligands in the pdb file
-    pdb.dump_pdb("debug.pdb")       # Save the pdb to a string
+    # pdb.dump_pdb("debug.pdb")       # Save the pdb to a string
     pdb.rename(prm._RENAME_RULES.value)  # Rename atoms according to the rules in runprm
 
     # Convert the pdb to a Protein object

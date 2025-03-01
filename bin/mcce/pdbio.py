@@ -234,12 +234,13 @@ class Protein:
     def dump(self, fname):
         lines = self.prepend_lines
         for res in self.residues:
+            lines.append("#" + "=" * 89 + "\n")
             lines.append(f"# Residue: {res.resname} {res.chain}{res.sequence:4d}{' ' if res.insertion == '_' else res.insertion}\n")
+            lines.append("#" + "=" * 89 + "\n")
             for conf in res.conformers:
                 lines.append(f"## Conformer ID={conf.confid} Type={conf.conftype} History={conf.history}\n")
                 lines.extend(atom.as_mccepdb_line() for atom in conf.atoms)
                 lines.append("#" + "-" * 89 + "\n")
-            lines.append("#" + "=" * 89 + "\n")
         lines.extend(self.append_lines)
         if fname is None:
             sys.stdout.writelines(lines)
@@ -776,14 +777,11 @@ class Pdb:
         residue_atoms_dict = defaultdict(list)
         for atom in self.atoms:
             residue_atoms_dict[(atom.resname, atom.chain, atom.sequence, atom.insertion)].append(atom)
-        residue_ids = [x for x in residue_atoms_dict.keys()]
+        residue_ids = list(residue_atoms_dict.keys())
         
         # loop over residues from 1 to the second last residue
-        
-        for i in range(len(residue_ids) - 1):
-            res1_id = residue_ids[i]
-            for j in range(i+1, len(residue_ids)):
-                res2_id = residue_ids[j]
+        for i, res1_id in enumerate(residue_ids[:-1]):
+            for res2_id in residue_ids[i+1:]:
                 # check if the two residues can form a ligand
                 key1 = ("LIGAND_ID", res1_id[0], res2_id[0])
                 key2 = ("LIGAND_ID", res2_id[0], res1_id[0])
@@ -795,21 +793,14 @@ class Pdb:
                     atom2_name = ligand_param.atom2
                     distance = ligand_param.distance
                     tolerance = ligand_param.tolerance
-                    #find atom1 and atom2 in the residues
-                    atom1 = []  # list of atoms in res1 that match atom1_name, wildcard may match multiple atoms
-                    atom2 = []  # list of atoms in res2 that match atom2_name, wildcard may match multiple atoms
-                    for atom in residue_atoms_dict[res1]:
-                        if match_strings(atom.atomname, atom1_name):
-                            atom1.append(atom)
-                    for atom in residue_atoms_dict[res2]:
-                        if match_strings(atom.atomname, atom2_name):
-                            atom2.append(atom)
+                    # find atom1 and atom2 in the residues
+                    atom1 = [atom for atom in residue_atoms_dict[res1] if match_strings(atom.atomname, atom1_name)]
+                    atom2 = [atom for atom in residue_atoms_dict[res2] if match_strings(atom.atomname, atom2_name)]
                     if atom1 and atom2:
                         # calculate the distance between the two atoms
                         for a1 in atom1:
                             for a2 in atom2:
                                 d = a1.xyz.distance(a2.xyz)
-                                #print(a1.atomname, a2.atomname, d)
                                 if distance - tolerance <= d <= distance + tolerance:
                                     # create a link line
                                     logging.debug(f"   Ligand detected between {a1.atomname} {res1} and {a2.atomname} {res2} with distance {d:.2f}")
@@ -818,21 +809,16 @@ class Pdb:
                                     for atom in residue_atoms_dict[res2]:
                                         atom.resname = ligand_param.res2_name
 
-                                    if res1[0] == "CYS" and res2[0] == "CYS":     #SSBOND
-                                        line = ssbond_fmt % (ssbond_serial, res1[1], res1[2], " ", res2[1], res2[2], " ", " "*22, d)
+                                    if res1[0] == "CYS" and res2[0] == "CYS":     # SSBOND
+                                        line = ssbond_fmt % (ssbond_serial, res1[1], res1[2], res1[3], res2[1], res2[2], res2[3], " "*22, d)
                                         link_lines.append(line)
                                         ssbond_serial += 1
                                     else:  # LINK
-                                        line = link_fmt % (a1.atomname, res1[0], res1[1], res1[2], " ", " "*12,\
-                                                           a2.atomname, res2[0], res2[1], res2[2], " ", d)
+                                        line = link_fmt % (a1.atomname, res1[0], res1[1], res1[2], res1[3], " "*12,
+                                            a2.atomname, res2[0], res2[1], res2[2], res2[3], d)
                                         link_lines.append(line)
+        self.atoms = [atom for res in residue_atoms_dict.values() for atom in res]
         self.prepend_lines.extend(link_lines)
-        self.atoms = []
-        for rid in residue_ids:
-            print(rid)
-            print(residue_atoms_dict[rid][0].resname)
-            self.atoms.extend(residue_atoms_dict[rid])
-            print(self.atoms[-1].resname)
         logging.info(f"   {len(link_lines)} ligands are identified in the pdb file.")
 
 
