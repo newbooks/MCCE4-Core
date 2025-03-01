@@ -57,15 +57,17 @@ if __name__ == "__main__":
     if not pdb.mcce_ready:
         logging.error(f"{pdb.message}")
         exit(1)
+
+    pdb.identify_ligands(tpl)   # Identify ligands in the pdb file
+    # pdb.dump_pdb("debug.pdb")       # Save the pdb to a string
     pdb.rename(prm._RENAME_RULES.value)  # Rename atoms according to the rules in runprm
 
     # Convert the pdb to a Protein object
     protein = pdb.convert_to_protein(tpl)  # Convert the pdb to a Protein object
-    
+
     if prm.TERMINALS.value.lower() == "t":
         logging.info("   Making terminal residues")
         protein.make_ter_residues()  # Add terminal residues if necessary
-
 
     protein.dump(STEP1_OUT)  # Save the protein to a pdb file
     logging.info(f"Step 1 completed.")

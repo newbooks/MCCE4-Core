@@ -160,6 +160,8 @@ class Protein:
     Protein class
     """
     def __init__(self):
+        self.prepend_lines = []     # lines to prepend to the output
+        self.append_lines = []      # lines to append to the output
         self.residues = []          # list of residues in the protein
 
     def make_ter_residues(self):
@@ -229,18 +231,17 @@ class Protein:
 
 
 
-
-
-    def dump(self, fname, prepend=[], append=[]):
-        lines = prepend
+    def dump(self, fname):
+        lines = self.prepend_lines
         for res in self.residues:
+            lines.append("#" + "=" * 89 + "\n")
             lines.append(f"# Residue: {res.resname} {res.chain}{res.sequence:4d}{' ' if res.insertion == '_' else res.insertion}\n")
+            lines.append("#" + "=" * 89 + "\n")
             for conf in res.conformers:
                 lines.append(f"## Conformer ID={conf.confid} Type={conf.conftype} History={conf.history}\n")
                 lines.extend(atom.as_mccepdb_line() for atom in conf.atoms)
                 lines.append("#" + "-" * 89 + "\n")
-            lines.append("#" + "=" * 89 + "\n")
-        lines.extend(append)
+        lines.extend(self.append_lines)
         if fname is None:
             sys.stdout.writelines(lines)
         else:
@@ -656,6 +657,8 @@ class Pdb:
         self.atoms = []
         self.mcce_ready = False
         self.message = ""
+        self.prepend_lines = []  # lines to prepend to the pdb file, linkages, etc.
+        self.append_lines = []   # lines to append to the pdb
         self.load_pdb()
 
     def load_pdb(self):
@@ -748,6 +751,77 @@ class Pdb:
                 )
                 f.write(line)
 
+    def identify_ligands(self, tpl):
+        """
+        Identify ligands in the pdb file. The ligands detection rules are in ligand_detect_rules.ftpl
+        Sample rules:
+        ---------------------------------------
+        LIGAND_ID, CYS, CYS: " SG " - " SG "; 2.03 +- 0.90; CYD, CYD
+        LIGAND_ID, CYS, HEC: " SG " - " CA*"; 1.90 +- 1.00; CYL, HEC
+        LIGAND_ID, CYS, HEM: " SG " - " CA*"; 1.90 +- 1.00; CYL, HEM
+        """
+        # This is an internal function to compare two strings with wildcard "*"
+        def match_strings(s1, s2):
+            return all([r == "*" or s=="*" or r == s for r, s in zip(s1, s2)]+[len(s1) == len(s2)])
+
+
+        logging.info("   Identifying ligands in the pdb file.")
+
+
+        link_lines = []
+        ssbond_serial = 1  # counter for SSBOND serial number starting from 1
+        ssbond_fmt = "SSBOND %3d CYS %c %4d%c   CYS %c %4d%c %s  1555   1555 %5.2f\n"
+        link_fmt = "LINK        %4s %3s %c%4d%c %s  %4s %3s %c%4d%c    1555   1555 %5.2f\n"
+
+        # group atoms by residue, the residues should be in the order of appearance in the pdb file after Python 3.7
+        residue_atoms_dict = defaultdict(list)
+        for atom in self.atoms:
+            residue_atoms_dict[(atom.resname, atom.chain, atom.sequence, atom.insertion)].append(atom)
+        residue_ids = list(residue_atoms_dict.keys())
+        
+        # loop over residues from 1 to the second last residue
+        for i, res1_id in enumerate(residue_ids[:-1]):
+            for res2_id in residue_ids[i+1:]:
+                # check if the two residues can form a ligand
+                key1 = ("LIGAND_ID", res1_id[0], res2_id[0])
+                key2 = ("LIGAND_ID", res2_id[0], res1_id[0])
+                if key1 in tpl or key2 in tpl:      # key is found, potential ligand pair
+                    res1, res2 = (res1_id, res2_id) if key1 in tpl else (res2_id, res1_id)
+                    ligand_param = tpl[key1 if key1 in tpl else key2]
+                    # check if the two residues are close enough to form a ligand
+                    atom1_name = ligand_param.atom1
+                    atom2_name = ligand_param.atom2
+                    distance = ligand_param.distance
+                    tolerance = ligand_param.tolerance
+                    # find atom1 and atom2 in the residues
+                    atom1 = [atom for atom in residue_atoms_dict[res1] if match_strings(atom.atomname, atom1_name)]
+                    atom2 = [atom for atom in residue_atoms_dict[res2] if match_strings(atom.atomname, atom2_name)]
+                    if atom1 and atom2:
+                        # calculate the distance between the two atoms
+                        for a1 in atom1:
+                            for a2 in atom2:
+                                d = a1.xyz.distance(a2.xyz)
+                                if distance - tolerance <= d <= distance + tolerance:
+                                    # create a link line
+                                    logging.debug(f"   Ligand detected between {a1.atomname} {res1} and {a2.atomname} {res2} with distance {d:.2f}")
+                                    for atom in residue_atoms_dict[res1]:
+                                        atom.resname = ligand_param.res1_name
+                                    for atom in residue_atoms_dict[res2]:
+                                        atom.resname = ligand_param.res2_name
+
+                                    if res1[0] == "CYS" and res2[0] == "CYS":     # SSBOND
+                                        line = ssbond_fmt % (ssbond_serial, res1[1], res1[2], res1[3], res2[1], res2[2], res2[3], " "*22, d)
+                                        link_lines.append(line)
+                                        ssbond_serial += 1
+                                    else:  # LINK
+                                        line = link_fmt % (a1.atomname, res1[0], res1[1], res1[2], res1[3], " "*12,
+                                            a2.atomname, res2[0], res2[1], res2[2], res2[3], d)
+                                        link_lines.append(line)
+        self.atoms = [atom for res in residue_atoms_dict.values() for atom in res]
+        self.prepend_lines.extend(link_lines)
+        logging.info(f"   {len(link_lines)} ligands are identified in the pdb file.")
+
+
     def convert_to_protein(self, tpl):
         """
         Convert pdb atoms to Protein object.
@@ -794,6 +868,10 @@ class Pdb:
             # add this atom to conformer
             atom.parent_conf = conformer
             conformer.atoms.append(atom)
+
+        # update prepend and append lines
+        protein.prepend_lines = self.prepend_lines
+        protein.append_lines = self.append_lines
 
         return protein
 
