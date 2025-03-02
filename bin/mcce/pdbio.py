@@ -352,6 +352,45 @@ class Protein:
 
 
     def dump(self, fname):
+        """
+        Dump the protein to a pdb file.
+        """
+        
+        # serialize the protein to
+        # 1. atom serial number
+        # 2. conformer number
+        # 3. conformer ID
+        # 4. conformer history (same heavy atom type counts in a serials, H atom type counts in regard to heavy and H types)
+        atom_counter = 0
+        for res in self.residues:
+            for conf_counter, conf in enumerate(res.conformers):
+                conf.confnum = conf_counter
+                conf.confid = f"{res.resname}{res.chain}{res.sequence:04d}{res.insertion}{conf.confnum:03d}"
+                for atom in conf.atoms:
+                    atom.serial = atom_counter
+                    atom_counter += 1
+        # history string is tricky, as it carries information about how the conformer is inheried from the parent
+        # Sample history string: "BKO000_000" or "01R000M000"
+        # history[:2] is the conformer type, 
+        # history[2] is rotamer type
+        # history[3:6] rotamer number of that type
+        # history[6] is how H atom is placed
+        # history[7:10] is the conformer number of H atom placement of the type
+        for res in self.residues:
+            counter_heavy_type = defaultdict(int)
+            for conf in res.conformers:
+                heavy_confType = conf.history[:6]
+                conf.history = f"{conf.history[:3]}{counter_heavy_type[heavy_confType]:03d}{conf.history[6:]}"
+                counter_heavy_type[heavy_confType] += 1
+
+            # renumber H atom history
+            heavy_id = defaultdict(int)
+            for conf in res.conformers:
+                id = conf.history[:7]
+                conf.history = f"{id}{heavy_id[id]:03d}"
+                heavy_id[id] += 1      
+
+
         lines = self.prepend_lines
         for res in self.residues:
             lines.append("#" + "=" * 89 + "\n")
