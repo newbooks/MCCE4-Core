@@ -45,8 +45,7 @@ if __name__ == "__main__":
     # Get tpl
     tpl = Tpl()                     # Create a Tpl instance
     tpl.load_ftpl_folder(prm._FTPL_FOLDER.value) # Load the ftpl folder specified in runprm
-    tpl.dump(comment="Step 1 uses these tpl parameters") # Save the parameters to tpl.dat.record
-
+    
     # Get pdb
     # Attempt to load the pdb file to a Pdb object.
     # The Pdb object has these attributes that are relavent to the next part of step 1:
@@ -67,12 +66,14 @@ if __name__ == "__main__":
     if prm.TERMINALS.value.lower() == "t":
         logging.info("   Making terminal residues")
         protein.make_ter_residues()  # Add terminal residues if necessary
+    
     # Now the protein object has the right residue names, we will 
     # 1. scan protein residues to find unknown cofactors, if found, create new_ftpl for them and ammend tpl database
     # 2. move backbone atoms to conformer[0] or create new_ftpl for unknown cofactors
     # 3. split altloc atoms to conformers
     # 4. assign conformer types to conformers
     protein.new_ftpl(tpl)  # Assign conformer types to conformers
+    tpl.dump(comment="Step 1 uses these tpl parameters") # Save the parameters to tpl.dat.record
     # protein.split_backbone(tpl)  # Split backbone atoms to conformer[0]
     # protein.split_altloc()  # Split altloc atoms to conformers
     # protein.assign_conftype(tpl)  # Assign conformer types to conformers

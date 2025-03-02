@@ -1,0 +1,36 @@
+CONFLIST, TXR: TXRBK, TXR01
+CONNECT,  N  , TXR01: ion
+CONNECT,  CA , TXR01: ion
+CONNECT,  C  , TXR01: ion
+CONNECT,  O  , TXR01: ion
+CONNECT,  CB , TXR01: ion
+CONNECT,  CG , TXR01: ion
+CONNECT,  CD1, TXR01: ion
+CONNECT,  CD2, TXR01: ion
+CONNECT,  CE1, TXR01: ion
+CONNECT,  CE2, TXR01: ion
+CONNECT,  CZ , TXR01: ion
+CONNECT,  OH , TXR01: ion
+RADIUS, TXR01,  N  : 1.55, 1.75, 0.15
+RADIUS, TXR01,  CA : 1.7, 2.0, 0.15
+RADIUS, TXR01,  C  : 1.7, 2.0, 0.15
+RADIUS, TXR01,  O  : 1.52, 1.6, 0.15
+RADIUS, TXR01,  CB : 1.7, 2.0, 0.15
+RADIUS, TXR01,  CG : 1.7, 2.0, 0.15
+RADIUS, TXR01,  CD1: 1.7, 2.0, 0.15
+RADIUS, TXR01,  CD2: 1.7, 2.0, 0.15
+RADIUS, TXR01,  CE1: 1.7, 2.0, 0.15
+RADIUS, TXR01,  CE2: 1.7, 2.0, 0.15
+RADIUS, TXR01,  CZ : 1.7, 2.0, 0.15
+RADIUS, TXR01,  OH : 1.52, 1.6, 0.15
+#-----------------------------------------------------------------------------------------
+CONFLIST, GLZ: GLZBK, GLZ01
+CONNECT,  N  , GLZ01: ion
+CONNECT,  CA , GLZ01: ion
+CONNECT,  C  , GLZ01: ion
+CONNECT,  O  , GLZ01: ion
+RADIUS, GLZ01,  N  : 1.55, 1.75, 0.15
+RADIUS, GLZ01,  CA : 1.7, 2.0, 0.15
+RADIUS, GLZ01,  C  : 1.7, 2.0, 0.15
+RADIUS, GLZ01,  O  : 1.52, 1.6, 0.15
+#-----------------------------------------------------------------------------------------

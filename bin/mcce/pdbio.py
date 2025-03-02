@@ -229,7 +229,34 @@ class Protein:
         # assemble the residues in groups back into one array self.residues
         self.residues = [res for chain in chains for res in aminoacids_in_chains[chain] + nonaminoacids_in_chains[chain]]
 
+    def new_ftpl(self, tpl):
+        """
+        Scan protein residues to find unknown cofactors, if found, create new_ftpl for them and ammend tpl database.
+        This should be done before split_backbone() and split_altloc(), so that all atoms in conformer[0]
+        """
+        new_ftpllines = []
+        for res in self.residues:
+            key = ("CONFLIST", res.resname)
+            if key not in tpl:
+                logging.warning(f"   {res.resname} not found in the ftpl database. Creating a new ftpl entry.")
+                tpl[key] = [f"{res.resname}BK, {res.resname}01"]
+                new_ftpllines.append(f"CONFLIST, {res.resname}: {res.resname}BK, {res.resname}01\n")
+                # CONNECT, all atoms are "ion" type of atoms with no connectivity
+                for conf in res.conformers:
+                    connect_lines = []
+                    radius_lines = []
+                    for atom in conf.atoms:
+                        tpl[("CONNECT", atom.atomname, f"{res.resname}01")] = tpl.CONNECT_param('ion')
+                        tpl[("RADIUS", f"{res.resname}01", atom.atomname)] = tpl.RADIUS_param(f'{R_BOUNDARY[atom.element]}, {R_VDW[atom.element][0]}, {R_VDW[atom.element][1]}')
+                        connect_lines.append(f"CONNECT, {atom.atomname}, {res.resname}01: ion\n")
+                        radius_lines.append(f"RADIUS, {res.resname}01, {atom.atomname}: {R_BOUNDARY[atom.element]}, {R_VDW[atom.element][0]}, {R_VDW[atom.element][1]}\n")
+                    new_ftpllines.extend(connect_lines)
+                    new_ftpllines.extend(radius_lines)
+                new_ftpllines.append("#" + "-" * 89 + "\n")
 
+        if new_ftpllines:
+            open(NEW_FTPL, "w").writelines(new_ftpllines)
+            logging.info(f"   New ftpl entries are recorded in file {NEW_FTPL}")
 
     def dump(self, fname):
         lines = self.prepend_lines
