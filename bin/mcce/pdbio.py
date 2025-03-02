@@ -187,7 +187,10 @@ class Protein:
             # NTR
             if res_chain[0].resname not in TERMINAL_RESIDUES:
                 ntr = Residue()
-                ntr.resname = "NTR"
+                if res_chain[0].resname == "GLY":
+                    ntr.resname = "NTG"
+                else:
+                    ntr.resname = "NTR"
                 ntr.chain = chain
                 ntr.sequence = res_chain[0].sequence  # Use the same sequence number as the first amino acid
                 ntr.insertion = res_chain[0].insertion
@@ -198,6 +201,9 @@ class Protein:
                     new_conf = conf.clone()
                     new_conf.parent_residue = ntr
                     new_conf.atoms = [atom.clone() for atom in conf.atoms if atom.atomname in NTR_ATOMS]
+                    for atom in new_conf.atoms:
+                        atom.parent_conf = new_conf
+                        atom.resname = ntr.resname
                     # remove the NTR atoms from the original conformer
                     conf.atoms = [atom for atom in conf.atoms if atom.atomname not in NTR_ATOMS]
                     if new_conf.atoms:  # only add the conformer if it has atoms
@@ -266,21 +272,56 @@ class Protein:
         """
         for res in self.residues:
             conf = res.conformers[0]
-            backbone_atoms = []
-            # always create a new conformer for backbone atoms, even if there is no backbone atom
+            backbone_atoms = [atom for atom in conf.atoms if ("CONNECT", atom.atomname, f"{res.resname}BK") in tpl]
             new_conf = Conformer()
-            new_conf.confid = f"{res.resname}{res.chain}{res.sequence}{res.insertion}01"
+            new_conf.confid = f"{res.resname}{res.chain}{res.sequence:04d}{res.insertion}000"  # confnum=000 is the backbone conformer
             new_conf.conftype = f"{res.resname}BK"
             new_conf.parent_residue = res
-            new_conf.history = "BKO000_000" # backbone conformer history
-            for atom in conf.atoms:
-                key = ("CONNECT", atom.atomname, f"{res.resname}BK")
-                if key in tpl:
-                    backbone_atoms.append(atom)
-                    atom.parent_conf = new_conf
-            new_conf.atoms = backbone_atoms            
+            new_conf.history = "BKO000_000"
+            new_conf.atoms = backbone_atoms
+            for atom in backbone_atoms:
+                atom.parent_conf = new_conf
             conf.atoms = [atom for atom in conf.atoms if atom not in backbone_atoms]
             res.conformers = [new_conf, conf]
+
+    def split_altloc(self):
+        """
+        Split the atoms with alternate locations to different conformers.
+        This function is different from split_altloc.py in that this one splits to conformers, while the other one splits to pdb files.
+        This functions assumes:
+        1. The backbone atoms are already split to conformer[0] by split_backbone().
+        2. The atoms with alternate locations are in the same conformer.
+        """
+        for res in self.residues:
+            conf = res.conformers[1]
+            # scan all the atoms in the conformer
+            # if the atom does not have an alternate location, keep it in the common atom list
+            # if the atom has an alternate location, create a new conformer and move the atom to the new conformer
+            # if the new conformer already exists, move the atom to the existing conformer
+            # combine common atoms and new conformers to the conformer list
+            for atom in conf.atoms:
+                common_atoms = []
+                new_confs = defaultdict(list)
+                for atom in conf.atoms:
+                    if atom.altloc == " ":
+                        common_atoms.append(atom)
+                    else:
+                        new_confs[atom.altloc].append(atom)
+
+            # create new conformers if new_confs is not empty
+            # else do nothing (conformer[1] stays the same)
+            if new_confs:
+                res.conformers = [res.conformers[0]]  # keep the backbone conformer
+                for altloc, atoms in new_confs.items():
+                    new_conf = Conformer()
+                    new_conf.conftype = conf.conftype
+                    new_conf.parent_residue = res
+                    new_conf.history = "__" + altloc + "_"*7  # The 3rd character is the altloc
+                    new_conf.atoms = common_atoms + atoms
+                    for atom in new_conf.atoms:
+                        atom.parent_conf = new_conf
+                    res.conformers.append(new_conf)
+                    
 
 
     def dump(self, fname):

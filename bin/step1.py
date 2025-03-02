@@ -75,7 +75,7 @@ if __name__ == "__main__":
     # 4. assign conformer types to conformers
     protein.new_ftpl(tpl)  # Assign conformer types to conformers
     protein.split_backbone(tpl)  # Split backbone atoms to conformer[0]
-    # protein.split_altloc()  # Split altloc atoms to conformers
+    protein.split_altloc()  # Split altloc atoms to conformers
     # protein.assign_conftype(tpl)  # Assign conformer types to conformers
 
     protein.dump(STEP1_OUT)  # Save the protein to a pdb file
