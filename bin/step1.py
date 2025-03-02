@@ -76,7 +76,11 @@ if __name__ == "__main__":
     protein.new_ftpl(tpl)  # Assign conformer types to conformers
     protein.split_backbone(tpl)  # Split backbone atoms to conformer[0]
     protein.split_altloc()  # Split altloc atoms to conformers
-    # protein.assign_conftype(tpl)  # Assign conformer types to conformers
+    # for res in protein.residues:
+    #     for conf in res.conformers:
+    #         print(conf.history)
+    protein.assign_conftype(tpl)  # Assign conformer types to conformers
+
 
     protein.dump(STEP1_OUT)  # Save the protein to a pdb file
     logging.info(f"Step 1 completed.")
