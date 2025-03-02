@@ -199,6 +199,7 @@ class Protein:
                 for conf in res_chain[0].conformers:
                     # clone the conformer and only keep the NTR atoms
                     new_conf = conf.clone()
+                    new_conf.confid = f"{ntr.resname}{ntr.chain}{ntr.sequence:04d}{ntr.insertion}000"
                     new_conf.parent_residue = ntr
                     new_conf.atoms = [atom.clone() for atom in conf.atoms if atom.atomname in NTR_ATOMS]
                     for atom in new_conf.atoms:
@@ -223,8 +224,12 @@ class Protein:
                 for conf in res_chain[-1].conformers:
                     # clone the conformer and only keep the CTR atoms
                     new_conf = conf.clone()
+                    new_conf.confid = f"{ctr.resname}{ctr.chain}{ctr.sequence:04d}{ctr.insertion}000"
                     new_conf.parent_residue = ctr
                     new_conf.atoms = [atom.clone() for atom in conf.atoms if atom.atomname in CTR_ATOMS]
+                    for atom in new_conf.atoms:
+                        atom.parent_conf = new_conf
+                        atom.resname = ctr.resname
                     # remove the CTR atoms from the original conformer
                     conf.atoms = [atom for atom in conf.atoms if atom.atomname not in CTR_ATOMS]
                     if new_conf.atoms:
@@ -299,14 +304,11 @@ class Protein:
             # if the atom has an alternate location, create a new conformer and move the atom to the new conformer
             # if the new conformer already exists, move the atom to the existing conformer
             # combine common atoms and new conformers to the conformer list
+            common_atoms = [atom for atom in conf.atoms if atom.altloc == " "]
+            new_confs = defaultdict(list)
             for atom in conf.atoms:
-                common_atoms = []
-                new_confs = defaultdict(list)
-                for atom in conf.atoms:
-                    if atom.altloc == " ":
-                        common_atoms.append(atom)
-                    else:
-                        new_confs[atom.altloc].append(atom)
+                if atom.altloc != " ":
+                    new_confs[atom.altloc].append(atom)
 
             # create new conformers if new_confs is not empty
             # else do nothing (conformer[1] stays the same)
@@ -315,13 +317,38 @@ class Protein:
                 for altloc, atoms in new_confs.items():
                     new_conf = Conformer()
                     new_conf.conftype = conf.conftype
+                    new_conf.confid = f"{res.resname}{res.chain}{res.sequence:04d}{res.insertion}000"
                     new_conf.parent_residue = res
-                    new_conf.history = "__" + altloc + "_"*7  # The 3rd character is the altloc
+                    new_conf.history = f"__{altloc}_______"  # The 3rd character is the altloc
                     new_conf.atoms = common_atoms + atoms
                     for atom in new_conf.atoms:
                         atom.parent_conf = new_conf
                     res.conformers.append(new_conf)
                     
+    def assign_conftype(self, tpl):
+        """
+        Assign conformer types to conformers.
+        """
+        for res in self.residues:
+            if len(res.conformers) > 1: # only needed for side chains, backbone conformes[0] type is always "BK"
+                key = ("CONFLIST", res.resname)
+                possible_types = tpl[key]
+                for conf in res.conformers[1:]:
+                    conf.conftype = ""  # make sure the conftype is empty
+                    for t in possible_types:
+                        fit_to_type = True
+                        for atom in conf.atoms:
+                            if ("CONNECT", atom.atomname, t) not in tpl:
+                                fit_to_type = False
+                                break
+                        if fit_to_type:  # this type fits all atoms
+                            conf.conftype = t
+#                            print("before", conf.history)
+                            conf.history = f"{conf.conftype[-2:]}{conf.history[2]}000_000"
+#                          print("after", conf.history)
+                            break   # no need to check other types
+                    if conf.conftype == "": # after trying all types, if no type fits, report error
+                        logging.error(f"   {res.resname} {res.chain}{res.sequence:4d}{res.insertion} has no conformer type to hold all atoms.")
 
 
     def dump(self, fname):
@@ -949,7 +976,7 @@ class Pdb:
                 conformer.confnum = 0
                 conformer.confid = f"{atom.resname}{atom.chain}{atom.sequence:04d}{atom.insertion}000" # use 000 as conformer number
                 conformer.conftype = "NA"
-                conformer.history = "From_PDB"
+                conformer.history = "__O000_000"
                 conformer.altloc = atom.altloc
                 conformer.resname = atom.resname
                 conformer.chain = atom.chain
