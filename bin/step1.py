@@ -64,10 +64,18 @@ if __name__ == "__main__":
 
     # Convert the pdb to a Protein object
     protein = pdb.convert_to_protein(tpl)  # Convert the pdb to a Protein object
-
     if prm.TERMINALS.value.lower() == "t":
         logging.info("   Making terminal residues")
         protein.make_ter_residues()  # Add terminal residues if necessary
+    # Now the protein object has the right residue names, we will 
+    # 1. scan protein residues to find unknown cofactors, if found, create new_ftpl for them and ammend tpl database
+    # 2. move backbone atoms to conformer[0] or create new_ftpl for unknown cofactors
+    # 3. split altloc atoms to conformers
+    # 4. assign conformer types to conformers
+    protein.new_ftpl(tpl)  # Assign conformer types to conformers
+    # protein.split_backbone(tpl)  # Split backbone atoms to conformer[0]
+    # protein.split_altloc()  # Split altloc atoms to conformers
+    # protein.assign_conftype(tpl)  # Assign conformer types to conformers
 
     protein.dump(STEP1_OUT)  # Save the protein to a pdb file
     logging.info(f"Step 1 completed.")
