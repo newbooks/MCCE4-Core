@@ -258,6 +258,31 @@ class Protein:
             open(NEW_FTPL, "w").writelines(new_ftpllines)
             logging.info(f"   New ftpl entries are recorded in file {NEW_FTPL}")
 
+    def split_backbone(self, tpl):
+        """
+        Move backbone atoms to conformer[0], the rest atoms to conformer[1].
+        At this point, the backbone atoms should only appear once, the altloc should be detected and resolved by split_altloc.py.
+        At this point, we only have one conformer with all atoms in it.
+        """
+        for res in self.residues:
+            conf = res.conformers[0]
+            backbone_atoms = []
+            # always create a new conformer for backbone atoms, even if there is no backbone atom
+            new_conf = Conformer()
+            new_conf.confid = f"{res.resname}{res.chain}{res.sequence}{res.insertion}01"
+            new_conf.conftype = f"{res.resname}BK"
+            new_conf.parent_residue = res
+            new_conf.history = "BKO000_000" # backbone conformer history
+            for atom in conf.atoms:
+                key = ("CONNECT", atom.atomname, f"{res.resname}BK")
+                if key in tpl:
+                    backbone_atoms.append(atom)
+                    atom.parent_conf = new_conf
+            new_conf.atoms = backbone_atoms            
+            conf.atoms = [atom for atom in conf.atoms if atom not in backbone_atoms]
+            res.conformers = [new_conf, conf]
+
+
     def dump(self, fname):
         lines = self.prepend_lines
         for res in self.residues:
