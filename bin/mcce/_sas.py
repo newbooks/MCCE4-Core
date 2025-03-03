@@ -10,3 +10,6 @@ def sas_atom(atom, background):
     """
     Compute atom sas in the context of background atoms 
     """
+
+def sas_residue(residue, background):
+    
