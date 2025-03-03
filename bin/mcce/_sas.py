@@ -6,3 +6,7 @@ This module contains functions for calculating solvent accessible surface area (
 SAS is calculated using van der Waals radii of atoms and a rolling ball algorithm.
 """
 
+def sas_atom(atom, background):
+    """
+    Compute atom sas in the context of background atoms 
+    """
