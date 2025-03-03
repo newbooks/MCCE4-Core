@@ -856,6 +856,13 @@ class Pdb:
         else:
             logging.warning(f"   Rename rules file {rules} not found. Nothing is renamed.")
             
+    def remove_hoh(self):
+        """
+        Remove water atoms from the pdb file.
+        """
+        self.atoms = [atom for atom in self.atoms if atom.resname != "HOH"]
+        
+
     def dump_pdb(self, fname):
         """
         Dump atoms to a pdb file.

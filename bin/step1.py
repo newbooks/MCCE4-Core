@@ -58,6 +58,10 @@ if __name__ == "__main__":
         logging.error(f"{pdb.message}")
         exit(1)
 
+    if args.no_hoh:
+        logging.info("   Removing water molecules")
+        pdb.remove_hoh()  # Remove water molecules if necessary
+
     pdb.identify_ligands(tpl)   # Identify ligands in the pdb file
     # pdb.dump_pdb("debug.pdb")       # Save the pdb to a string
     pdb.rename(prm._RENAME_RULES.value)  # Rename atoms according to the rules in runprm
