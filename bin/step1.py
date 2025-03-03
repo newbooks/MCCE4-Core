@@ -60,7 +60,7 @@ if __name__ == "__main__":
 
     if args.no_hoh:
         logging.info("   Removing water molecules")
-        pdb.remove_hoh()  # Remove water molecules if necessary
+        pdb.remove_hoh()  # Remove water molecules
 
     pdb.identify_ligands(tpl)   # Identify ligands in the pdb file
     # pdb.dump_pdb("debug.pdb")       # Save the pdb to a string
