@@ -8,6 +8,7 @@ RUNPRM_DUMP = "run.prm.record"              # path from the working directory
 FTPL_DUMP = "ftpl.record"                   # path from the working directory
 
 # Special entries in run.prm that should be converted to absolute paths if seen as relative paths
+# The absolute path will be added with a leading underscore.
 RUNPRM_SPECIAL_ENTRIES = ["FTPL_FOLDER", "EXTRA", "RENAME_RULES", "DELPHI_EXE", "APBS_EXE"]
 
 # Unit conversion factors
@@ -15,7 +16,9 @@ ROOMT = 298.15
 PH2KCAL = 1.364
 KCAL2KT = 1.688
 
-# Output file names
+
+# Input and Output file names
+USER_PARAM = "user_param"       # User defined ftpl files in the working directory. MCCE will use these files if found.
 STEP1_OUT = "step1_out.pdb"
 STEP1_HEAD = "head2.lst"
 NEW_FTPL = "new.ftpl"
