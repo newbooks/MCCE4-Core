@@ -172,3 +172,6 @@ cython_debug/
 
 # mcce record files
 *.record
+step1_out.pdb
+step2_out.pdb
+
