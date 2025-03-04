@@ -43,6 +43,13 @@ class Atom:
         self.conn14 = []            # list of atoms that are 1-4 bonded
         self.parent_conf = None     # parent conformer
 
+    def residue_id(self):
+        """
+        Return the residue ID.
+        """
+        return (self.resname, self.chain, self.sequence, self
+                .insertion)
+    
     def clone(self):
         """
         Clone the atom.
