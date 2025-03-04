@@ -6,10 +6,15 @@ This module contains functions for calculating solvent accessible surface area (
 SAS is calculated using van der Waals radii of atoms and a rolling ball algorithm.
 """
 
+from mcce.constants import *
+
 def sas_atom(atom, background):
     """
     Compute atom sas in the context of background atoms 
     """
 
 def sas_residue(residue, background):
+    """
+    Compute residue sas in the context of background atoms
+    """
     
