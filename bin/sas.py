@@ -5,7 +5,7 @@ Compute SAS for a pdb file
 """
 
 import argparse
-from mcce._sas import *
+from mcce._sas import sas_pdb
 
 if __name__ == "__main__":
     helpmsg = "Calculate SAS for a pdb file"
@@ -14,4 +14,5 @@ if __name__ == "__main__":
     parser.add_argument("--probe", metavar="probe", type=float, default=1.4, help="PDB file")
     args = parser.parse_args()
 
+    sas_pdb(args.pdb_file[0], args.probe)
 

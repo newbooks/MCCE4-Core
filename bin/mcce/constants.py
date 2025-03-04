@@ -79,6 +79,6 @@ R_VDW = {   # radius and energy well depth
 }
 
 # Default values for SAS calculation
-UNASSIGEDN_RAD = 1.8
+UNASSIGEDN_RAD = 2.0
 PROBE_RAD = 1.4
 

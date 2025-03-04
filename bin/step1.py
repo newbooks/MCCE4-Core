@@ -7,6 +7,7 @@ MCCE4 Step 1: Read PDB file and generate a protein object
 import logging
 import argparse
 from mcce.pdbio import *
+from mcce.main import MCCE
 
 logging_format = "%(asctime)s %(levelname)s: %(message)s"
 logging_format_debug = "%(asctime)s %(levelname)s [%(module)s]: %(message)s"
