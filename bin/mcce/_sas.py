@@ -65,20 +65,20 @@ def sas_atom(atom, background):
         max_dist = atom.r_vdw + b.r_vdw + 2 * probe_global  # maximum distance between atom and b that can have impact on SAS of atom
         if abs(b.xyz.x - atom.xyz.x) < max_dist and abs(b.xyz.y - atom.xyz.y) < max_dist and abs(b.xyz.z - atom.xyz.z) < max_dist:
             relavent_background.append(b)
-    #print(len(background), len(relavent_background))
+    # print(atom.resname, atom.atomname, len(background), len(relavent_background))
 
     # generate points on a sphere around the atom
     points_on_sphere = [point * (atom.r_vdw + probe_global) + atom.xyz for point in points_preset]
     n_buried = 0
     for point in points_on_sphere:
         for b in relavent_background:
-            v = point - atom.xyz
+            v = point - b.xyz
             dd = v.x * v.x + v.y * v.y + v.z * v.z
             if dd < (b.r_vdw + probe_global)**2:
                 n_buried += 1
                 break
             
-    return n_buried / n_points * 4 * math.pi * (atom.r_vdw + probe_global) ** 2
+    return (1-n_buried / n_points) * 4 * math.pi * (atom.r_vdw + probe_global) ** 2
 
 def sas_residue(residue, background):
     """
@@ -121,6 +121,10 @@ def sas_pdb(pdb, probe):
 
     # calculate SAS for each residue
     all_atoms = set(pdb.atoms)
+    print("Residue       SAS  Total Percent")
     for res, atoms in residues.items():
         background = list(all_atoms - set(atoms))
-        sas_atoms(atoms, background)
+        res_sas = sas_atoms(atoms, background)
+        res_sas_exposed = sas_atoms(atoms, [])
+        res_sas_percentage = res_sas / res_sas_exposed * 100
+        print(f"{res[0]} {res[1]}{res[2]:4d}{res[3]:1s} {res_sas:6.2f} {res_sas_exposed:6.2f} {res_sas_percentage:6.2f}%")
