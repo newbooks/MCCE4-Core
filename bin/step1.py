@@ -7,6 +7,7 @@ MCCE4 Step 1: Read PDB file and generate a protein object
 import logging
 import argparse
 from mcce.pdbio import *
+from mcce.main import MCCE
 
 logging_format = "%(asctime)s %(levelname)s: %(message)s"
 logging_format_debug = "%(asctime)s %(levelname)s [%(module)s]: %(message)s"
@@ -87,6 +88,14 @@ if __name__ == "__main__":
     #         print(conf.history)
     protein.assign_conftype(tpl)  # Assign conformer types to conformers
 
+    # By this point, we gave
+    # prm - Runprm object about how to run MCCE
+    # tpl - Tpl object about the force field and structure paramters for pronteins
+    # protein - Protein object that represents the actual input protein
+    # From here, we have all three components to make a MCCE object and run MCCE.
+    # Here is a test run, create a MCCE object and calculate solvent accessible surface area of the protein
+    mcce = MCCE(prm, tpl, protein)
+    mcce.sas_protein()  # Calculate solvent accessible surface area of the protein
 
     protein.dump(STEP1_OUT)  # Save the protein to a pdb file
     logging.info(f"Step 1 completed.")
