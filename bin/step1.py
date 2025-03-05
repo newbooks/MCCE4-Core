@@ -94,8 +94,10 @@ if __name__ == "__main__":
     # protein - Protein object that represents the actual input protein
     # From here, we have all three components to make a MCCE object and run MCCE.
     # Here is a test run, create a MCCE object and calculate solvent accessible surface area of the protein
-    mcce = MCCE(prm, tpl, protein)
-    mcce.sas_protein()  # Calculate solvent accessible surface area of the protein
+    mcce = MCCE(prm=prm, tpl=tpl, protein=protein)
+
+    while (n_stripped := mcce.strip_cofactors()) > 0:
+        logging.info(f"   {n_stripped} cofactors stripped in this round")
 
     protein.dump(STEP1_OUT)  # Save the protein to a pdb file
     logging.info(f"Step 1 completed.")

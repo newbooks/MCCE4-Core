@@ -459,7 +459,10 @@ class Runprm:
             self.update_by_files([runprm_default])
         else:
             logging.warning(f"   Default runprm file {runprm_default} not found.")
-        
+
+        # internal attributes, direct name and value assignment, starts with underscore and all lower case
+        self._additional_loose_cofactors = []   # list of additional loose cofactors, loaded from command line
+
 
     def update_by_files(self, files):
         """

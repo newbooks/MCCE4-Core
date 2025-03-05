@@ -80,10 +80,7 @@ def sas_atom(atom, background):
             
     return (1-n_buried / n_points) * 4 * math.pi * (atom.r_vdw + probe_global) ** 2
 
-def sas_residue(residue, background):
-    """
-    Compute residue sas in the context of background atoms
-    """
+
 
 def sas_atoms(atoms, background):
     """
@@ -121,10 +118,12 @@ def sas_pdb(pdb, probe):
 
     # calculate SAS for each residue
     all_atoms = set(pdb.atoms)
-    print("Residue       SAS  Total Percent")
+    output_lines = ["Residue       SAS  Total Percent"]
     for res, atoms in residues.items():
         background = list(all_atoms - set(atoms))
         res_sas = sas_atoms(atoms, background)
         res_sas_exposed = sas_atoms(atoms, [])
         res_sas_percentage = res_sas / res_sas_exposed * 100
-        print(f"{res[0]} {res[1]}{res[2]:4d}{res[3]:1s} {res_sas:6.2f} {res_sas_exposed:6.2f} {res_sas_percentage:6.2f}%")
+        output_lines.append(f"{res[0]} {res[1]}{res[2]:4d}{res[3]:1s} {res_sas:6.2f} {res_sas_exposed:6.2f} {res_sas_percentage:6.2f}%")
+    
+    return output_lines

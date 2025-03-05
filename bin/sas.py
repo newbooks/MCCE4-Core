@@ -47,6 +47,8 @@ if __name__ == "__main__":
         pdb.remove_hoh()
 
     # calculate SAS
-    sas_pdb(pdb, args.probe)
+    output_lines = sas_pdb(pdb, args.probe)
+    for line in output_lines:
+        print(line)
 
 
