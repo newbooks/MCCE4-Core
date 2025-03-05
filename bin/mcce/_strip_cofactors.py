@@ -37,10 +37,13 @@ def strip_cofactors(self):      # Here, self is a MCCE object
     exclude_cofactors = set()
     for res in self.protein.residues:
         if res.resname in LOOSE_COFACTORS:
-            res_atoms = res.conformers[0].atoms
+            res_atoms = [a for a in res.conformers[0].atoms]
             if len(res.conformers) > 1:
-                res_atoms += res.conformers[1].atoms
-            background = list(set(all_atoms) - set(res_atoms))
+                res_atoms += res.conformers[1].atoms  # the list comprehension is necessary, otherwise the res.conformers[0] will be altered
+            all_res_atoms = []
+            for conf in res.conformers:
+                all_res_atoms += conf.atoms
+            background = list(set(all_atoms) - set(all_res_atoms))
             sas = sas_atoms(res_atoms, background)
             sas_exposed = sas_atoms(res_atoms, [])
             sas_percentage = sas / sas_exposed
