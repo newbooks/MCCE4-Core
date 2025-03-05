@@ -82,3 +82,6 @@ R_VDW = {   # radius and energy well depth
 UNASSIGEDN_RAD = 2.0
 PROBE_RAD = 1.4
 
+
+# Loose cofactors that can be stripped off if exposed to solvent
+LOOSE_COFACTORS = ["HOH", "NO3", "NA ", "CL ", "PO4"]
