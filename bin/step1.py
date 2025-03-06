@@ -23,6 +23,7 @@ def parse_arguments():
     parser.add_argument("-r", metavar="prm", nargs="+", default=[], help="Load additional runprm files, in order")
     parser.add_argument("--no_ter", default=False, action="store_true", help="Do not make terminal ressidues")
     parser.add_argument("--no_hoh", default=False, action="store_true", help="Do not include water molecules")
+    parser.add_argument("--cofactors", metavar="cofactor", nargs="+", default=[], help="Load additional cofactors that can be stripped off, in quotes if space in name")
     parser.add_argument("--debug", default=False, action="store_true", help="Print debug information")
     return parser.parse_args()
 
@@ -34,6 +35,9 @@ if __name__ == "__main__":
         logging.basicConfig(level=logging.DEBUG, format=logging_format_debug, datefmt=logging_datefmt)
     else:
         logging.basicConfig(level=logging.INFO, format=logging_format, datefmt=logging_datefmt)
+
+    if args.cofactors:
+        LOOSE_COFACTORS += args.cofactors
 
     logging.info("Step 1: Read PDB file and generate a mcce protein object")
     
