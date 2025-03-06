@@ -20,8 +20,11 @@ KCAL2KT = 1.688
 # Input and Output file names
 USER_PARAM = "user_param"       # User defined ftpl files in the working directory. MCCE will use these files if found.
 STEP1_OUT = "step1_out.pdb"
-STEP1_HEAD = "head2.lst"
+STEP1_HEAD = "head1.lst"
 NEW_FTPL = "new.ftpl"
+ACC_RES = "acc.res"
+ACC_ATOM = "acc.atm"
+
 STEP2_OUT = "step2_out.pdb"
 
 

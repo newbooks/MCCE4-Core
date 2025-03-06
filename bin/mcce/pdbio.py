@@ -357,6 +357,21 @@ class Protein:
                     if conf.conftype == "": # after trying all types, if no type fits, report error
                         logging.error(f"   {res.resname} {res.chain}{res.sequence:4d}{res.insertion} has no conformer type to hold all atoms.")
 
+    def dump_acc(self):
+        """
+        Dump surface accessibility of the protein to acc.atm and acc.res.
+        """
+        acc_atm_lines = []
+        acc_res_lines = []
+        for res in self.residues:
+            if len(res.conformers) > 1:
+                atoms = res.conformers[0].atoms + res.conformers[1].atoms
+            else:
+                atoms = res.conformers[0].atoms
+            acc_res_lines.append(f"{res.resname} {res.chain}{res.sequence:4d}{res.insertion} {res.sas_percentage:6.3f}\n")
+            for atom in atoms:
+                acc_atm_lines.append(f"{res.resname} {res.chain}{res.sequence:4d}{res.insertion}{atom.atomname:4s} {atom.sas:6.3f}\n")
+
 
     def dump(self, fname):
         """

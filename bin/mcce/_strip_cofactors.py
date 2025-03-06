@@ -42,11 +42,11 @@ def strip_cofactors(self):      # Here, self is a MCCE object
             for conf in res.conformers:
                 all_res_atoms += conf.atoms
             background = list(set(all_atoms) - set(all_res_atoms))
-            sas = sas_atoms(res_atoms, background)
-            sas_exposed = sas_atoms(res_atoms, [])
-            sas_percentage = sas / sas_exposed
+            res.sas_reference = sas_atoms(res_atoms, [])
+            res.sas = sas_atoms(res_atoms, background)
+            res.sas_percentage = res.sas / res.sas_reference
             #print(f"{res.resname} {res.resid} {sas} {sas_exposed} {sas_percentage}")
-            if sas_percentage > sas_cutoff:
+            if res.sas_percentage > sas_cutoff:
                 exclude_cofactors.add(res.resid)
     
 
