@@ -11,8 +11,6 @@ def strip_cofactors(self):      # Here, self is a MCCE object
     Strip off cofactors if they are not buried in the protein.
     """
     sas_cutoff = float(self.prm.SAS_CUTOFF.value)
-    loose_cofactors = LOOSE_COFACTORS + self.prm._additional_loose_cofactors # load the default list, will expand this by self.prm._addional_loose_cofactors 
-
 
     # collect all atoms in the protein as background atoms
     all_atoms = []
