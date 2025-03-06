@@ -97,6 +97,39 @@ def sas_atoms(atoms, background):
     return total_sas
 
 
+def sas_protein(self):  # Here, self is a MCCE object
+    """
+    Compute SAS for all resdidues in the protein.
+    """
+    global probe_global
+    probe_global = float(self.prm.RADIUS_PROBE.value)
+
+    self.assign_qr()
+
+    # all atoms are the background atoms that only present in conformers[0] and [1]
+    all_atoms = [atom for res in self.protein.residues for conf in res.conformers[:2] for atom in conf.atoms]
+
+    for res in self.protein.residues:
+        res_atoms = [atom for conf in res.conformers[:2] for atom in conf.atoms]
+        background = list(set(all_atoms) - set(res_atoms))
+        res.sas_reference = sas_atoms(res_atoms, [])
+        res.sas = sas_atoms(res_atoms, background)
+        res.sas_percentage = res.sas / res.sas_reference
+
+    with open(ACC_ATOM, "w") as f:
+        f.write("Atom              SAS\n")
+        for res in self.protein.residues:
+            for atom in [atom for conf in res.conformers[:2] for atom in conf.atoms]:
+                f.write(f"{atom.atomname} {atom.resname} {atom.chain}{atom.sequence:4d} {atom.insertion} {atom.sas:5.2f}\n")
+    with open(ACC_RES, "w") as f:
+        f.write("Residue        SAS    REF   Fraction\n")
+        for res in self.protein.residues:
+            f.write(f"{res.resname} {res.chain}{res.sequence:4d} {res.insertion} {res.sas:6.2f} {res.sas_reference:6.2f} {res.sas_percentage:10.2f}\n")
+
+    
+
+
+
 def sas_pdb(pdb, probe):
     """
     Compute SAS for a pdb file

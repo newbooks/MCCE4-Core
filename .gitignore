@@ -175,4 +175,5 @@ cython_debug/
 step1_out.pdb
 step2_out.pdb
 *.stripped.pdb
-
+acc.res
+acc.atm

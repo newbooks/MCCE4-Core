@@ -4,6 +4,7 @@ Strip off cofactors if they are not buried in the protein.
 
 from .constants import LOOSE_COFACTORS, UNASSIGEDN_RAD
 from ._sas import sas_atoms, radius
+from ._assign_qr import assign_qr
 import logging
 
 def strip_cofactors(self):      # Here, self is a MCCE object
@@ -20,11 +21,11 @@ def strip_cofactors(self):      # Here, self is a MCCE object
             all_atoms += res.conformers[1].atoms
 
     # check if atom radii are loaded
-    for atom in all_atoms:
-        if atom.r_vdw < 0.0001:  # if the atom radius is not loaded
-            atom.r_vdw = radius.get(atom.element, UNASSIGEDN_RAD)
-            logging.debug(f"   atom \"{atom.element}\" has no VDW radius, using default {atom.r_vdw}")
-
+    # for atom in all_atoms:
+    #     if atom.r_vdw < 0.0001:  # if the atom radius is not loaded
+    #         atom.r_vdw = radius.get(atom.element, UNASSIGEDN_RAD)
+    #         logging.debug(f"   atom \"{atom.element}\" has no VDW radius, using default {atom.r_vdw}")
+    self.assign_qr()
 
 
     # loop over all residues and identify loose cofactors from the protein
@@ -33,20 +34,21 @@ def strip_cofactors(self):      # Here, self is a MCCE object
     # - calculate SAS of the cofactor atoms
     # - if SAS is larger than the threshold, remove the residue from the set
     exclude_cofactors = set()
+
+    # conf 0 and 1 atoms only as background    
+    all_atoms = [atom for res in self.protein.residues for conf in res.conformers[:2] for atom in conf.atoms]
+
     for res in self.protein.residues:
         if res.resname in LOOSE_COFACTORS:
             res_atoms = [a for a in res.conformers[0].atoms]
             if len(res.conformers) > 1:
                 res_atoms += res.conformers[1].atoms  # the list comprehension is necessary, otherwise the res.conformers[0] will be altered
-            all_res_atoms = []
-            for conf in res.conformers:
-                all_res_atoms += conf.atoms
-            background = list(set(all_atoms) - set(all_res_atoms))
-            sas = sas_atoms(res_atoms, background)
-            sas_exposed = sas_atoms(res_atoms, [])
-            sas_percentage = sas / sas_exposed
+            background = list(set(all_atoms) - set(res_atoms))
+            res.sas_reference = sas_atoms(res_atoms, [])
+            res.sas = sas_atoms(res_atoms, background)
+            res.sas_percentage = res.sas / res.sas_reference
             #print(f"{res.resname} {res.resid} {sas} {sas_exposed} {sas_percentage}")
-            if sas_percentage > sas_cutoff:
+            if res.sas_percentage > sas_cutoff:
                 exclude_cofactors.add(res.resid)
     
 
