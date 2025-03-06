@@ -174,4 +174,5 @@ cython_debug/
 *.record
 step1_out.pdb
 step2_out.pdb
+*.stripped.pdb
 
