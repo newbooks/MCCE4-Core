@@ -103,6 +103,9 @@ if __name__ == "__main__":
     while (n_stripped := mcce.strip_cofactors()) > 0:
         logging.info(f"   {n_stripped} cofactors stripped in this round")
 
+    # calculate SAS for all residues in the protein final structure
+    mcce.sas_protein()
+
     protein.dump(STEP1_OUT)  # Save the protein to a pdb file
     logging.info(f"Step 1 completed.")
     logging.info(f"Output:")  

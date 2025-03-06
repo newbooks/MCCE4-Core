@@ -97,6 +97,19 @@ def sas_atoms(atoms, background):
     return total_sas
 
 
+def sas_protein(self):  # Here, self is a MCCE object
+    """
+    Compute SAS for all resdidues in the protein.
+    """
+    global probe_global
+    probe_global = float(self.prm.RADIUS_PROBE.value)
+
+    self.assign_qr()
+
+    
+
+
+
 def sas_pdb(pdb, probe):
     """
     Compute SAS for a pdb file
