@@ -12,3 +12,4 @@ class MCCE:
     from ._strip_cofactors import strip_cofactors
     from ._sas import sas_protein
     from ._assign_qr import assign_qr
+    from ._make_head1 import make_head1
