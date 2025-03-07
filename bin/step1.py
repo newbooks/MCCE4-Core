@@ -23,7 +23,7 @@ def parse_arguments():
     parser.add_argument("-r", metavar="prm", nargs="+", default=[], help="Load additional runprm files, in order")
     parser.add_argument("--no_ter", default=False, action="store_true", help="Do not make terminal ressidues")
     parser.add_argument("--no_hoh", default=False, action="store_true", help="Do not include water molecules")
-    parser.add_argument("--no_center", default=False, action="store_true", help="Do not center the protein to origin")
+    parser.add_argument("--no_center", default=False, action="store_true", help="The weighted center of protein is moved the origin. This option prevents the centering.")
     parser.add_argument("--cofactors", metavar="cofactor", nargs="+", default=[], help="Load additional cofactors that can be stripped off, in quotes if space in name")
     parser.add_argument("--debug", default=False, action="store_true", help="Print debug information")
     return parser.parse_args()
@@ -108,8 +108,12 @@ if __name__ == "__main__":
     # calculate SAS for all residues in the protein final structure and write to acc.res and acc.atm
     mcce.sas_protein()
 
+    if not args.no_center:
+        protein.center_to_origin()
+
     # create head1.lst
     mcce.make_head1(STEP1_HEAD)
+
 
     protein.dump(STEP1_OUT)  # Save the protein to a pdb file
     

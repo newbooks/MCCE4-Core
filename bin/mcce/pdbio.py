@@ -429,6 +429,26 @@ class Protein:
             with open(fname, "w") as f:
                 f.writelines(lines)
 
+    def center_to_origin(self):
+        """
+        Center the protein to the origin.
+        """
+        # find the weighted center of the protein
+        center = Vector()
+        n_atoms = 0
+        for res in self.residues:
+            for conf in res.conformers:
+                for atom in conf.atoms:
+                    center += atom.xyz
+                    n_atoms += 1
+        center /= n_atoms
+        # move the protein to the center
+        for res in self.residues:
+            for conf in res.conformers:
+                for atom in conf.atoms:
+                    atom.xyz -= center
+
+
 
 class Runprm:
     """
