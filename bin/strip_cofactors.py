@@ -79,6 +79,7 @@ if __name__ == "__main__":
             atom.r_vdw = mcce._sas.radius.get(atom.element, UNASSIGEDN_RAD)
             logging.debug(f"Warning: atom \"{atom.element}\" has no VDW radius, using default {atom.r_vdw}")
 
+    logging.info("Stripping exposed cofactors")
     while (n_stripped := strip_cofactors(pdb)) > 0:
         logging.info(f"Removed {n_stripped} cofactors this round")
 
