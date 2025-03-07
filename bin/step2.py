@@ -35,7 +35,7 @@ if __name__ == "__main__":
         logging.basicConfig(level=logging.INFO, format=logging_format, datefmt=logging_datefmt)
 
 
-    logging.info("Step 1: Read PDB file and generate a mcce protein object")
+    logging.info("Step 2: Read PDB file and generate a mcce protein object")
     
     # Get prm
     prm = Runprm()                  # Create a Runprm instance and load the default runprm file
@@ -53,6 +53,6 @@ if __name__ == "__main__":
     # Get protein from mccepdb step1_out.pdb
     mcce = MCCE(prm=prm, tpl=tpl)
     mcce.load_mccepdb()    # load mccepdb within mcce object as tpl is required to load the mccepdb
-
+    logging.info(f"   Protein loaded from {STEP1_OUT}")
 
     mcce.protein.dump(STEP2_OUT)  # Save the protein to a pdb file
