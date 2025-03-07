@@ -23,7 +23,7 @@ def parse_arguments():
     parser.add_argument("-r", metavar="prm", nargs="+", default=[], help="Load additional runprm files, in order")
     parser.add_argument("--no_ter", default=False, action="store_true", help="Do not make terminal ressidues")
     parser.add_argument("--no_hoh", default=False, action="store_true", help="Do not include water molecules")
-    parser.add_argument("--no_center", default=False, action="store_true", help="The weighted center of protein is moved the origin. This option prevents the centering.")
+    parser.add_argument("--no_center", default=False, action="store_true", help="This option prevents moving the weighted center of protein to the origin.")
     parser.add_argument("--cofactors", metavar="cofactor", nargs="+", default=[], help="Load additional cofactors that can be stripped off, in quotes if space in name")
     parser.add_argument("--debug", default=False, action="store_true", help="Print debug information")
     return parser.parse_args()
