@@ -13,3 +13,4 @@ class MCCE:
     from ._sas import sas_protein
     from ._assign_qr import assign_qr
     from ._make_head1 import make_head1
+    from ._load_mccepdb import load_mccepdb
