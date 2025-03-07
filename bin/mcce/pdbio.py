@@ -117,6 +117,24 @@ class Atom:
             self.parent_conf.history
         )
 
+    def load_mcceline(self, line):
+        """
+        Load the atom from a mcce pdb line.
+        """
+        self.record = line[0:6]
+        self.atomname = line[12:16]
+        self.altloc = line[16]
+        self.resname = line[17:20]
+        self.chain = line[21]
+        self.sequence = int(line[22:26])
+        self.insertion = line[26]
+        self.confnum = int(line[27:30])
+        self.xyz = Vector([float(line[30:38]), float(line[38:46]), float(line[46:54])])
+        self.r_boundary = float(line[54:62])
+        self.charge = float(line[62:74])
+        self.history = line[80:90]        
+
+
 
 class Conformer:
     """
@@ -294,7 +312,10 @@ class Protein:
             for atom in backbone_atoms:
                 atom.parent_conf = new_conf
             conf.atoms = [atom for atom in conf.atoms if atom not in backbone_atoms]
-            res.conformers = [new_conf, conf]
+            if conf.atoms:  # only add the conformer if it has atoms
+                res.conformers = [new_conf, conf]
+            else:  # if the conformer has no atoms, remove it, this happens to GLY
+                res.conformers = [new_conf]
 
     def split_altloc(self):
         """
@@ -305,32 +326,33 @@ class Protein:
         2. The atoms with alternate locations are in the same conformer.
         """
         for res in self.residues:
-            conf = res.conformers[1]
-            # scan all the atoms in the conformer
-            # if the atom does not have an alternate location, keep it in the common atom list
-            # if the atom has an alternate location, create a new conformer and move the atom to the new conformer
-            # if the new conformer already exists, move the atom to the existing conformer
-            # combine common atoms and new conformers to the conformer list
-            common_atoms = [atom for atom in conf.atoms if atom.altloc == " "]
-            new_confs = defaultdict(list)
-            for atom in conf.atoms:
-                if atom.altloc != " ":
-                    new_confs[atom.altloc].append(atom)
+            if len(res.conformers) > 1:  # only needed for side chains
+                conf = res.conformers[1]
+                # scan all the atoms in the conformer
+                # if the atom does not have an alternate location, keep it in the common atom list
+                # if the atom has an alternate location, create a new conformer and move the atom to the new conformer
+                # if the new conformer already exists, move the atom to the existing conformer
+                # combine common atoms and new conformers to the conformer list
+                common_atoms = [atom for atom in conf.atoms if atom.altloc == " "]
+                new_confs = defaultdict(list)
+                for atom in conf.atoms:
+                    if atom.altloc != " ":
+                        new_confs[atom.altloc].append(atom)
 
-            # create new conformers if new_confs is not empty
-            # else do nothing (conformer[1] stays the same)
-            if new_confs:
-                res.conformers = [res.conformers[0]]  # keep the backbone conformer
-                for altloc, atoms in new_confs.items():
-                    new_conf = Conformer()
-                    new_conf.conftype = conf.conftype
-                    new_conf.confid = f"{res.resname}{res.chain}{res.sequence:04d}{res.insertion}000"
-                    new_conf.parent_residue = res
-                    new_conf.history = f"__{altloc}_______"  # The 3rd character is the altloc
-                    new_conf.atoms = common_atoms + atoms
-                    for atom in new_conf.atoms:
-                        atom.parent_conf = new_conf
-                    res.conformers.append(new_conf)
+                # create new conformers if new_confs is not empty
+                # else do nothing (conformer[1] stays the same)
+                if new_confs:
+                    res.conformers = [res.conformers[0]]  # keep the backbone conformer
+                    for altloc, atoms in new_confs.items():
+                        new_conf = Conformer()
+                        new_conf.conftype = conf.conftype
+                        new_conf.confid = f"{res.resname}{res.chain}{res.sequence:04d}{res.insertion}000"
+                        new_conf.parent_residue = res
+                        new_conf.history = f"__{altloc}_______"  # The 3rd character is the altloc
+                        new_conf.atoms = [a.clone() for a in common_atoms + atoms] # combine common atoms and new atoms and make a copy
+                        for atom in new_conf.atoms:
+                            atom.parent_conf = new_conf
+                        res.conformers.append(new_conf)
                     
     def assign_conftype(self, tpl):
         """
@@ -543,28 +565,28 @@ class Runprm:
         -r prm [prm ...]  Load additional runprm files, in order
         --debug           Print debug information
         """
-        if args.pdb_file:
+        if hasattr(args, 'pdb_file') and args.pdb_file:
             self.INPDB.value = args.pdb_file
             self.INPDB.set_by = "#Set by command line"
         
-        if args.f:
+        if hasattr(args, 'f') and args.f:
             self.FTPL_FOLDER.value = args.f
             self.FTPL_FOLDER.set_by = "#Set by command line"
 
-        if args.s:
+        if hasattr(args, 's') and args.s:
             self.SAS_CUTOFF.value = str(args.s)
             self.SAS_CUTOFF.set_by = "#Set by command line"
         
-        if args.no_ter:
+        if hasattr(args, 'no_ter') and args.no_ter:
             self.TERMINALS.value = "f"
             self.TERMINALS.set_by = "#Set by command line"
         
-        if args.no_hoh:
+        if hasattr(args, 'no_hoh') and args.no_hoh:
             self.NO_HOH.value = "t"
             self.NO_HOH.set_by = "#Set by command line"
 
         # loading additional runprm files should be done at the very end to overwrite previous settings
-        if args.r:
+        if hasattr(args, 'r') and args.r:
             self.update_by_files(args.r)    # set by additional runprm files specified by command line
 
     def dump(self, comment=""):
@@ -1038,7 +1060,7 @@ class Pdb:
 
         protein = Protein()
         for atom in self.atoms:
-            # create a new conformer if the residue does not exist
+            # create a new residue if the residue does not exist
             residue = None
             for res in protein.residues:
                 if res.resid == (atom.resname, atom.chain, atom.sequence, atom.insertion):
