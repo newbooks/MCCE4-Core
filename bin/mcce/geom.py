@@ -13,7 +13,7 @@ class Vector:
     Vector class
     """
     def __init__(self, values=None):
-        self.x, self.y, self.z = values if values else (0.0, 0.0, 0.0)
+        self.x, self.y, self.z = values if values is not None else (0.0, 0.0, 0.0)
 
     def __add__(self, other):
         return Vector([self.x + other.x, self.y + other.y, self.z + other.z])
@@ -105,10 +105,10 @@ class Matrix:
         ])
         self.values = np.dot(self.values, translation_matrix)
 
-    def rotation_axis(self, point1_vector, point2_vector, angle):
-        axis = point2_vector - point1_vector
-        axis.normalize()
-        x, y, z = axis.x, axis.y, axis.z
+    def rotate_axis(self, axis_vector, angle):
+        axis_vector = axis_vector.copy()
+        axis_vector.normalize()
+        x, y, z = axis_vector.x, axis_vector.y, axis_vector.z
         c, s = np.cos(angle), np.sin(angle)
         t = 1 - c
 
@@ -119,6 +119,17 @@ class Matrix:
             [0, 0, 0, 1]
         ])
         self.values = np.dot(self.values, rotation_matrix)
+
+    def roll_line(self, p1, p2, angle):
+        """
+        Rotate the line defined by p1 and p2 around the line by angle
+        """
+        axis_vector = p2 - p1
+        axis_vector.normalize()
+        self.translate(p1 * -1)
+        self.rotate_axis(axis_vector, angle)
+        self.translate(p1)
+
 
     def apply_to_vector(self, vector):
         vec = np.array([vector.x, vector.y, vector.z, 1.0])
@@ -153,5 +164,58 @@ if __name__ == "__main__":
     print("v1.angle(v2) in radian:", angle)
     print("v1.angle(v2) in degree:", angle / np.pi * 180)
     print("v1.to_np():", v1.to_np())
+
+    # test matrix class
+    print("\nTest Matrix class:")
+    m = Matrix()
+    
+    o = Vector([0, 0, 0])
+    vt = Vector([1, 2, 3])
+    m.translate(vt)
+    print("Translate by vt %s:" % vt)
+    print(m)
+    print("Apply to origin:", m.apply_to_vector(o))
+    print("Apply to vt:", m.apply_to_vector(vt))
+
+    print("\nTranslet it forward and back:")
+    m.reset()
+    m.translate(vt)
+    print("Translate by vt: %s" % vt)
+    print(m)
+    m.translate(vt * -1)
+    print("Translate by -vt: %s" % (vt * -1))
+    print(m)
+
+    # test rotation
+    print("\nTest rotation:")
+    m.reset()
+    p1 = Vector([0, 0, 0])
+    p2 = Vector([1, 0, 0])
+    angle = np.pi / 2
+    m.roll_line(p1, p2, angle)
+    print("Rotate 90 degree around x-axis:")
+    vr = Vector([0, 1, 0])
+    print("Apply to vr %s, expect to be (0, 0, 1):" % vr)
+    print(m.apply_to_vector(vr))
+
+    m.reset()
+    p1 = Vector([0, 0, 0])
+    p2 = Vector([0, 1, 0])
+    angle = np.pi / 2
+    m.roll_line(p1, p2, angle)
+    print("\nRotate 90 degree around y-axis:")
+    vr = Vector([2, 0, 0])
+    print("Apply to vr %s, expect to be (0, 0, -2):" % vr)
+    print(m.apply_to_vector(vr))
+
+    m.reset()
+    p1 = Vector([1, 0, 0])
+    p2 = Vector([0, 1, 0])
+    angle = np.pi / 2
+    m.roll_line(p1, p2, angle)
+    print("\nRotate 90 degree around %s -> %s:" % (p1, p2))
+    vr = Vector([0, 0, 0])
+    print("Apply to vr %s, expect to be (0.5, 0.5, 0.707):" % vr)
+    print(m.apply_to_vector(vr))
 
 
