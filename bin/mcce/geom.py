@@ -105,31 +105,33 @@ class Matrix:
         ])
         self.values = np.dot(translation_matrix, self.values)  # translation matrix is on the left, same as my original code
 
-    def rotate_direction(self, direction_vector, angle):  # th direction vector as the axis of rotation, like an axis passing the origin
+    def rotate_direction(self, direction_vector, angle):  # the direction vector as the axis of rotation, like an axis passing the origin
         axis_vector = direction_vector.copy()
-        axis_vector.normalize()
-        x, y, z = axis_vector.x, axis_vector.y, axis_vector.z
-        c, s = np.cos(angle), np.sin(angle)
-        t = 1 - c
+        if angle > 0.00001:  # avoid floating point error
+            axis_vector.normalize()
+            x, y, z = axis_vector.x, axis_vector.y, axis_vector.z
+            c, s = np.cos(angle), np.sin(angle)
+            t = 1 - c
 
-        rotation_matrix = np.array([
-            [t*x*x + c, t*x*y - s*z, t*x*z + s*y, 0],
-            [t*x*y + s*z, t*y*y + c, t*y*z - s*x, 0],
-            [t*x*z - s*y, t*y*z + s*x, t*z*z + c, 0],
-            [0, 0, 0, 1]
-        ])
-        self.values = np.dot(rotation_matrix, self.values) # rotation matrix is on the left, same as my original code
+            rotation_matrix = np.array([
+                [t*x*x + c, t*x*y - s*z, t*x*z + s*y, 0],
+                [t*x*y + s*z, t*y*y + c, t*y*z - s*x, 0],
+                [t*x*z - s*y, t*y*z + s*x, t*z*z + c, 0],
+                [0, 0, 0, 1]
+            ])
+            self.values = np.dot(rotation_matrix, self.values) # rotation matrix is on the left, same as my original code
 
 
-    def roll_line(self, point, direction, angle):
+    def roll_line(self, point, direction, angle):  # line is passed in as a point and a direction vector
         """
         Rotate the line defined by point and direction around the line by angle
         """
         axis_vector = direction.copy()
-        axis_vector.normalize()
-        self.translate(point * -1)
-        self.rotate_direction(axis_vector, angle)
-        self.translate(point)
+        if angle > 0.00001:  # avoid floating point error
+            axis_vector.normalize()
+            self.translate(point * -1)
+            self.rotate_direction(axis_vector, angle)
+            self.translate(point)
 
 
     def roll_2points(self, p1, p2, angle):
@@ -137,10 +139,11 @@ class Matrix:
         Rotate the line defined by p1 and p2 around the line by angle
         """
         axis_vector = p2 - p1
-        axis_vector.normalize()
-        self.translate(p1 * -1)
-        self.rotate_direction(axis_vector, angle)
-        self.translate(p1)
+        if angle > 0.00001:  #
+            axis_vector.normalize()
+            self.translate(p1 * -1)
+            self.rotate_direction(axis_vector, angle)
+            self.translate(p1)
 
 
     def apply_to_vector(self, vector):
@@ -152,18 +155,26 @@ def geom_2v_onto_2v(v1, v2, u1, u2):
     """
     Superimpose v1 onto u1, then align v2 onto u2
     """
-    # translate
-    t = u1 - v1
     m = Matrix()
-    m.translate(t)
-    # find the angle between v12 and u12
-    v12 = v2 - v1
-    u12 = u2 - u1
-    angle = v12.angle(u12)
-    # find the axis
-    axis = v12.cross(u12)
-    m.roll_line(u1, axis, angle)
+    m.translate(u1 - v1)
+    v12, u12 = v2 - v1, u2 - u1
+    m.roll_line(u1, v12.cross(u12), v12.angle(u12))
     return m
+
+def geom_3v_onto_3v(v1, v2, v3, u1, u2, u3):
+    """
+    Superimpose v1 onto u1, then align v2 onto u2, and align v3 onto u3
+    """
+    m = geom_2v_onto_2v(v1, v2, u1, u2)
+
+    # after the first alignment, v1 is at u1, v2 is at u2 direction, the plane v123 and u123 directions remain the same
+    v12, v13 = v2 - v1, v3 - v1
+    v123 = v12.cross(v13)
+    u12, u13 = u2 - u1, u3 - u1
+    u123 = u12.cross(u13)
+    m.roll_line(u1, u123, v123.angle(u123))
+    return m
+
 
 
 if __name__ == "__main__":
@@ -269,3 +280,31 @@ if __name__ == "__main__":
     x2 = m.apply_to_vector(v2)
     print("After alignment: %s -> %s" % (x1, x2))
     
+    # test geom_3v_onto_3v
+    print("\nTest geom_3v_onto_3v:")
+    v1 = Vector([1, 0, 0])
+    v2 = Vector([1, 1, 0])
+    v3 = Vector([1, 0, 1])
+    u1 = Vector([0, 0, 0])
+    u2 = Vector([0, 1, 0])
+    u3 = Vector([0, 0, 1])
+    print("Align %s -> %s -> %s to %s -> %s -> %s:" % (v1, v2, v3, u1, u2, u3))
+    m = geom_3v_onto_3v(v1, v2, v3, u1, u2, u3)
+    x1 = m.apply_to_vector(v1)
+    x2 = m.apply_to_vector(v2)
+    x3 = m.apply_to_vector(v3)
+    print("After alignment: %s -> %s -> %s" % (x1, x2, x3))
+
+    print("\nTest geom_3v_onto_3v (reverse):")
+    u1 = Vector([1, 0, 0])
+    u2 = Vector([1, 1, 0])
+    u3 = Vector([1, 0, 1])
+    v1 = Vector([0, 0, 0])
+    v2 = Vector([0, 1, 0])
+    v3 = Vector([0, 0, 1])
+    print("Align %s -> %s -> %s to %s -> %s -> %s:" % (v1, v2, v3, u1, u2, u3))
+    m = geom_3v_onto_3v(v1, v2, v3, u1, u2, u3)
+    x1 = m.apply_to_vector(v1)
+    x2 = m.apply_to_vector(v2)
+    x3 = m.apply_to_vector(v3)
+    print("After alignment: %s -> %s -> %s" % (x1, x2, x3))
