@@ -65,6 +65,67 @@ class Vector:
         return Vector([self.x, self.y, self.z])
 
 
+
+class Matrix:
+    """
+    Matrix class for 3D transformations
+    """
+    def __init__(self, values=None):
+        if values is None:
+            self.values = np.identity(4)
+        else:
+            self.values = np.array(values).reshape(4, 4)
+
+    def __mul__(self, other):
+        if isinstance(other, Matrix):
+            return Matrix(np.dot(self.values, other.values))
+        elif isinstance(other, Vector):
+            vec = np.array([other.x, other.y, other.z, 1.0])
+            result = np.dot(self.values, vec)
+            return Vector(result[:3])
+        else:
+            raise TypeError("Unsupported multiplication")
+
+    def __str__(self):
+        return str(self.values)
+
+    def __repr__(self):
+        return self.__str__()
+
+    def reset(self):
+        self.values = np.identity(4)
+
+    def translate(self, translation_vector):
+        tx, ty, tz = translation_vector.x, translation_vector.y, translation_vector.z
+        translation_matrix = np.array([
+            [1, 0, 0, tx],
+            [0, 1, 0, ty],
+            [0, 0, 1, tz],
+            [0, 0, 0, 1]
+        ])
+        self.values = np.dot(self.values, translation_matrix)
+
+    def rotation_axis(self, point1_vector, point2_vector, angle):
+        axis = point2_vector - point1_vector
+        axis.normalize()
+        x, y, z = axis.x, axis.y, axis.z
+        c, s = np.cos(angle), np.sin(angle)
+        t = 1 - c
+
+        rotation_matrix = np.array([
+            [t*x*x + c, t*x*y - s*z, t*x*z + s*y, 0],
+            [t*x*y + s*z, t*y*y + c, t*y*z - s*x, 0],
+            [t*x*z - s*y, t*y*z + s*x, t*z*z + c, 0],
+            [0, 0, 0, 1]
+        ])
+        self.values = np.dot(self.values, rotation_matrix)
+
+    def apply_to_vector(self, vector):
+        vec = np.array([vector.x, vector.y, vector.z, 1.0])
+        result = np.dot(self.values, vec)
+        return Vector(result[:3])
+
+
 if __name__ == "__main__":
     # test vector class
     print("Test Vector class:")
