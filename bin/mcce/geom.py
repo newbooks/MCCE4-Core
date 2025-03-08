@@ -103,7 +103,8 @@ class Matrix:
             [0, 0, 1, tz],
             [0, 0, 0, 1]
         ])
-        self.values = np.dot(self.values, translation_matrix)
+        #self.values = np.dot(self.values, translation_matrix)
+        self.values = np.dot(translation_matrix, self.values)  # translation matrix is on the left, same as my original code
 
     def rotate_axis(self, axis_vector, angle):
         axis_vector = axis_vector.copy()
@@ -118,7 +119,8 @@ class Matrix:
             [t*x*z - s*y, t*y*z + s*x, t*z*z + c, 0],
             [0, 0, 0, 1]
         ])
-        self.values = np.dot(self.values, rotation_matrix)
+        #self.values = np.dot(self.values, rotation_matrix)
+        self.values = np.dot(rotation_matrix, self.values) # rotation matrix is on the left, same as my original code
 
     def roll_line(self, p1, p2, angle):
         """
