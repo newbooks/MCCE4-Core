@@ -103,11 +103,10 @@ class Matrix:
             [0, 0, 1, tz],
             [0, 0, 0, 1]
         ])
-        #self.values = np.dot(self.values, translation_matrix)
         self.values = np.dot(translation_matrix, self.values)  # translation matrix is on the left, same as my original code
 
-    def rotate_axis(self, axis_vector, angle):
-        axis_vector = axis_vector.copy()
+    def rotate_direction(self, direction_vector, angle):  # th direction vector as the axis of rotation, like an axis passing the origin
+        axis_vector = direction_vector.copy()
         axis_vector.normalize()
         x, y, z = axis_vector.x, axis_vector.y, axis_vector.z
         c, s = np.cos(angle), np.sin(angle)
@@ -119,17 +118,28 @@ class Matrix:
             [t*x*z - s*y, t*y*z + s*x, t*z*z + c, 0],
             [0, 0, 0, 1]
         ])
-        #self.values = np.dot(self.values, rotation_matrix)
         self.values = np.dot(rotation_matrix, self.values) # rotation matrix is on the left, same as my original code
 
-    def roll_line(self, p1, p2, angle):
+
+    def roll_line(self, point, direction, angle):
+        """
+        Rotate the line defined by point and direction around the line by angle
+        """
+        axis_vector = direction.copy()
+        axis_vector.normalize()
+        self.translate(point * -1)
+        self.rotate_direction(axis_vector, angle)
+        self.translate(point)
+
+
+    def roll_2points(self, p1, p2, angle):
         """
         Rotate the line defined by p1 and p2 around the line by angle
         """
         axis_vector = p2 - p1
         axis_vector.normalize()
         self.translate(p1 * -1)
-        self.rotate_axis(axis_vector, angle)
+        self.rotate_direction(axis_vector, angle)
         self.translate(p1)
 
 
@@ -137,6 +147,23 @@ class Matrix:
         vec = np.array([vector.x, vector.y, vector.z, 1.0])
         result = np.dot(self.values, vec)
         return Vector(result[:3])
+
+def geom_2v_onto_2v(v1, v2, u1, u2):
+    """
+    Superimpose v1 onto u1, then align v2 onto u2
+    """
+    # translate
+    t = u1 - v1
+    m = Matrix()
+    m.translate(t)
+    # find the angle between v12 and u12
+    v12 = v2 - v1
+    u12 = u2 - u1
+    angle = v12.angle(u12)
+    # find the axis
+    axis = v12.cross(u12)
+    m.roll_line(u1, axis, angle)
+    return m
 
 
 if __name__ == "__main__":
@@ -214,10 +241,31 @@ if __name__ == "__main__":
     p1 = Vector([1, 0, 0])
     p2 = Vector([0, 1, 0])
     angle = np.pi / 2
-    m.roll_line(p1, p2, angle)
+    m.roll_2points(p1, p2, angle)
     print("\nRotate 90 degree around %s -> %s:" % (p1, p2))
     vr = Vector([0, 0, 0])
     print("Apply to vr %s, expect to be (0.5, 0.5, 0.707):" % vr)
     print(m.apply_to_vector(vr))
 
 
+    # test geom_2v_onto_2v
+    print("\nTest geom_2v_onto_2v:")
+    v1 = Vector([1, 0, 0])
+    v2 = Vector([0, 1, 0])
+    u1 = Vector([0, 0, 0])
+    u2 = Vector([0, 1, 1])
+    print("Align %s -> %s to %s -> %s:" % (v1, v2, u1, u2))
+    m = geom_2v_onto_2v(v1, v2, u1, u2)
+    x1 = m.apply_to_vector(v1)
+    x2 = m.apply_to_vector(v2)
+    print("After alignment: %s -> %s" % (x1, x2))
+    v1 = Vector([2, 0, 0])
+    v2 = Vector([0, 1, 0])
+    u1 = Vector([0, 0, 0])
+    u2 = Vector([1, 1, 1])
+    print("Align %s -> %s to %s -> %s:" % (v1, v2, u1, u2))
+    m = geom_2v_onto_2v(v1, v2, u1, u2)
+    x1 = m.apply_to_vector(v1)
+    x2 = m.apply_to_vector(v2)
+    print("After alignment: %s -> %s" % (x1, x2))
+    
