@@ -7,7 +7,7 @@ MCCE4 Step 2: Make Conformers
 import logging
 import argparse
 from mcce.pdbio import *
-from mcce.main import MCCE
+from mcce.main import *
 from mcce.constants import *
 
 logging_format = "%(asctime)s %(levelname)s: %(message)s"
@@ -54,5 +54,13 @@ if __name__ == "__main__":
     mcce = MCCE(prm=prm, tpl=tpl)
     mcce.load_mccepdb()    # load mccepdb within mcce object as tpl is required to load the mccepdb
     logging.info(f"   Protein loaded from {STEP1_OUT}")
+    rot_stat = RotStat(mcce.protein)
+
+    # count conformers at the start
+    rot_stat.count_stat(mcce.protein, step="start")
+    rot_stat.write_stat(mcce.protein)
+
+
+
 
     mcce.protein.dump(STEP2_OUT)  # Save the protein to a pdb file
