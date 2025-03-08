@@ -26,7 +26,7 @@ ACC_RES = "acc.res"
 ACC_ATOM = "acc.atm"
 
 STEP2_OUT = "step2_out.pdb"
-
+ROT_STAT = "rot_stat"
 
 # This is for split_altloc()
 # A backbone atom should have residue name AND name match the following to be considered as backbone
