@@ -60,7 +60,10 @@ if __name__ == "__main__":
     rot_stat.count_stat(mcce.protein, step="start")
     rot_stat.write_stat(mcce.protein)
 
-
+    # place missing heavy atoms
+    while True:
+        if mcce.place_missing_heavy_atoms() == 0:   # place_missing_heavy_atoms() returns the number of atoms placed
+            break
 
 
     mcce.protein.dump(STEP2_OUT)  # Save the protein to a pdb file
