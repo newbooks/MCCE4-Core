@@ -4,6 +4,8 @@ Handles atom connectivity
 import logging
 from .pdbio import is_H
 
+_BONDDISTANCE_scaling = 0.54  # calibrated by 1akk
+
 def get_atom_by_name(conf, atomname):
     """
     Get an atom by atomname from a conformer
@@ -48,8 +50,49 @@ def make_connect12(self):  # Here, self is a MCCE object
                     logging.debug(f"Looking for connected atom {connected_atomname}")
                     found = False   # This is a flag to indicate if the connected atom is found
                     if "?" in connected_atomname:  # "?" mean unnamed atom, this is a connected atom outside the residue
-                        pass
-                    
+                        # NTR case " CA " to  " C  " and " CB " in the next residue
+                        if res.resname in {"NTR", "NTG"} and atom.atomname == " CA ":  # we are looking for " C  " and " CB " in the next residue
+                            for conf2 in self.protein.residues[i_res+1].conformers:
+                                connected_atom = get_atom_by_name(conf2, " C  ")
+                                if connected_atom and connected_atom not in atom.connect12:  # avoid duplicates when checking the next unnamed atom
+                                    atom.connect12.append(connected_atom)
+                                    logging.debug(f"Atom {atom.atomname} is connected to {connected_atomname} in the next residue")
+                                    found = True
+                                if not found:
+                                    connected_atom = get_atom_by_name(conf2, " CB ")
+                                    if connected_atom and connected_atom not in atom.connect12: # avoid duplicates when checking the next unnamed atom
+                                        atom.connect12.append(connected_atom)
+                                        logging.debug(f"Atom {atom.atomname} is connected to {connected_atomname} in the next residue")
+                                        found = True
+                        # CTR case: " C  " to  " CA " in the previous residue
+                        elif res.resname == "CTR" and atom.atomname == " C  ":
+                            conf2 = self.protein.residues[i_res-1].conformers[0]
+                            connected_atom = get_atom_by_name(conf2, " CA ")
+                            if connected_atom:
+                                atom.connect12.append(connected_atom)
+                                logging.debug(f"Atom {atom.atomname} is connected to {connected_atomname} in the previous residue")
+                                found = True
+
+                        else: # all other ligand cases, unnamed atom to unnamed atom in another residue
+                            for res2 in self.protein.residues:
+                                if res != res2: # don't look in the same residue
+                                    for conf2 in res2.conformers:
+                                        for atom2 in conf2.atoms:
+                                            key = ("CONNECT", atom2.atomname, conf2.conftype)
+                                            if key in self.tpl:
+                                                connected_atomnames2 = [x.strip() for x in self.tpl[key].connected] # stripped atom names
+                                                if "?" in connected_atomnames2:  # atom2 is an eligibale connected atom, check distance
+                                                    r = (atom.r_vdw + atom2.r_vdw) * _BONDDISTANCE_scaling  # threshod bond distance
+                                                    d = atom.xyz.distance(atom2.xyz)
+                                                    if d < r and atom2 not in atom.connect12:
+                                                        atom.connect12.append(atom2)
+                                                        found = True
+                                                        logging.debug(f"Atom {atom.atomname} is connected to {atom2.atomname} in another residue")
+                                                    else:  # use ligand definition to detect more connections
+                                                        
+                                            
+
+
                     else:  # named atom, within the same conformer, or from side chain to the backbone, or from the backbbone to all side chains
                         # 1) within the same conformer
                         connected_atom = get_atom_by_name(conf, connected_atomname)
@@ -74,15 +117,35 @@ def make_connect12(self):  # Here, self is a MCCE object
                                     atom.connect12.append(connected_atom)
                                     logging.debug(f"Atom {atom.atomname} is connected to {connected_atomname} in the backbone")
                                     found = True
-                        # 4) connects to NTR/NTG, " CB " to previous residue " CA "
+                        # 4.1) connects to NTR/NTG, " CB " to previous residue " CA "
                         if not found:
-                            if atom.name == " CB " and connected_atomname == " CA ":
+                            if atom.atomname == " CB " and connected_atomname == " CA ":
+                                for conf2 in self.protein.residues[i_res-1].conformers[1:]:  # an assumption is NTR is before this residue
+                                    connected_atom = get_atom_by_name(conf2, connected_atomname)
+                                    if connected_atom:
+                                        atom.connect12.append(connected_atom)
+                                        logging.debug(f"Atom {atom.atomname} is connected to {connected_atomname} in the previous residue")
+                                        found = True
+                        # 4.2) connects to NTR, " C  " to previous residue " CA "
+                        if not found:
+                            if atom.atomname == " C  " and connected_atomname == " CA ":  # an assumption is NTR is before this residue
                                 for conf2 in self.protein.residues[i_res-1].conformers[1:]:
                                     connected_atom = get_atom_by_name(conf2, connected_atomname)
                                     if connected_atom:
                                         atom.connect12.append(connected_atom)
                                         logging.debug(f"Atom {atom.atomname} is connected to {connected_atomname} in the previous residue")
                                         found = True
+                        # 5) CTR case, " CA " connects " C  " of CTR
+                        if not found:
+                            if atom.atomname == " CA " and connected_atomname == " C  ":
+                                if i_res < len(self.protein.residues):  # didn't reach the end of the protein
+                                    for conf2 in self.protein.residues[i_res+1].conformers[1:]:
+                                        if conf2.conftype[:3] == "CTR":
+                                            connected_atom = get_atom_by_name(conf2, connected_atomname)
+                                            if connected_atom:
+                                                atom.connect12.append(connected_atom)
+                                                logging.debug(f"Atom {atom.atomname} is connected to {connected_atomname} in the next residue")
+                                                found = True
 
                     if not found:
                         logging.debug(f"Atom {connected_atomname} not found in conformer {conf.confid}")
