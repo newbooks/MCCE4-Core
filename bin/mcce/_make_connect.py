@@ -21,12 +21,11 @@ def make_connect12(self):  # Here, self is a MCCE object
     - The 12 connectivity of backbone atoms is allowed to go to neighboring residues.
     - The 12 connectivity of terminal residues is allowed to go to neighboring residues.
     """
-    for res in self.protein.residues:
+    self.reset_connect12()
+    for i_res in range(len(self.protein.residues)): # Loop over residues and we need index number to look up neighboring residues
+        res = self.protein.residues[i_res]
         for conf in res.conformers:
             for atom in conf.atoms:
-                atom.connect12 = []
-                for atom2 in conf.atoms:
-                    if atom == atom2:
-                        continue
-                    if atom.distance(atom2) < 1.2:
-                        atom.connect12.append(atom2)
+                key = ("CONNECT", atom.atomname, conf.conftype)
+                connected_atomnames = self.tpl.get(key, [])
+                print(f"CONNECT {atom.atomname} {conf.conftype} {connected_atomnames}")

@@ -621,6 +621,12 @@ class Tpl:
 
     def __getitem__(self, key):
         return self._db[key]
+    
+    def get(self, key, default=None):
+        """
+        Get the value for the given key. If the key does not exist, return the default value.
+        """
+        return self._db.get(key, default)
 
     def __setitem__(self, key, value):
         self._db[key] = value
