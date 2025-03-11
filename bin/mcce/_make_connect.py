@@ -6,6 +6,25 @@ from .pdbio import is_H
 
 _BONDDISTANCE_scaling = 0.54  # calibrated by 1akk
 
+
+# compose ligand detection rules
+def compose_ligand_rule(tpl):
+    ligand_rules = {}
+    for key in tpl.keys():
+        if key[0] == "LIGAND_ID":
+            res1_name = tpl[key].res1_name  # after renaming
+            res2_name = tpl[key].res2_name  # after renaming
+            atom1_name = tpl[key].atom1
+            atom2_name = tpl[key].atom2
+            distance = tpl[key].distance
+            tolerance = tpl[key].tolerance
+            ligand_rules[(res1_name, res2_name)] = (atom1_name, atom2_name, distance, tolerance)
+            ligand_rules[(res2_name, res1_name)] = (atom2_name, atom1_name, distance, tolerance)
+    return ligand_rules
+
+
+
+
 def get_atom_by_name(conf, atomname):
     """
     Get an atom by atomname from a conformer
@@ -38,7 +57,10 @@ def make_connect12(self):  # Here, self is a MCCE object
     - The 12 connectivity of side chain atoms iss confined within the same conformer, except to backbone, terminal residues and ligands.
     - The 12 connectivity of backbone atoms is allowed to go to neighboring residues.
     - The 12 connectivity of terminal residues is allowed to go to neighboring residues.
+    Note:
+    SG on CYL to CA* on HEM not detected because CA* have variable connections depending on the protein.
     """
+    ligand_rules = compose_ligand_rule(self.tpl)
     self.reset_connect12()
     for i_res in range(len(self.protein.residues)): # Loop over residues and we need index number to look up neighboring residues
         res = self.protein.residues[i_res]
@@ -85,38 +107,33 @@ def make_connect12(self):  # Here, self is a MCCE object
                                             key = ("CONNECT", atom2.atomname, conf2.conftype)
                                             if key in self.tpl:
                                                 connected_atomnames2 = [x.strip() for x in self.tpl[key].connected] # stripped atom names
-                                                if "?" in connected_atomnames2:  # atom2 is an eligibale connected atom, check distance
+                                                if "?" in connected_atomnames2:  # atom2 is an eligible connected atom, check distance
                                                     r = (atom.r_vdw + atom2.r_vdw) * _BONDDISTANCE_scaling  # threshod bond distance
                                                     d = atom.xyz.distance(atom2.xyz)
                                                     if d < r and atom2 not in atom.connect12:
                                                         atom.connect12.append(atom2)
                                                         found = True
                                                         logging.debug(f"Atom {atom.atomname} is connected to {atom2.atomname} in another residue")
-                                                    else:  # use ligand definition to detect more connections
+                                                    else:  # use ligand rules to detect more connections
                                                         res1_name = res.resname
                                                         res2_name = res2.resname
                                                         atom1_name = atom.atomname
                                                         atom2_name = atom2.atomname
-                                                        key = ("LOGAND_ID", res1_name, res2_name)
-                                                        swapped_key = ("LOGAND_ID", res2_name, res1_name)
-                                                        if key in self.tpl:
-                                                            distance = self.tpl[key].distance
-                                                            tolerance = self.tpl[key].tolerance
-                                                            atom1_name_inrule = self.tpl[key].atom1
-                                                            atom2_name_inrule = self.tpl[key].atom2
-                                                        elif swapped_key in self.tpl:
-                                                            distance = self.tpl[swapped_key].distance
-                                                            tolerance = self.tpl[swapped_key].tolerance
-                                                            atom1_name_inrule = self.tpl[swapped_key].atom2
-                                                            atom2_name_inrule = self.tpl[swapped_key].atom1
+                                                        key = (res1_name, res2_name)
+                                                        if key in ligand_rules:
+                                                            atom1_name_inrule, atom2_name_inrule, distance, tolerance = ligand_rules[key]
+                                                            #print(atom1_name_inrule, atom2_name_inrule, distance, tolerance, d)
                                                         else:
                                                             continue
                                                         # now match the atom names
+                                                        print(f"{atom1_name_inrule} =?= {atom1_name} and {atom2_name_inrule} =?= {atom2_name}")
                                                         if match_rule2string(atom1_name_inrule, atom1_name) and match_rule2string(atom2_name_inrule, atom2_name):
+                                                            print(f"Matched ligand rule: {key} {ligand_rules[key]}")
                                                             if distance - tolerance < d < distance + tolerance and atom2 not in atom.connect12:
                                                                 atom.connect12.append(atom2)
                                                                 found = True
                                                                 logging.debug(f"Atom {atom.atomname} is connected to {atom2.atomname} by Ligand Rule in another residue")
+
                                     if found: # one "?" for one ligand
                                         break 
 
@@ -176,3 +193,27 @@ def make_connect12(self):  # Here, self is a MCCE object
 
                     if not found:
                         logging.debug(f"Atom {connected_atomname} not found in conformer {conf.confid}")
+
+
+def print_connect12(self, file=None):  # Here, self is a MCCE object
+    """
+    Print 12 connectivity
+    """
+    lines = []
+    for res in self.protein.residues:
+        for conf in res.conformers:
+            for atom in conf.atoms:
+                key = ("CONNECT", atom.atomname, conf.conftype)
+                if key in self.tpl:
+                    connected_atomnames = self.tpl[key].connected
+                else:
+                    connected_atomnames = []
+                lines.append(f"{atom.residue_id()} {atom.atomname} {connected_atomnames}\n")
+                for connected_atom in atom.connect12:
+                    lines.append(f"   {connected_atom.residue_id()} \'{connected_atom.atomname}\'\n")
+                lines.append("\n")
+    if file:
+        with open(file, "w") as f:
+            f.writelines(lines)
+    else:
+        print("".join(lines))
