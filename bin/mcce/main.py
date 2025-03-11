@@ -19,3 +19,4 @@ class MCCE:
     from ._place_missing_heavy_atoms import place_missing_heavy_atoms
     from ._make_connect import reset_connect12
     from ._make_connect import make_connect12
+    from ._make_connect import print_connect12
