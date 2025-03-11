@@ -26,6 +26,10 @@ def reset_connect12(self):  # Here, self is a MCCE object
                 atom.connect12 = []
 
 
+def match_rule2string(rule, string): # string match that supports wildcard "*"
+    return all(r == "*" or r == s for r, s in zip(rule, string))
+
+
 def make_connect12(self):  # Here, self is a MCCE object
     """
     Make 12 connectivity
@@ -89,9 +93,32 @@ def make_connect12(self):  # Here, self is a MCCE object
                                                         found = True
                                                         logging.debug(f"Atom {atom.atomname} is connected to {atom2.atomname} in another residue")
                                                     else:  # use ligand definition to detect more connections
-                                                        
-                                            
-
+                                                        res1_name = res.resname
+                                                        res2_name = res2.resname
+                                                        atom1_name = atom.atomname
+                                                        atom2_name = atom2.atomname
+                                                        key = ("LOGAND_ID", res1_name, res2_name)
+                                                        swapped_key = ("LOGAND_ID", res2_name, res1_name)
+                                                        if key in self.tpl:
+                                                            distance = self.tpl[key].distance
+                                                            tolerance = self.tpl[key].tolerance
+                                                            atom1_name_inrule = self.tpl[key].atom1
+                                                            atom2_name_inrule = self.tpl[key].atom2
+                                                        elif swapped_key in self.tpl:
+                                                            distance = self.tpl[swapped_key].distance
+                                                            tolerance = self.tpl[swapped_key].tolerance
+                                                            atom1_name_inrule = self.tpl[swapped_key].atom2
+                                                            atom2_name_inrule = self.tpl[swapped_key].atom1
+                                                        else:
+                                                            continue
+                                                        # now match the atom names
+                                                        if match_rule2string(atom1_name_inrule, atom1_name) and match_rule2string(atom2_name_inrule, atom2_name):
+                                                            if distance - tolerance < d < distance + tolerance and atom2 not in atom.connect12:
+                                                                atom.connect12.append(atom2)
+                                                                found = True
+                                                                logging.debug(f"Atom {atom.atomname} is connected to {atom2.atomname} by Ligand Rule in another residue")
+                                    if found: # one "?" for one ligand
+                                        break 
 
                     else:  # named atom, within the same conformer, or from side chain to the backbone, or from the backbbone to all side chains
                         # 1) within the same conformer
