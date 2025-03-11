@@ -57,6 +57,8 @@ def make_connect12(self):  # Here, self is a MCCE object
     - The 12 connectivity of side chain atoms iss confined within the same conformer, except to backbone, terminal residues and ligands.
     - The 12 connectivity of backbone atoms is allowed to go to neighboring residues.
     - The 12 connectivity of terminal residues is allowed to go to neighboring residues.
+    Note:
+    SG on CYL to CA* on HEM not detected because CA* have variable connections depending on the protein.
     """
     ligand_rules = compose_ligand_rule(self.tpl)
     self.reset_connect12()
@@ -193,10 +195,11 @@ def make_connect12(self):  # Here, self is a MCCE object
                         logging.debug(f"Atom {connected_atomname} not found in conformer {conf.confid}")
 
 
-def print_connect12(self):  # Here, self is a MCCE object
+def print_connect12(self, file=None):  # Here, self is a MCCE object
     """
     Print 12 connectivity
     """
+    lines = []
     for res in self.protein.residues:
         for conf in res.conformers:
             for atom in conf.atoms:
@@ -205,7 +208,12 @@ def print_connect12(self):  # Here, self is a MCCE object
                     connected_atomnames = self.tpl[key].connected
                 else:
                     connected_atomnames = []
-                print(f"{atom.residue_id()} {atom.atomname} {connected_atomnames}")
+                lines.append(f"{atom.residue_id()} {atom.atomname} {connected_atomnames}\n")
                 for connected_atom in atom.connect12:
-                    print(f"   {connected_atom.residue_id()} \'{connected_atom.atomname}\'")
-                print()
+                    lines.append(f"   {connected_atom.residue_id()} \'{connected_atom.atomname}\'\n")
+                lines.append("\n")
+    if file:
+        with open(file, "w") as f:
+            f.writelines(lines)
+    else:
+        print("".join(lines))
