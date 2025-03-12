@@ -126,9 +126,9 @@ def make_connect12(self):  # Here, self is a MCCE object
                                                         else:
                                                             continue
                                                         # now match the atom names
-                                                        print(f"{atom1_name_inrule} =?= {atom1_name} and {atom2_name_inrule} =?= {atom2_name}")
+                                                        #print(f"{atom1_name_inrule} =?= {atom1_name} and {atom2_name_inrule} =?= {atom2_name}")
                                                         if match_rule2string(atom1_name_inrule, atom1_name) and match_rule2string(atom2_name_inrule, atom2_name):
-                                                            print(f"Matched ligand rule: {key} {ligand_rules[key]}")
+                                                            #print(f"Matched ligand rule: {key} {ligand_rules[key]}")
                                                             if distance - tolerance < d < distance + tolerance and atom2 not in atom.connect12:
                                                                 atom.connect12.append(atom2)
                                                                 found = True
@@ -217,3 +217,23 @@ def print_connect12(self, file=None):  # Here, self is a MCCE object
             f.writelines(lines)
     else:
         print("".join(lines))
+
+def check_connect12(self):  # Here, self is a MCCE object
+    """
+    Check 12 connectivity symmetry
+    """
+    discrepancy = False
+    for res in self.protein.residues:
+        for conf in res.conformers:
+            for atom in conf.atoms:
+                for connected_atom in atom.connect12:
+                    if atom not in connected_atom.connect12:
+                        logging.error(f"Atom {atom.residue_id()} {atom.atomname} is connected to {connected_atom.residue_id()} {connected_atom.atomname}, but {connected_atom.residue_id()} {connected_atom.atomname} is not connected to {atom.residue_id()} {atom.atomname}")
+                        discrepancy = True
+                    if connected_atom not in atom.connect12:
+                        logging.error(f"Atom {connected_atom.residue_id()} {connected_atom.atomname} is connected to {atom.residue_id()} {atom.atomname}, but {atom.residue_id()} {atom.atomname} is not connected to {connected_atom.residue_id()} {connected_atom.atomname}")
+                        discrepancy = True
+    if discrepancy:
+        logging.error("12 connectivity is not symmetric")
+    else:
+        logging.info("12 connectivity is symmetric")
