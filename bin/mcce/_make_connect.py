@@ -58,7 +58,9 @@ def make_connect12(self):  # Here, self is a MCCE object
     - The 12 connectivity of backbone atoms is allowed to go to neighboring residues.
     - The 12 connectivity of terminal residues is allowed to go to neighboring residues.
     Note:
-    SG on CYL to CA* on HEM not detected because CA* have variable connections depending on the protein.
+    1) SG on CYL to CA* on HEM not detected because CA* have variable connections depending on the protein.
+    2) backbone atoms can connect to the atoms of the first side chain, but all side chain atoms can connect to backbone atoms. This breaks 12 symmetry
+       but it is necessary to maintain the correct number of connected atoms.
     """
     ligand_rules = compose_ligand_rule(self.tpl)
     self.reset_connect12()
@@ -145,9 +147,9 @@ def make_connect12(self):  # Here, self is a MCCE object
                             logging.debug(f"Atom {atom.atomname} is connected to {connected_atomname} in the same conformer")
                             found = True
                         if not found: # not found within the same conformer, 
-                            # 2) from backbone atome, check all side chains
-                            if conf.conftype[-2:] == "BK":  # if conf is backbone, look for the atom in all side chains
-                                for conf2 in res.conformers:
+                            # 2) from backbone atome, check the first side chain only !!!
+                            if conf.conftype[-2:] == "BK":  # if conf is backbone, 
+                                for conf2 in res.conformers[:2]: # 
                                     if conf2.conftype[-2:] != "BK":
                                         connected_atom = get_atom_by_name(conf2, connected_atomname)
                                         if connected_atom:
@@ -208,9 +210,9 @@ def print_connect12(self, file=None):  # Here, self is a MCCE object
                     connected_atomnames = self.tpl[key].connected
                 else:
                     connected_atomnames = []
-                lines.append(f"{atom.residue_id()} {atom.atomname} {connected_atomnames}\n")
+                lines.append(f"{atom.parent_conf.confid} {atom.atomname} {connected_atomnames}\n")
                 for connected_atom in atom.connect12:
-                    lines.append(f"   {connected_atom.residue_id()} \'{connected_atom.atomname}\'\n")
+                    lines.append(f"   {connected_atom.parent_conf.confid} \'{connected_atom.atomname}\'\n")
                 lines.append("\n")
     if file:
         with open(file, "w") as f:
@@ -228,10 +230,10 @@ def check_connect12(self):  # Here, self is a MCCE object
             for atom in conf.atoms:
                 for connected_atom in atom.connect12:
                     if atom not in connected_atom.connect12:
-                        logging.error(f"Atom {atom.residue_id()} {atom.atomname} is connected to {connected_atom.residue_id()} {connected_atom.atomname}, but {connected_atom.residue_id()} {connected_atom.atomname} is not connected to {atom.residue_id()} {atom.atomname}")
-                        discrepancy = True
-                    if connected_atom not in atom.connect12:
-                        logging.error(f"Atom {connected_atom.residue_id()} {connected_atom.atomname} is connected to {atom.residue_id()} {atom.atomname}, but {atom.residue_id()} {atom.atomname} is not connected to {connected_atom.residue_id()} {connected_atom.atomname}")
+                        # ignore special cases, CA on backbone can be connected to CB on side chain multiple times, but not the other way around
+                        if atom.atomname == " CB " and connected_atom.atomname == " CA ":
+                            continue
+                        logging.error(f"Atom {connected_atom.parent_conf.confid} {connected_atom.atomname} is connected to {atom.parent_conf.confid} {atom.atomname}, but {atom.parent_conf.confid} {atom.atomname} is not connected to {connected_atom.parent_conf.confid} {connected_atom.atomname}")
                         discrepancy = True
     if discrepancy:
         logging.error("12 connectivity is not symmetric")
