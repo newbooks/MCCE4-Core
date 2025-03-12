@@ -20,3 +20,4 @@ class MCCE:
     from ._make_connect import reset_connect12
     from ._make_connect import make_connect12
     from ._make_connect import print_connect12
+    from ._make_connect import check_connect12
