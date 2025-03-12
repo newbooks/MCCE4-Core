@@ -21,3 +21,5 @@ class MCCE:
     from ._make_connect import make_connect12
     from ._make_connect import print_connect12
     from ._make_connect import check_connect12
+    from ._make_connect import make_connect13
+    from ._make_connect import make_connect14
