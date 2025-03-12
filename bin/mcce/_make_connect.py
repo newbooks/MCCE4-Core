@@ -257,7 +257,7 @@ def make_connect13(self):  # Here, self is a MCCE object
                                (connected_atom2.parent_conf.conftype[-2:] != "BK") and \
                                (atom.parent_conf.conftype[-2:] != "BK") and \
                                (atom.parent_conf != connected_atom2.parent_conf):
-                                logging.debug(f"   Exluding 13 connectivity in different side chain conformers in the same residue {connected_atom2.parent_conf.confid} {connected_atom2.atomname} to {atom.parent_conf.confid} {atom.atomname}")
+                                logging.debug(f"   Exluding 13 connectivity in different side chain conformers of the same residue {connected_atom2.parent_conf.confid} {connected_atom2.atomname} to {atom.parent_conf.confid} {atom.atomname}")
                                 continue
                             atom.connect13.append(connected_atom2)
                             #logging.debug(f"Atom {atom.atomname} is connected to {connected_atom2.atomname} by 13 connectivity")
@@ -289,3 +289,23 @@ def print_connect13(self, file=None):  # Here, self is a MCCE object
     else:
         print("".join(lines))
     
+def make_connect14(self):  # Here, self is a MCCE object
+    """
+    Make 14 connectivity
+    """
+    for res in self.protein.residues:
+        for conf in res.conformers:
+            for atom in conf.atoms:
+                atom.connect14 = []
+                for connected_atom in atom.connect13:
+                    for connected_atom2 in connected_atom.connect12:
+                        if connected_atom2 != atom and (connected_atom2 not in atom.connect12) and (connected_atom2 not in atom.connect13) and (connected_atom2 not in atom.connect14):
+                            # need to exclude connected atom on different side chain conformers in the same residue
+                            if (connected_atom2.parent_conf.parent_residue == atom.parent_conf.parent_residue) and \
+                               (connected_atom2.parent_conf.conftype[-2:] != "BK") and \
+                               (atom.parent_conf.conftype[-2:] != "BK") and \
+                               (atom.parent_conf != connected_atom2.parent_conf):
+                                logging.debug(f"   Exluding 14 connectivity in different side chain conformers of the same residue {connected_atom2.parent_conf.confid} {connected_atom2.atomname} to {atom.parent_conf.confid} {atom.atomname}")
+                                continue
+                            atom.connect14.append(connected_atom2)
+                            
