@@ -262,6 +262,7 @@ def make_connect13(self):  # Here, self is a MCCE object
                             atom.connect13.append(connected_atom2)
                             #logging.debug(f"Atom {atom.atomname} is connected to {connected_atom2.atomname} by 13 connectivity")
 
+
 def reset_connect13(self):  # Here, self is a MCCE object
     """
     Reset 13 connectivity list
@@ -270,6 +271,7 @@ def reset_connect13(self):  # Here, self is a MCCE object
         for conf in res.conformers:
             for atom in conf.atoms:
                 atom.connect13 = []
+
 
 def print_connect13(self, file=None):  # Here, self is a MCCE object
     """
@@ -288,6 +290,26 @@ def print_connect13(self, file=None):  # Here, self is a MCCE object
             f.writelines(lines)
     else:
         print("".join(lines))
+
+def check_connect13(self):  # Here, self is a MCCE object
+    """
+    Check 13 connectivity symmetry
+    """
+    discrepancy = False
+    for res in self.protein.residues:
+        for conf in res.conformers:
+            for atom in conf.atoms:
+                for connected_atom in atom.connect13:
+                    if atom not in connected_atom.connect13:
+                        # ignore special cases, conformer[2:] do not have symmetry cross backbone, so only report the error when both atoms are in the same conformer
+                        if atom.parent_conf == connected_atom.parent_conf:
+                            logging.error(f"Atom {connected_atom.parent_conf.confid} {connected_atom.atomname} is connected to {atom.parent_conf.confid} {atom.atomname}, but {atom.parent_conf.confid} {atom.atomname} is not connected to {connected_atom.parent_conf.confid} {connected_atom.atomname}")
+                            discrepancy = True
+    if discrepancy:
+        logging.error("13 connectivity is not symmetric")
+    else:
+        logging.info("13 connectivity is symmetric")
+
     
 def make_connect14(self):  # Here, self is a MCCE object
     """
@@ -308,4 +330,31 @@ def make_connect14(self):  # Here, self is a MCCE object
                                 logging.debug(f"   Exluding 14 connectivity in different side chain conformers of the same residue {connected_atom2.parent_conf.confid} {connected_atom2.atomname} to {atom.parent_conf.confid} {atom.atomname}")
                                 continue
                             atom.connect14.append(connected_atom2)
-                            
+                    
+def reset_connect14(self):  # Here, self is a MCCE object
+    """
+    Reset 14 connectivity list
+    """
+    for res in self.protein.residues:
+        for conf in res.conformers:
+            for atom in conf.atoms:
+                atom.connect14 = []
+
+def check_connect14(self):  # Here, self is a MCCE object
+    """
+    Check 14 connectivity symmetry
+    """
+    discrepancy = False
+    for res in self.protein.residues:
+        for conf in res.conformers:
+            for atom in conf.atoms:
+                for connected_atom in atom.connect14:
+                    if atom not in connected_atom.connect14:
+                        # ignore special cases, conformer[2:] do not have symmetry cross backbone, so only report the error when both atoms are in the same conformer
+                        if atom.parent_conf == connected_atom.parent_conf:
+                            logging.error(f"Atom {connected_atom.parent_conf.confid} {connected_atom.atomname} is connected to {atom.parent_conf.confid} {atom.atomname}, but {atom.parent_conf.confid} {atom.atomname} is not connected to {connected_atom.parent_conf.confid} {connected_atom.atomname}")
+                            discrepancy = True
+    if discrepancy:
+        logging.error("14 connectivity is not symmetric")
+    else:
+        logging.info("14 connectivity is symmetric")
