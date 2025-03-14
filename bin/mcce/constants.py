@@ -4,6 +4,7 @@ Module for constants used in MCCE.
 
 # File name for run.prm.default, path from the distribution root
 RUNPRM_DEFAULT = "config/run.prm.default"   # path from the distribution root
+IDEAL_STRUCTURES = "param/ideal_structures" # path from the distribution root
 RUNPRM_DUMP = "run.prm.record"              # path from the working directory
 FTPL_DUMP = "ftpl.record"                   # path from the working directory
 

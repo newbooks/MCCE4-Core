@@ -38,9 +38,9 @@ class Atom:
         self.r_vdw = 0.0            # van der Waals radius
         self.e_vdw = 0.0            # van der Waals energy well depth
         self.element = ""           # element name
-        self.conn12 = []            # list of atoms that are 1-2 bonded
-        self.conn13 = []            # list of atoms that are 1-3 bonded
-        self.conn14 = []            # list of atoms that are 1-4 bonded
+        self.connect12 = []            # list of atoms that are 1-2 bonded
+        self.connect13 = []            # list of atoms that are 1-3 bonded
+        self.connect14 = []            # list of atoms that are 1-4 bonded
         self.parent_conf = None     # parent conformer
 
     def residue_id(self):
@@ -69,11 +69,12 @@ class Atom:
         new_atom.r_vdw = self.r_vdw
         new_atom.e_vdw = self.e_vdw
         new_atom.element = self.element
-        new_atom.conn12 = []    # do not clone connections
-        new_atom.conn13 = []    # do not clone connections
-        new_atom.conn14 = []    # do not clone connections   
+        new_atom.connect12 = []    # do not clone connections
+        new_atom.connect13 = []    # do not clone connections
+        new_atom.connect14 = []    # do not clone connections   
         new_atom.parent_conf = self.parent_conf
         return new_atom
+
 
     def load_pdbline(self, line):
         """
