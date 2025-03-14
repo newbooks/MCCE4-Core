@@ -1,19 +1,28 @@
 # Step 2 Conformer Making Strategy
 
-## MCCE program flow
-1. Step 1: preprocess the input structure
-2. Step 2: make conformers
-3. Step 3: pre-calculate energy look-up table
-4. Step 4: sample the microstates and link the microstates to protein's biophysical properties
+## MCCE Program Flow
+1. Step 1: Preprocess the input structure.
+2. Step 2: Generate conformers.
+3. Step 3: Pre-calculate the energy look-up table.
+4. Step 4: Sample microstates and link them to the protein's biophysical properties.
 
-## Current Strategy for Step 2: Conformer Making
-Evaluating microstates is computationally expensive, so selecting the right conformer candidates in step 2 is crucial for the entire MCCE workflow.
+## Current Strategy for Step 2: Conformer Generation
+Evaluating microstates is computationally intensive, making the selection of appropriate conformer candidates in step 2 critical for the MCCE workflow.
 
-The aim of step 2 is to quickly and inexpensively generate discrete conformers, rotamers, and ionization conformers that are likely to be accessed in step 4 which uses an accurate and costly force field. To achieve this, several strategies are employed:
+The goal of step 2 is to efficiently generate discrete conformers, rotamers, and ionization states that are likely to be relevant in step 4, which uses a precise and computationally expensive force field. To achieve this, several strategies are employed:
 - Utilize simplified force fields, such as Coulomb's law and a simplified van der Waals (VDW) force.
 - Apply a divide-and-conquer approach: create conformers by reducing heavy atom clashes, searching for hydrogen bond pairs, generating the most exposed conformers, and then optimizing hydrogen atoms.
-- Use clustering to select only representative conformers, further reducing the number of conformers.
+- Use clustering to select representative conformers, reducing the overall number of conformers.
 
-While this method is relatively efficient, it still produces some inaccessible conformers and may miss low-energy conformers. One possible reason is the lack of "microstate awareness" during the process. Conformers for each residue are created considering only self-clashes, solvent exposure, and potential hydrogen bonds with neighbors. In reality, residues choose their sidechain ionization and motion in a concerted manner, which can only be captured by a method that considers the entire picture of microstates.
+While this method is relatively efficient, it can still produce some inaccessible conformers and may miss low-energy conformers.
+
+One possible reason is the lack of "microstate awareness" during the process. Conformers for each residue are created considering only self-clashes, solvent exposure, and potential hydrogen bonds with neighbors. In reality, residues choose their sidechain ionization and motion in a concerted manner, which can only be captured by a method that considers the entire picture of microstates.
+
+Another possible cause of missing good conformers is the discrete nature of the rotamer generation in step 2. Although the search includes stepped refinement of rotamers, the initial search uses a predefined 60-degree step, which may not cover all potential rotation angles.
 
 ## Alternative Strategy
+### Force Field
+Consider developing a set of quick empirical functions to account for all the forces/energies used in step 4 and apply them in step 2. These force functions don't have to be perfect.
+
+### Sampling Method
+The goal of this step is to identify potential conformers, so we can use qualitative searching algorithms, such as Genetic Algorithms.
