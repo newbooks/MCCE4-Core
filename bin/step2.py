@@ -63,15 +63,7 @@ if __name__ == "__main__":
     # place missing heavy atoms
     mcce.assign_qr()
     mcce.make_connect12()
-    mcce.make_connect13()    
-    mcce.make_connect14()
-    # mcce.check_connect12()
-    # mcce.check_connect13()
-    # mcce.check_connect14()
-
-
-
-
+    logging.info("   Place missing heavy atoms ...")
     while True:
         if mcce.place_missing_heavy_atoms() == 0:   # place_missing_heavy_atoms() returns the number of atoms placed
             break
