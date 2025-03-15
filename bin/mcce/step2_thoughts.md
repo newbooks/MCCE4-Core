@@ -24,5 +24,30 @@ Another possible cause of missing good conformers is the discrete nature of the 
 ### Force Field
 Consider developing a set of quick empirical functions to account for all the forces/energies used in step 4 and apply them in step 2. These force functions don't have to be perfect.
 
+vdw: empirical function based on distance^2 
+ele: Coulomb's law
+desolvation: function of SAS and charge
+torsion: 1-4 vdw
+hydrogen bond: angle and distance
+pH and Eh energy: environment pH/Eh and pK0, Eh0
+
+
 ### Sampling Method
 The goal of this step is to identify potential conformers, so we can use qualitative searching algorithms, such as Genetic Algorithms.
+
+- Place H and make ionization conformers
+- GA flow
+   - Initialization: generate N random microstates.
+   - Fitness evaluation: individual fitness, and population fitness average (PFA score)
+   - Selection
+   - Crossover: one-point crossover : two-point crossover = 1:1
+   - Mutation: dynamically adjusted from 1% to 5% based on rolling PFA score average
+   - Replacement
+   - Termination condition check: convergence check (rolling average PFA score of the last 5 generations does not imporve) and max generation
+   - If termination condition is met, return the top 50% population
+- Do GA for pH = 4, 7, and 10
+
+Note: PFA score variations
+- PFA: whole population
+- PFA90: top 90% population to exclude the buttom performers
+- PFA50: top 50% population which is what we will use as final conformers
