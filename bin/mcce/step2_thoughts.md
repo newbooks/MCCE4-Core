@@ -57,3 +57,46 @@ The whole population average fitness score is commonly used to measure the conve
 In the case of GA conformer making, the rotation angles are not limited by the rotation step size, so this mechanism can potentially create a large number of ending conformers. The control of the ending number of conformers is currently dependent on the conformer generating method, in the sense of how extensively to explore the rotational space. With GA, the control of bond rotations does not exist. However, the number of ending conformers in GA can be achieved by:
 1. Population size: increasing the pool size allows more diverse conformers to be created and preseved, at the cost of linearly scaled sampling expenses. 
 2. Clustering criteria: after making all the conformers, clustering selects the representative conformers based on the geometry similarity. The threshold of similarity may affect the final conformers selected and used by the later steps.
+
+
+### Find Rotatable Bond for H atoms
+It comes natually to mind that we can use the ROTATE records to include the rotations affecting hydrogen atoms. However, in current MCCE, we already have the knowledge of finding what hydrogen atoms have rotational freedom in the place_h module, without ROTATE records. Can we use the same mechanism to figure out these rotation bonds without touching the RECORDS in ftpl files?
+
+The mutation in GA is done by "shake" the side chain by rotating all rotatble bonds. So we need uniform rules to make rotamers, regardless heavy atom rotamer or hydrogen atom rotamers. One solution is to
+- ammend the ROTATE rules with new H atom rotate rules obtained from analysis. This means the tpl object is not pure like it currently is.
+- create a new set of rotate rules from two sources: ROTATE records and derived H rotate bonds
+
+I will use combined rotate rule solution, as it requires no modification to the ftpl files, and provides easy access to affected atoms.
+
+Proposed structure:
+
+```
+rotaterules = {conftype: rotate_rule
+                ...
+}
+
+class RotateRule:
+    def __init__(self):
+        self.bond = (atom1, atom2)
+        self.affected_atoms = [affected_atom1, affected_atom2, ...]
+```
+
+The atoms in rules are 4-char atom names rather than the Atom() object so the rules are universal.
+
+In the Conformer class, the following attributes will be added.
+```
+class Conformer:
+    def __init__(self):
+        ...
+        self.rotatbles = [bond1, bond2, ...]  # bond is the atom pairs pointing to the actual atom instances
+        self.rotated_atoms = {  # atoms point to actual atom instances
+            bond1: [atom1, atom2, ...],
+            bond2: [atom3, atom4, ...],
+            ...
+        }
+
+    def init_rotate(self, rotaterules)
+        """ Initilize the following attributes for quick access to rules and atom instances from the generic name based rotaterules. """
+        self.rotatbles = ...
+        self.rotated_atoms = ...
+```
