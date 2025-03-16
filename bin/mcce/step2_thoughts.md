@@ -31,23 +31,29 @@ torsion: 1-4 vdw
 hydrogen bond: angle and distance
 pH and Eh energy: environment pH/Eh and pK0, Eh0
 
-
 ### Sampling Method
 The goal of this step is to identify potential conformers, so we can use qualitative searching algorithms, such as Genetic Algorithms.
 
 - Place H and make ionization conformers
 - GA flow
-   - Initialization: generate N random microstates.
-   - Fitness evaluation: individual fitness, and population fitness average (PFA score)
-   - Selection
-   - Crossover: one-point crossover : two-point crossover = 1:1
-   - Mutation: dynamically adjusted from 1% to 5% based on rolling PFA score average
-   - Replacement
-   - Termination condition check: convergence check (rolling average PFA score of the last 5 generations does not imporve) and max generation
-   - If termination condition is met, return the top 50% population
+    - Initialization: generate N random microstates.
+    - Fitness evaluation: individual fitness, and population fitness average (PFA score)
+    - Selection
+    - Crossover: one-point crossover : two-point crossover = 1:1
+    - Mutation: dynamically adjusted from 1% to 5% based on rolling PFA score average
+    - Replacement
+    - Termination condition check: convergence check (rolling average PFA score of the last 5 generations does not improve) and max generation
+    - If termination condition is met, return the top 50% population
 - Do GA for pH = 4, 7, and 10
 
 Note: PFA score variations
 - PFA: whole population
-- PFA90: top 90% population to exclude the buttom performers
+- PFA90: top 90% population to exclude the bottom performers
 - PFA50: top 50% population which is what we will use as final conformers
+
+The whole population average fitness score is commonly used to measure the convergence, but which score is appropriate in our application is a question.
+
+### Conformer Making Levels
+In the case of GA conformer making, the rotation angles are not limited by the rotation step size, so this mechanism can potentially create a large number of ending conformers. The control of the ending number of conformers is currently dependent on the conformer generating method, in the sense of how extensively to explore the rotational space. With GA, the control of bond rotations does not exist. However, the number of ending conformers in GA can be achieved by:
+1. Population size: increasing the pool size allows more diverse conformers to be created and preseved, at the cost of linearly scaled sampling expenses. 
+2. Clustering criteria: after making all the conformers, clustering selects the representative conformers based on the geometry similarity. The threshold of similarity may affect the final conformers selected and used by the later steps.
