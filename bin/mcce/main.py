@@ -10,6 +10,7 @@ class MCCE:
         self.prm = prm
         self.tpl = tpl
         self.protein = protein
+        self.rotate_rules = {}
 
     from ._strip_cofactors import strip_cofactors
     from ._sas import sas_protein
@@ -26,3 +27,4 @@ class MCCE:
     from ._make_connect import check_connect13
     from ._make_connect import make_connect14
     from ._make_connect import check_connect14
+    from ._rotate import prepare_rotate_rules
