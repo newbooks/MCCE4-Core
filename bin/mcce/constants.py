@@ -89,3 +89,10 @@ PROBE_RAD = 1.4
 
 # Loose cofactors that can be stripped off if exposed to solvent
 LOOSE_COFACTORS = ["HOH", "NO3", "NA ", "CL ", "PO4"]
+
+
+# H atom to heavy atom bond angle and bond length (for placing H atoms)
+H_BOND_LENGTH = 1.09
+H_BOND_ANGLE_SP3 = 109.5
+H_BOND_ANGLE_SP2 = 120.0
+H_BOND_ANGLE_SP = 180.0

@@ -70,6 +70,7 @@ if __name__ == "__main__":
 
 
     # expand conformers by conftypes
+    logging.info("   Propogating conformers with conformer types and add H atoms ...")
     mcce.propogate_conftypes()
 
     # make unified rotate rules
