@@ -82,6 +82,11 @@ def prepare_rotate_rules(self):  # Hele self is a MCCE object
                 clean_rules.append(rule)
         self.rotate_rules[key] = clean_rules
 
+
+def print_rotate_rules(self):
+    """
+    Print the rotate rules
+    """
     for key, value in self.rotate_rules.items():
         print(f"{key}:")
         for rule in value:

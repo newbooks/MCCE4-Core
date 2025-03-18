@@ -70,5 +70,6 @@ if __name__ == "__main__":
 
     # make unified rotate rules
     mcce.prepare_rotate_rules()
+    # mcce.print_rotate_rules()
 
     mcce.protein.dump(STEP2_OUT)  # Save the protein to a pdb file
