@@ -29,3 +29,4 @@ class MCCE:
     from ._make_connect import check_connect14
     from ._rotate import prepare_rotate_rules
     from ._rotate import print_rotate_rules
+    from ._conftype_comformers import propogate_conftypes
