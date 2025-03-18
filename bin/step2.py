@@ -68,5 +68,8 @@ if __name__ == "__main__":
         if mcce.place_missing_heavy_atoms() == 0:   # place_missing_heavy_atoms() returns the number of atoms placed
             break
 
+    # make unified rotate rules
+    mcce.prepare_rotate_rules()
+    # mcce.print_rotate_rules()
 
     mcce.protein.dump(STEP2_OUT)  # Save the protein to a pdb file

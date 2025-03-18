@@ -71,7 +71,7 @@ I will use combined rotate rule solution, as it requires no modification to the 
 Proposed structure:
 
 ```
-rotaterules = {conftype: rotate_rule
+rotate_rules = {conftype: rotate_rule
                 ...
 }
 
