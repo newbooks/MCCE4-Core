@@ -166,6 +166,8 @@ class Conformer:
         new_conf.charge = self.charge
         new_conf.calculated = False # newly created conformer is not calculated
         new_conf.atoms = [atom.clone() for atom in self.atoms]
+        for atom in new_conf.atoms:
+            atom.parent_conf = new_conf
         return new_conf
 
 class Residue:
