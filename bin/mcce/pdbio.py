@@ -660,11 +660,11 @@ class Tpl:
         def __init__(self, value_str):
             fields = value_str.split(",")
             self.orbital = fields[0].strip()
-            self.connected = [f.strip().strip('"') for f in fields[1:]]
+            self.connected = [f.strip().strip('"') for f in fields[1:] if f.strip()]  # remove empty strings
 
         def __str__(self):
             values = [self.orbital]
-            values.extend(['"%s"'%a for a in self.connected])
+            values.extend(['"%s"'%a for a in self.connected]) 
             value_str = ", ".join(values)
             return value_str
 
