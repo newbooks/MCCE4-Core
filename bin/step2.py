@@ -68,6 +68,10 @@ if __name__ == "__main__":
         if mcce.place_missing_heavy_atoms() == 0:   # place_missing_heavy_atoms() returns the number of atoms placed
             break
 
+
+    # expand conformers by conftypes
+    mcce.propogate_conftypes()
+
     # make unified rotate rules
     mcce.prepare_rotate_rules()
     # mcce.print_rotate_rules()
