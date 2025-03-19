@@ -10,15 +10,10 @@ class RotStat:
         def __init__(self):
             self.start = 0      # conformer count ath the start
             self.swap = 0       # conformer count after swap
-            self.rotate = 0     # conformer count after heavy atom rotamer
-            self.swing = 0      # conformer count after sidechain swing
-            self.hbond = 0      # conformer count after hbond optimization
-            self.repack = 0     # conformer count after repacking
-            self.xposed = 0     # conformer count after adding exposed conformers
-            self.ion = 0        # conformer count after ionization
-            self.torm = 0       # conformer count after torsion optimization
-            self.oh = 0         # conformer count after optimize hydrogen bond H position
-            self.prune = 0     # conformer count after pruning and clustering
+            self.type = 0       # conformer count after propogating conformer types
+            self.ga = 0         # conformer count after GA selection 80% of population
+            self.prune = 0      # conformer count after pruning by intra vdw and backbone vdw
+            self.cluster = 0    # conformer count after pruning and clustering
         
     def __init__(self, protein):
         self.res_rot_stat = [RotStat.StatItem() for res in protein.residues]  # initialize a list of StatItem for each residue
@@ -39,7 +34,7 @@ class RotStat:
             logging.error(f"Step {step} is not in the list of attributes: {attributes}")
     
     def write_stat(self, protein):
-        header = "  Residue  Start   Swap Rotate  Swing Repack  Hbond Xposed   Ioni   TorH     OH  Prune\n"
+        header = "  Residue   Start    Swap    Type      GA   Prune Cluster\n"
         total_conf = self.StatItem()
         attributes = [x for x in self.res_rot_stat[0].__dict__.keys()]
         """
@@ -52,11 +47,11 @@ class RotStat:
                 stat = self.res_rot_stat[ires]
                 f.write(f"{res.resname}{res.chain}{res.sequence:04d}{res.insertion:1s}")
                 for attr in attributes:
-                    f.write(f"{stat.__dict__[attr]:7d}")
+                    f.write(f"{stat.__dict__[attr]:8d}")
                     total_conf.__dict__[attr] += stat.__dict__[attr]
                 f.write("\n")
             f.write("-" * len(header) + "\n")
             f.write(f"{'Total':>9}")
             for attr in attributes:
-                f.write(f"{total_conf.__dict__[attr]:7d}")
+                f.write(f"{total_conf.__dict__[attr]:8d}")
             f.write("\n")

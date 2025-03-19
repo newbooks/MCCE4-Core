@@ -68,10 +68,16 @@ if __name__ == "__main__":
         if mcce.place_missing_heavy_atoms() == 0:   # place_missing_heavy_atoms() returns the number of atoms placed
             break
 
+    # make swap conformers
+    logging.info("   Make swap conformers ...")
+    rot_stat.count_stat(mcce.protein, step="swap")
+    rot_stat.write_stat(mcce.protein)
 
     # expand conformers by conftypes
     logging.info("   Propogating conformers with conformer types and add H atoms ...")
     mcce.propogate_conftypes()
+    rot_stat.count_stat(mcce.protein, step="type")
+    rot_stat.write_stat(mcce.protein)
 
     # make unified rotate rules
     mcce.prepare_rotate_rules()
