@@ -134,6 +134,10 @@ class Atom:
         self.r_boundary = float(line[54:62])
         self.charge = float(line[62:74])
         self.history = line[80:90]        
+        if len(self.atomname.strip()) == 4 and self.atomname[0] == "H":
+            self.element = " H"
+        else:
+            self.element = self.atomname[:2]
 
 
 
@@ -416,7 +420,7 @@ class Protein:
                 for atom in conf.atoms:
                     atom.serial = atom_counter
                     atom_counter += 1
-        # history string is tricky, as it carries information about how the conformer is inheried from the parent
+        # history string is tricky, as it carries information about how the conformer is inherited from the parent
         # Sample history string: "BKO000_000" or "01R000M000"
         # history[:2] is the conformer type, 
         # history[2] is rotamer type
