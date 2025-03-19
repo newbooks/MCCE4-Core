@@ -372,3 +372,4 @@ def propogate_conftypes(self):  # Here self is a MCCE object
                                 conf.atoms.append(new_atom)
                             elif len(missing_H):
                                 
+                                
