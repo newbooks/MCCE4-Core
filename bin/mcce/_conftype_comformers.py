@@ -93,54 +93,45 @@ def sp3_1known(r0, r1, r2):
     """
     Place 3 H (r3, r4, and r5) atoms to r0
     """
-    #   r3 r4 r5             y
-    #     \|/               /
-    #      r0           x--0
-    #      |               |
-    #      r1              z (v10)
+    #   r3 r4 r5          
+    #     \|/             
+    #      r0              0 - x
+    #      |             / |
+    #      r1            y  z (v01)
     #      \                \  
     #       r2               r2
     # r0 is sp3 type.
     # r0, r1, r2's coordinates are known.
     # r3, r4, r5's coordinates are to be determined.
-    #
-    # Solution:
-    # 1. Calculate uz, this is the direction of r1 from r0
-    # 2. Normalize uz, this is the unit vector of z axis
-    # 3a. If r2 is not defined, pick an arbitrary orthogonal vector to uz as uy
-    # 3b. Calculate v012, this is the direction of plane r0, r1, r2
-    #     Calculate uy = v012/|v012|, this is the unit vector of v012
-    # 4. Calculate ux = uy x uz, this is the unit vector of uy cross uz
-    # 5. ux, uy, uz is the new coordinate system, with uz (r01's unit vector) as z axis and other two as x and y axes
-    # 6. Calculate r3, r4, r5 in the new coordinate system
-    # 7. return r3, r4, r5 in the original coordinate system
     uz = r1 - r0
-    uz.normalize()
+    uz.normalize()  # pointing down
     
     if r2 is None:
-        uy = uz.orthogonal()
+        u2 = uz.orthogonal()
     else:
-        u12 = r2 - r1
-        uy = uz.cross(u12)
-    uy.normalize()
+        u2 = r2 - r1
+
+    uy = uz.cross(u2)  
+    uy.normalize()    # pointing towards us
 
     ux = uy.cross(uz)
-    ux.normalize()
+    ux.normalize()  # pointing to the right
+
 
     # now we have the new coordinate system
     cos_theta = math.cos(math.radians(H_BOND_ANGLE_SP3))
     sin_theta = math.sin(math.radians(H_BOND_ANGLE_SP3))
 
-    u3 = uz * cos_theta + ux * sin_theta
+    u3 = uz * cos_theta - ux * sin_theta
     u3.normalize()
     r3 = r0 + u3 * H_BOND_LENGTH
 
-    x_component = ux * (sin_theta * cos_theta)
+    x_component = ux * (-sin_theta * cos_theta)
     y_component = uy * (sin_theta * sin_theta)
     z_component = uz * cos_theta
     r4 = r0 + (x_component + y_component + z_component) * H_BOND_LENGTH
 
-    y_component = uy * (- sin_theta * cos_theta)
+    y_component = uy * (-sin_theta * sin_theta)
     r5 = r0 + (x_component + y_component + z_component) * H_BOND_LENGTH
     
     return r3, r4, r5
@@ -175,6 +166,94 @@ def sp3_0known(r0):
     r4 = r0 + u4 * H_BOND_LENGTH
     return r1, r2, r3, r4
 
+
+def sp2_2known(r0, r1, r2):
+    """
+    Place r3 connected to r0 when r1 and r2 are known
+    """
+    #   r3
+    #     \
+    #      r0 - r2
+    #      |
+    #      r1
+    #
+    # r0 is sp2 type.
+    # r0, r1, r2's coordinates are known.
+    # r3's coordinates are to be determined.
+    #
+    # Solution: r3 is placed at the bisector of r1 and r2
+    u1 = r1 - r0
+    u2 = r2 - r0
+    u1.normalize()
+    u2.normalize()
+    bisector = u1 + u2
+    bisector.normalize()
+    r3 = r0 - bisector * H_BOND_LENGTH
+    return r3
+
+
+def sp2_1known(r0, r1, r2):
+    """
+    Place 2 H (r3 and r4) atoms to r0
+    """
+    #   r3 r4
+    #     \/
+    #      r0
+    #      |
+    #      r1
+    #      /
+    #     r2
+    #
+    # r0 is sp2 type.
+    # r0, r1, r2's coordinates are known.
+    # r3, r4's coordinates are to be determined.
+    #
+    # Solution: r3, r4 are placed on the same plane defined by r0, r1, and r2, with bond angle of 120 degrees
+    uy = r1 - r0
+    uy.normalize()
+    if r2 is None:
+        v12 = uy.orthogonal()
+    else:
+        v12 = r2 - r1
+    uz = uy.cross(v12)
+    uz.normalize()
+    ux = uy.cross(uz)
+    ux.normalize()
+
+    cos_theta = math.cos(math.radians(H_BOND_ANGLE_SP2-90))  # bond angle is 120 degrees, but we need the angle between H and x axis
+    sin_theta = math.sin(math.radians(H_BOND_ANGLE_SP2-90))
+    u4 = ux * cos_theta + uy * sin_theta
+    u4.normalize()
+    r4 = r0 + u4 * H_BOND_LENGTH
+    u3 = ux * (-cos_theta) + uy * sin_theta
+    u3.normalize()
+    r3 = r0 + u3 * H_BOND_LENGTH
+    return r3, r4
+
+
+def sp2_0known(r0):
+    """
+    Place 3 H (r1, r2, r3) atoms to r0
+    """
+    #   r1  r2
+    #     \ /
+    #      r0
+    #      |
+    #      r3
+    #
+    # r0 is sp2 type.
+    # r0's coordinates are known.
+    # r1, r2, r3's coordinates are to be determined.
+    #
+    # Solution: r1, r2, r3 are placed at the vertices of an equilateral triangle with r0 as the center (0,0,0)
+    angle = math.radians(120)
+    u1 = Vector((math.cos(0), math.sin(0), 0))
+    u2 = Vector((math.cos(angle), math.sin(angle), 0))
+    u3 = Vector((math.cos(-angle), math.sin(-angle), 0))
+    r1 = r0 + u1 * H_BOND_LENGTH
+    r2 = r0 + u2 * H_BOND_LENGTH
+    r3 = r0 + u3 * H_BOND_LENGTH
+    return r1, r2, r3
 
 
 def propogate_conftypes(self):  # Here self is a MCCE object
@@ -293,13 +372,8 @@ def propogate_conftypes(self):  # Here self is a MCCE object
                                 r1 = connected_heavy_atoms[0].xyz
                                 r2 = connected_heavy_atoms[1].xyz
                                 r3, r4 = sp3_2knowns(r0, r1, r2)
-                                if len(missing_H) == 2:
-                                    new_atom1 = create_connected_atom(atom, missing_H.pop(0), r3)
-                                    new_atom2 = create_connected_atom(atom, missing_H.pop(0), r4)
-                                    conf.atoms.append(new_atom1)
-                                    conf.atoms.append(new_atom2)
-                                elif len(missing_H) == 1:
-                                    new_atom = create_connected_atom(atom, missing_H.pop(0), r3)
+                                for r in [r3, r4][:len(missing_H)]:
+                                    new_atom = create_connected_atom(atom, missing_H.pop(0), r)
                                     conf.atoms.append(new_atom)
                             else:
                                 logging.warning(f"   {atom.atomname} {conf.conftype} has {n_known} connected heavy atoms, but {len(missing_H)} missing H atoms. Cannot place H.")
@@ -340,20 +414,8 @@ def propogate_conftypes(self):  # Here self is a MCCE object
                                     r2 = extended_atoms[0].xyz
                                 torsion_minimum = True
                                 r3, r4, r5 = sp3_1known(r0, r1, r2)
-                                if len(missing_H) == 3:
-                                    new_atom1 = create_connected_atom(atom, missing_H.pop(0), r3)
-                                    new_atom2 = create_connected_atom(atom, missing_H.pop(0), r4)
-                                    new_atom3 = create_connected_atom(atom, missing_H.pop(0), r5)
-                                    conf.atoms.append(new_atom1)
-                                    conf.atoms.append(new_atom2)
-                                    conf.atoms.append(new_atom3)
-                                elif len(missing_H) == 2:
-                                    new_atom1 = create_connected_atom(atom, missing_H.pop(0), r3)
-                                    new_atom2 = create_connected_atom(atom, missing_H.pop(0), r4)
-                                    conf.atoms.append(new_atom1)
-                                    conf.atoms.append(new_atom2)
-                                elif len(missing_H) == 1:
-                                    new_atom = create_connected_atom(atom, missing_H.pop(0), r3)
+                                for r in [r3, r4, r5][:len(missing_H)]:
+                                    new_atom = create_connected_atom(atom, missing_H.pop(0), r)
                                     conf.atoms.append(new_atom)
 
                                 if torsion_minimum:
@@ -367,9 +429,93 @@ def propogate_conftypes(self):  # Here self is a MCCE object
                             # this applies to heavy atoms that do not have other heavy atoms connected, like H2O and NH4+
                             r0 = atom.xyz
                             r1, r2, r3, r4 = sp3_0known(r0)
+                            for r in [r1, r2, r3, r4][:len(missing_H)]:
+                                new_atom = create_connected_atom(atom, missing_H.pop(0), r)
+                                conf.atoms.append(new_atom)                                
+                    
+                    elif orbital.lower() == "sp2":            
+                        n_known = len(connected_heavy_atoms)
+                        if n_known == 2: # place the 3rd H atom at a defined place
+                            # r3
+                            #  \
+                            #   r0 - r2
+                            #   |
+                            #   r1
+                            #
+                            # r0 is sp2 type.
+                            # r0, r1, r2's coordinates are known.
+                            # r3's coordinates are to be determined.
                             if len(missing_H) == 1:
-                                new_atom = create_connected_atom(atom, missing_H.pop(0), r1)
+                                r0 = atom.xyz
+                                r1 = connected_heavy_atoms[0].xyz
+                                r2 = connected_heavy_atoms[1].xyz
+                                r3 = sp2_2known(r0, r1, r2)
+                                new_atom = create_connected_atom(atom, missing_H.pop(0), r3)
                                 conf.atoms.append(new_atom)
-                            elif len(missing_H):
-                                
-                                
+                        elif n_known == 1:  # place the 2nd and 3rd H atoms at defined places
+                            # r3 r4
+                            #   \/
+                            #   r0
+                            #   |
+                            #   r1
+                            #   /
+                            #  r2
+                            #
+                            # r0 is sp2 type.
+                            # r0, r1, r2's coordinates are known.
+                            # r3, r4's coordinates are to be determined.
+                            r0 = atom.xyz
+                            r1 = connected_heavy_atoms[0].xyz
+                            torsion_minimum = False
+                            # pick r2, the heaviest atom connected to r1
+                            extended_atoms = list(set(connected_heavy_atoms[0].connect12) - set([atom]))
+                            if len(extended_atoms) == 1:  # only one atom connected to r1
+                                r2 = extended_atoms[0].xyz
+                                torsion_minimum = True
+                            elif len(extended_atoms) == 0:
+                                r2 = None
+                            else:
+                                # init atom mass
+                                for a in extended_atoms:
+                                    if a.element:
+                                        if a.element in atom_mass:
+                                            a.mass = atom_mass[a.element]
+                                        else:
+                                            a.mass = 100
+                                    else:
+                                        logging.error(f"   Atom {a.atomname} in {a.parent_conf.parent_residue.resname} has no element defined")
+                                        sys.exit(1)
+                                # sort by mass
+                                extended_atoms.sort(key=lambda x: x.mass, reverse=True)
+                                r2 = extended_atoms[0].xyz
+                                torsion_minimum = True
+                            r3, r4 = sp2_1known(r0, r1, r2)
+                            for r in [r3, r4][:len(missing_H)]:
+                                new_atom = create_connected_atom(atom, missing_H.pop(0), r)
+                                conf.atoms.append(new_atom)
+                            if torsion_minimum:
+                                conf.history = conf.history[:6] + "M" + conf.history[7:]
+                                torsion_minimum = False
+                        elif n_known == 0:
+                            r0 = atom.xyz
+                            r1, r2, r3 = sp2_0known(r0)
+                            for r in [r1, r2, r3][:len(missing_H)]:
+                                new_atom = create_connected_atom(atom, missing_H.pop(0), r)
+                                conf.atoms.append(new_atom)
+                    elif orbital.lower() == "sp":
+                        n_known = len(connected_heavy_atoms)
+                        if n_known == 1:
+                            # r2
+                            #  \
+                            #   r0
+                            #    \
+                            #     r1
+                            r0 = atom.xyz
+                            r1 = connected_heavy_atoms[0].xyz
+                            r2 = (r0 - r1).normalize() * H_BOND_LENGTH + r0
+                            if len(missing_H) == 1:
+                                new_atom = create_connected_atom(atom, missing_H.pop(0), r2)
+                                conf.atoms.append(new_atom)
+                    else:
+                        logging.error(f"   Unknown orbital type {orbital} for {atom.atomname} {conf.conftype}")
+                        sys.exit(1)
