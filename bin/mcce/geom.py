@@ -28,7 +28,7 @@ class Vector:
         return Vector([self.x / other, self.y / other, self.z / other])
 
     def __str__(self):
-        return f"({self.x}, {self.y}, {self.z})"
+        return f"({self.x:.3f}, {self.y:.3f}, {self.z:.3f})"
 
     def __repr__(self):
         return self.__str__()
@@ -60,6 +60,15 @@ class Vector:
     
     def distance(self, other):
         return (self - other).norm()
+    
+    def orthogonal(self):
+        """
+        Return an orthogonal vector
+        """
+        if self.x == 0 and self.y == 0:
+            return Vector([1, 0, 0])
+        else:
+            return Vector([-self.y, self.x, 0])
     
     def copy(self):
         return Vector([self.x, self.y, self.z])
