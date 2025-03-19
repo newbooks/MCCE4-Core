@@ -146,6 +146,36 @@ def sp3_1known(r0, r1, r2):
     return r3, r4, r5
 
 
+def sp3_0known(r0):
+    """
+    place 4 H (r1, r2, r3, r4) atoms to r0
+    """
+    #   r1  r2
+    #     \ /
+    #      r0--r3
+    #      |
+    #     r4
+    #
+    # r0 is sp3 type.
+    # r0's coordinates are known.
+    # r1, r2, r3 and r4's coordinates are to be determined.
+    #
+    # Solution: r1, r2, r3, r4 are placed at the vertices of a regular tetrahedron with r0 as the center (0,0,0)
+    u1 = Vector((1, 1, 1))
+    u2 = Vector((-1, -1, 1))
+    u3 = Vector((-1, 1, -1))
+    u4 = Vector((1, -1, -1))
+    u1.normalize()
+    u2.normalize()
+    u3.normalize()
+    u4.normalize()
+    r1 = r0 + u1 * H_BOND_LENGTH
+    r2 = r0 + u2 * H_BOND_LENGTH
+    r3 = r0 + u3 * H_BOND_LENGTH
+    r4 = r0 + u4 * H_BOND_LENGTH
+    return r1, r2, r3, r4
+
+
 
 def propogate_conftypes(self):  # Here self is a MCCE object
     """
@@ -310,3 +340,35 @@ def propogate_conftypes(self):  # Here self is a MCCE object
                                     r2 = extended_atoms[0].xyz
                                 torsion_minimum = True
                                 r3, r4, r5 = sp3_1known(r0, r1, r2)
+                                if len(missing_H) == 3:
+                                    new_atom1 = create_connected_atom(atom, missing_H.pop(0), r3)
+                                    new_atom2 = create_connected_atom(atom, missing_H.pop(0), r4)
+                                    new_atom3 = create_connected_atom(atom, missing_H.pop(0), r5)
+                                    conf.atoms.append(new_atom1)
+                                    conf.atoms.append(new_atom2)
+                                    conf.atoms.append(new_atom3)
+                                elif len(missing_H) == 2:
+                                    new_atom1 = create_connected_atom(atom, missing_H.pop(0), r3)
+                                    new_atom2 = create_connected_atom(atom, missing_H.pop(0), r4)
+                                    conf.atoms.append(new_atom1)
+                                    conf.atoms.append(new_atom2)
+                                elif len(missing_H) == 1:
+                                    new_atom = create_connected_atom(atom, missing_H.pop(0), r3)
+                                    conf.atoms.append(new_atom)
+
+                                if torsion_minimum:
+                                    conf.history = conf.history[:6] + "M" + conf.history[7:]  # mark as torsion minimum
+                                    torsion_minimum = False
+
+                            else:
+                                logging.warning(f"   {atom.atomname} {conf.conftype} has {n_known} connected heavy atoms, but {len(missing_H)} missing H atoms. Cannot place H.")
+                            
+                        elif n_known == 0:
+                            # this applies to heavy atoms that do not have other heavy atoms connected, like H2O and NH4+
+                            r0 = atom.xyz
+                            r1, r2, r3, r4 = sp3_0known(r0)
+                            if len(missing_H) == 1:
+                                new_atom = create_connected_atom(atom, missing_H.pop(0), r1)
+                                conf.atoms.append(new_atom)
+                            elif len(missing_H):
+                                
