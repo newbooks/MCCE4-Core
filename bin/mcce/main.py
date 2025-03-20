@@ -32,3 +32,4 @@ class MCCE:
     from ._rotate import apply_rotate_rules
     from ._conftype_conformers import propogate_swap
     from ._conftype_conformers import propogate_conftypes
+    from ._ga import ga_optimize

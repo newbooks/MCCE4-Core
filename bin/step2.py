@@ -86,6 +86,12 @@ if __name__ == "__main__":
     mcce.apply_rotate_rules()
     # mcce.print_rotate_rules()
 
+    # explore conformers with Genetic Algorithm
+    logging.info("   Explore conformers with Genetic Algorithm ...")
+    mcce.ga_optimize()
+    rot_stat.count_stat(mcce.protein, step="ga")
+    rot_stat.write_stat(mcce.protein)
+
 
 
     mcce.protein.dump(STEP2_OUT)  # Save the protein to a pdb file

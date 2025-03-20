@@ -54,6 +54,12 @@ t      Step2. H-bond directed rotamer making.                       (HDIRECTED)
 t      Step2. Do pruning?                                           (PRUNE)
 32.6   Step2. Pruning vdw cutoff from min 3*PH2KCAL*8               (PRUNE_VDW)
 0.5    Step2. Root mean square deviation cutoff for clustering      (PRUNE_RMSD)
+4.0    Step2. pH point 1 for GA                                     (GA_PH1)
+7.0    Step2. pH point 2 for GA                                     (GA_PH2)
+10.0   Step2. pH point 3 for GA                                     (GA_PH3)
+5000   Step2. Pool population for GA                                (GA_POOL)
+1000   Step2. Max generations GA                                    (GA_MAXGEN)
+
 
 step 3:
 80.0   Step3. Solvent dielectric constant for DelPhi             (EPSILON_SOLV)
