@@ -22,7 +22,6 @@ def prepare_rotate_rules(self):  # Hele self is a MCCE object
     Prepare rotamer making rules.
     The combined rules from two sources: ROTATE rules in ftpl and H atom freedom test
     """
-    logging.info("   Prepare rotamer making rules ...")
     # self.rotate_rules is a dictionary, in which key is conftype and value is a list of RotateRule objects
     self.rotate_rules = defaultdict(list)
 
@@ -70,6 +69,7 @@ def prepare_rotate_rules(self):  # Hele self is a MCCE object
                     query_key = ("CONNECT", atom, conftype)
                     if query_key in self.tpl:
                         rule.affected_atoms.extend([a for a in self.tpl[query_key].connected if a not in rule.bond])  # should all be H atoms
+                        self.rotate_rules[conftype].append(rule)
                 elif orbital == "sp3" and len(connected_hvatoms) == 0:
                     rule = RotateRule()
                     rule.bond = (None, atom)  # this is a special case to account for free rotate objects like HOH and NH4+
@@ -77,7 +77,7 @@ def prepare_rotate_rules(self):  # Hele self is a MCCE object
                     if query_key in self.tpl:
                         rule.affected_atoms.extend([a for a in self.tpl[query_key].connected if a not in rule.bond])  # should all be H atoms
                         # print(f"   Free rotate object {conftype} {atom}: Affected atoms {rule.affected_atoms}")
-                self.rotate_rules[conftype].append(rule)
+                        self.rotate_rules[conftype].append(rule)
 
     # Clean up the duplicates in the rotate rules defined by rotatable bonds
     for key, value in self.rotate_rules.items():
@@ -98,3 +98,15 @@ def print_rotate_rules(self):
         print(f"{key}:")
         for rule in value:
             print(rule)
+
+
+def apply_rotate_rules(self):
+    """
+    Apply rotate rules to all conformers in protein object
+    """
+    self.protein.serialize()
+    for res in self.protein.residues:
+        if len(res.conformers) > 1:  # skip backbone conformer
+            for conf in res.conformers[1:]:
+                # print(f"   Apply rotate rules to {conf.conftype} of {conf.confid}")
+                conf.make_rotatables(self.rotate_rules[conf.conftype])

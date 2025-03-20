@@ -264,7 +264,6 @@ def propogate_conftypes(self):  # Here self is a MCCE object
     3. Assign charge and radius
     """
 
-    logging.info("   Propogate conftype conformers ...")
     # make a dictionary of conftype and its atom countes (CONNECT records)
     conftype_atom_count = {}
     for key, _ in self.tpl.items():

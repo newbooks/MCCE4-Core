@@ -155,6 +155,7 @@ class Conformer:
         self.charge = 0.0           # net charge
         self.calculated = False     # flag for calculated conformer
         self.atoms = []             # list of atoms in the conformer
+        self.rotatables = {}        # rotatable bonds and affected atoms, indexed by atom pairs, value is a list of affected atoms
 
     def clone(self):
         """
@@ -173,6 +174,28 @@ class Conformer:
         for atom in new_conf.atoms:
             atom.parent_conf = new_conf
         return new_conf
+
+    def make_rotatables(self, rotate_rule):
+        """
+        Return the rotatable bonds and affected atoms of the conformer as a dictionary.
+        """
+        # make a name to atom dictionary
+        name_to_atom = {atom.atomname: atom for atom in self.atoms}
+        # translate rotate_rules from name based to atom based
+        for rule in rotate_rule:
+            # print(f"   {self.conftype}, {rule.bond[0]} - {rule.bond[1]}: {rule.affected_atoms}")
+            if rule.bond[0] in name_to_atom and rule.bond[1] in name_to_atom:
+                # print(f"   {rule.bond[0]} - {rule.bond[1]}: {rule.affected_atoms}")
+                self.rotatables[(name_to_atom[rule.bond[0]], name_to_atom[rule.bond[1]])] = [name_to_atom[name] for name in rule.affected_atoms]
+            elif rule.bond[0] is None: # special case for free rotate objects
+                logging.error("   First atom of the rotatable bond is None, to be solved.")
+                
+        # for key, value in self.rotatables.items():
+        #     print(f"{key[0].atomname} - {key[1].atomname}: {[a.atomname for a in value]}")
+
+
+
+
 
 class Residue:
     """
@@ -401,12 +424,7 @@ class Protein:
             for atom in atoms:
                 acc_atm_lines.append(f"{res.resname} {res.chain}{res.sequence:4d}{res.insertion}{atom.atomname:4s} {atom.sas:6.3f}\n")
 
-
-    def dump(self, fname):
-        """
-        Dump the protein to a pdb file.
-        """
-        
+    def serialize(self):
         # serialize the protein to
         # 1. atom serial number
         # 2. conformer number
@@ -441,6 +459,12 @@ class Protein:
                 conf.history = f"{id}{heavy_id[id]:03d}"
                 heavy_id[id] += 1      
 
+
+    def dump(self, fname):
+        """
+        Dump the protein to a pdb file.
+        """
+        self.serialize()        
 
         lines = self.prepend_lines
         for res in self.residues:
