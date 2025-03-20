@@ -70,6 +70,7 @@ if __name__ == "__main__":
 
     # make swap conformers
     logging.info("   Make swap conformers ...")
+    mcce.propogate_swap()
     rot_stat.count_stat(mcce.protein, step="swap")
     rot_stat.write_stat(mcce.protein)
 

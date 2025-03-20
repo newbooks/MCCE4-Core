@@ -519,3 +519,28 @@ def propogate_conftypes(self):  # Here self is a MCCE object
                     else:
                         logging.error(f"   Unknown orbital type {orbital} for {atom.atomname} {conf.conftype}")
                         sys.exit(1)
+
+def propogate_swap(self): # Here self is a MCCE object
+    """
+    Propogate conformers by ROT_SWAP rules
+    """
+    for res in self.protein.residues:
+        query_key = ("ROT_SWAP", res.resname)
+        if query_key in self.tpl:
+            swap_rule = self.tpl[query_key]
+            swap_from = [a[0] for a in swap_rule.swapables]
+            swap_to = [a[1] for a in swap_rule.swapables]
+            for conf in res.conformers[1:]:
+                new_conf = conf.clone()
+                swap_from_atoms = [a for a in new_conf.atoms if a.atomname in swap_from]
+                swap_to_atoms = [a for a in new_conf.atoms if a.atomname in swap_to]
+                if len(swap_from_atoms) != len(swap_from) or len(swap_to_atoms) != len(swap_to):
+                    logging.warning(f"   {res.resname} {conf.conftype} has {len(swap_from_atoms)} swap from atoms and {len(swap_to_atoms)} swap to atoms")
+                    continue 
+                new_conf.history = conf.history[:2] + "W" + conf.history[3:]
+                swapped = False
+                for i in range(len(swap_from)):
+                    swap_from_atoms[i].xyz, swap_to_atoms[i].xyz = swap_to_atoms[i].xyz, swap_from_atoms[i].xyz
+                    swapped = True
+            if swapped:
+                res.conformers.append(new_conf)
