@@ -75,13 +75,17 @@ if __name__ == "__main__":
     rot_stat.write_stat(mcce.protein)
 
     # expand conformers by conftypes
-    logging.info("   Propogating conformers with conformer types and add H atoms ...")
+    logging.info("   Propogate conformers with conformer types and add H atoms ...")
     mcce.propogate_conftypes()
     rot_stat.count_stat(mcce.protein, step="type")
     rot_stat.write_stat(mcce.protein)
 
     # make unified rotate rules
+    logging.info("   Prepare rotamer making rules ...")
     mcce.prepare_rotate_rules()
+    mcce.apply_rotate_rules()
     # mcce.print_rotate_rules()
+
+
 
     mcce.protein.dump(STEP2_OUT)  # Save the protein to a pdb file
