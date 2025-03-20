@@ -188,10 +188,17 @@ class Conformer:
                 # print(f"   {rule.bond[0]} - {rule.bond[1]}: {rule.affected_atoms}")
                 self.rotatables[(name_to_atom[rule.bond[0]], name_to_atom[rule.bond[1]])] = [name_to_atom[name] for name in rule.affected_atoms]
             elif rule.bond[0] is None: # special case for free rotate objects
-                logging.error("   First atom of the rotatable bond is None, to be solved.")
+                self.rotatables[(None, name_to_atom[rule.bond[1]])] = [name_to_atom[name] for name in rule.affected_atoms]
                 
-        # for key, value in self.rotatables.items():
-        #     print(f"{key[0].atomname} - {key[1].atomname}: {[a.atomname for a in value]}")
+    def print_rotatables(self):
+        """
+        Print the rotatable bonds and affected atoms of the conformer.
+        """
+        for key, value in self.rotatables.items():
+            if key[0] is None:
+                print(f"{self.confid} None - {key[1].atomname}: {[a.atomname for a in value]}")
+            else:
+                print(f"{self.confid} {key[0].atomname} - {key[1].atomname}: {[a.atomname for a in value]}")
 
 
 
