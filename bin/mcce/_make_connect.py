@@ -197,6 +197,35 @@ def make_connect12(self):  # Here, self is a MCCE object
                         logging.debug(f"Atom {connected_atomname} not found in conformer {conf.confid}")
 
 
+def make_connect12_fast(self):  # Here, self is a MCCE object
+    """
+    Fast version of make 12 connectivity, 
+    - ignoring ligand rules
+    - checking from side chain to backbone only
+    - connect12 contained within the same residue (connect13 is also contained BTW)
+    """
+    self.reset_connect12()
+    for res in self.protein.residues:
+        if len(res.conformers) > 1:
+            for conf in res.conformers[1:]:
+                for atom in conf.atoms:
+                    key = ("CONNECT", atom.atomname, conf.conftype)
+                    if key in self.tpl:
+                        connected_atomnames = self.tpl[key].connected
+                    else:
+                        connected_atomnames = []
+                    for connected_atomname in connected_atomnames:
+                        connected_atom = get_atom_by_name(conf, connected_atomname)
+                        if connected_atom:
+                            atom.connect12.append(connected_atom)
+                        else:
+                            connected_atom = get_atom_by_name(res.conformers[0], connected_atomname)
+                            if connected_atom:
+                                atom.connect12.append(connected_atom)
+
+
+
+
 def print_connect12(self, file=None):  # Here, self is a MCCE object
     """
     Print 12 connectivity
