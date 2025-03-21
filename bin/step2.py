@@ -48,6 +48,7 @@ if __name__ == "__main__":
     tpl.load_ftpl_folder(prm._FTPL_FOLDER.value) # Load the ftpl folder specified in runprm
     if os.path.isdir(USER_PARAM):
         tpl.load_ftpl_folder(USER_PARAM)  # Load user defined ftpl files
+    tpl.load_ftpl_file(NEW_FTPL)    # Load new.ftpl
     tpl.dump(comment="Step 2 uses these tpl parameters") # Save the parameters to tpl.dat.record
 
     # Get protein from mccepdb step1_out.pdb
