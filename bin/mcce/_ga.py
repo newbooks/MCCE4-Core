@@ -23,8 +23,8 @@ class Pool:
         self.fixed_residues = [mcce.protein.residues[i] for i in self.index_fixed]
         self.population = []
         # create individuals. pay attention to the performance here
-        # for i in range(size):
-        #     self.population.append(self.create_individual(mcce))
+        for i in range(size):
+            self.population.append(self.create_individual(mcce))
     
     def divide_fixed_flipper(self, mcce):
         index_fixed = []
@@ -52,6 +52,7 @@ class Pool:
             selected_conformer = random.choice(residue.conformers)
             selected_conformer.history = selected_conformer.history[:2] + "G" + selected_conformer.history[3:]  # mark as GA selected
             individual.append(selected_conformer.clone())
+            
         # mix with fixed residues and create connect12 for each atom
         return individual
 
@@ -68,6 +69,7 @@ def ga_optimize(self):  # Here self is an instance of MCCE
     ga_single_cross = GA_single_cross
     ga_double_cross = GA_double_cross
     ga_mutation = GA_mutation
+    ga_weedout = GA_weedout
     logging.info(f"      GA pool size:{ga_pool}")
     logging.info(f"      GA maximum generations:{ga_maxgen}")
     logging.info(f"      GA solution pHs:{ga_phs}")
@@ -75,7 +77,8 @@ def ga_optimize(self):  # Here self is an instance of MCCE
     logging.info(f"      GA single_cross rate:{ga_single_cross}")
     logging.info(f"      GA double_cross rate:{ga_double_cross}")
     logging.info(f"      GA mutation rate:{ga_mutation}")
-
+    logging.info(f"      GA weedout rate:{ga_weedout}")
+    logging.info(f"      Prepare GA pool, may take a while ...")
     pool = Pool(mcce=self, size=ga_pool)
 
 
