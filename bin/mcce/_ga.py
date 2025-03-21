@@ -22,6 +22,7 @@ class Pool:
         self.index_fixed, self.index_flipper = self.divide_fixed_flipper(mcce)
         self.fixed_residues = [mcce.protein.residues[i] for i in self.index_fixed]
         self.population = []
+        # create individuals. pay attention to the performance here
         # for i in range(size):
         #     self.population.append(self.create_individual(mcce))
     
