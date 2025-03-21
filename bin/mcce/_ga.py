@@ -4,7 +4,10 @@ Genetic Algorithm for MCCE
 
 import logging
 import random
+from .pdbio import Residue
 from .constants import *
+from ._make_connect import get_atom_by_name
+
 
 class Pool:
     """
@@ -49,11 +52,31 @@ class Pool:
         for i in self.index_flipper:
             residue = mcce.protein.residues[i]
             # randomly select a conformer from the flipper residues
-            selected_conformer = random.choice(residue.conformers)
+            selected_conformer = random.choice(residue.conformers).clone()
             selected_conformer.history = selected_conformer.history[:2] + "G" + selected_conformer.history[3:]  # mark as GA selected
-            individual.append(selected_conformer.clone())
+            residue = Residue()
+            residue.resname = mcce.protein.residues[i].resname
+            residue.chain = mcce.protein.residues[i].chain
+            residue.sequence = mcce.protein.residues[i].sequence
+            residue.insertion = mcce.protein.residues[i].insertion
+            residue.conformers = [mcce.protein.residues[i].conformers[0], selected_conformer]  # backbone is a reference while selected_conformer is a copy
+            for atom in selected_conformer.atoms:
+                key = ("CONNECT", atom.atomname, selected_conformer.conftype)
+                if key in mcce.tpl:
+                    connected_atomnames = mcce.tpl[key].connected
+                else:
+                    connected_atomnames = []
+                for connected_atomname in connected_atomnames:
+                    connected_atom = get_atom_by_name(selected_conformer, connected_atomname)
+                    if connected_atom:
+                        atom.connect12.append(connected_atom)
+                    else:
+                        connected_atom = get_atom_by_name(residue.conformers[0], connected_atomname)
+                        if connected_atom:
+                            atom.connect12.append(connected_atom)
+                # print(atom.atomname, [a.atomname for a in atom.connect12])
+            individual.append(residue)
             
-        # mix with fixed residues and create connect12 for each atom
         return individual
 
 
@@ -80,5 +103,4 @@ def ga_optimize(self):  # Here self is an instance of MCCE
     logging.info(f"      GA weedout rate:{ga_weedout}")
     logging.info(f"      Prepare GA pool, may take a while ...")
     pool = Pool(mcce=self, size=ga_pool)
-
-
+    logging.info(f"      GA pool ready")
