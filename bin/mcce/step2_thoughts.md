@@ -35,7 +35,7 @@ pH and Eh energy: environment pH/Eh and pK0, Eh0
 The goal of this step is to identify potential conformers, so we can use qualitative searching algorithms, such as Genetic Algorithms.
 
 - Place H and make ionization conformers
-- GA flow
+- GA flow (To be revised)
     - Initialization: generate N random microstates.
     - Fitness evaluation: individual fitness, and population fitness average (PFA score)
     - Selection
@@ -48,7 +48,7 @@ The goal of this step is to identify potential conformers, so we can use qualita
 
 Note: PFA score variations
 - PFA: whole population
-- PFA90: top 90% population to exclude the bottom performers
+- PFA80: top 80% population to exclude the bottom performers
 - PFA50: top 50% population which is what we will use as final conformers
 
 The whole population average fitness score is commonly used to measure the convergence, but which score is appropriate in our application is a question.
