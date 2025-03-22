@@ -4,15 +4,33 @@ Genetic Algorithm for MCCE
 
 import logging
 import random
-from .pdbio import Residue
+from .pdbio import Residue, Protein
 from .constants import *
 from ._make_connect import get_atom_by_name
+        
 
 class Individual:
-    def __init__(self):
+    def __init__(self, pool=None):
+        self.parent_pool = pool
         self.chromosome = []  # a list of residues
         self.fitness = None  # fitness score for this individual
 
+    def to_mccepdb(self, fname):
+        """
+        Convert this individual to a mccepdb object
+        """
+        individual_protein = Protein()
+        individual_protein.residues = len(self.parent_pool.mcce.protein.residues) * [None]
+        # put back fixed residues
+        for ires, residue in zip(self.parent_pool.index_fixed, self.parent_pool.fixed_residues):
+            individual_protein.residues[ires] = residue
+        # put back flipper residues
+        for i, residue in zip(self.parent_pool.index_flipper, self.chromosome):
+            individual_protein.residues[i] = residue
+
+
+        individual_protein.prepend_lines = ["# This is a mccepdb converted from an individual in GA pool\n"]
+        individual_protein.dump(fname)
 
 class Pool:
     """
@@ -25,19 +43,27 @@ class Pool:
     - flipper_residues = individual: list of flipper residues. This list makes an individual
     - population: list of individuals in the pool
     """
+
+
+
     def __init__(self, mcce, size, ph):
+        # input parameters
+        self.mcce = mcce
         self.size = size
-        self.index_fixed, self.index_flipper = self.divide_fixed_flipper(mcce)
+        self.ph = ph
+        # own properties
+        self.index_fixed, self.index_flipper = self.divide_fixed_flipper()
         self.fixed_residues = [mcce.protein.residues[i] for i in self.index_fixed]
         self.population = []
+        self.pfa = None  # Population Fitness Average for the top 50% individuals
         # create individuals. pay attention to the performance here
         for i in range(size):
-            self.population.append(self.create_individual(mcce))
+            self.population.append(self.create_individual())
     
-    def divide_fixed_flipper(self, mcce):
+    def divide_fixed_flipper(self):
         index_fixed = []
         index_flipper = []
-        for i, residue in enumerate(mcce.protein.residues):
+        for i, residue in enumerate(self.mcce.protein.residues):
             if len(residue.conformers) == 1:  # only backbone
                 index_fixed.append(i)
             elif len(residue.conformers) == 2:  # one side chain
@@ -49,26 +75,26 @@ class Pool:
                 index_flipper.append(i)
         return index_fixed, index_flipper
 
-    def create_individual(self, mcce):
+    def create_individual(self):
         """
         Create an individual for the pool
         """
-        individual = Individual()
+        individual = Individual(pool=self)
         for i in self.index_flipper:
-            residue = mcce.protein.residues[i]
+            residue = self.mcce.protein.residues[i]
             # randomly select a conformer from the flipper residues
-            selected_conformer = random.choice(residue.conformers).clone()
+            selected_conformer = random.choice(residue.conformers[1:]).clone()
             selected_conformer.history = selected_conformer.history[:2] + "G" + selected_conformer.history[3:]  # mark as GA selected
-            residue = Residue()
-            residue.resname = mcce.protein.residues[i].resname
-            residue.chain = mcce.protein.residues[i].chain
-            residue.sequence = mcce.protein.residues[i].sequence
-            residue.insertion = mcce.protein.residues[i].insertion
-            residue.conformers = [mcce.protein.residues[i].conformers[0], selected_conformer]  # backbone is a reference while selected_conformer is a copy
+            new_residue = Residue()
+            new_residue.resname = residue.resname
+            new_residue.chain = residue.chain
+            new_residue.sequence = residue.sequence
+            new_residue.insertion = residue.insertion
+            new_residue.conformers = [residue.conformers[0], selected_conformer]  # backbone is a reference while selected_conformer is a copy
             for atom in selected_conformer.atoms:
                 key = ("CONNECT", atom.atomname, selected_conformer.conftype)
-                if key in mcce.tpl:
-                    connected_atomnames = mcce.tpl[key].connected
+                if key in self.mcce.tpl:
+                    connected_atomnames = self.mcce.tpl[key].connected
                 else:
                     connected_atomnames = []
                 for connected_atomname in connected_atomnames:
@@ -80,9 +106,9 @@ class Pool:
                         if connected_atom:
                             atom.connect12.append(connected_atom)
                 # print(atom.atomname, [a.atomname for a in atom.connect12])
-            individual.chromosome.append(residue)
-            
+            individual.chromosome.append(new_residue)     
         return individual
+
 
 
 def ga_optimize(self):  # Here self is an instance of MCCE
@@ -104,3 +130,4 @@ def ga_optimize(self):  # Here self is an instance of MCCE
         logging.info(f"      Prepare GA pool at pH {ph:.2f}, may take a while ...")
         pool = Pool(mcce=self, size=ga_pool, ph=ph)
     
+    pool.population[0].to_mccepdb("ga_best.pdb")
