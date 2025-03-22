@@ -91,6 +91,7 @@ if __name__ == "__main__":
     # explore conformers with Genetic Algorithm
     logging.info("   Explore conformers with Genetic Algorithm ...")
     mcce.ga_optimize()
+    logging.info("   Done with Genetic Algorithm.")
     rot_stat.count_stat(mcce.protein, step="ga")
     rot_stat.write_stat(mcce.protein)
 
