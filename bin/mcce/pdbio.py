@@ -56,7 +56,6 @@ class Atom:
         """
         new_atom = Atom()
         new_atom.record = self.record
-        new_atom.serial = self.serial
         new_atom.atomname = self.atomname
         new_atom.altloc = self.altloc
         new_atom.resname = self.resname
@@ -164,12 +163,8 @@ class Conformer:
         new_conf = Conformer()
         new_conf.confid = self.confid
         new_conf.conftype = self.conftype
-        new_conf.confnum = self.confnum
         new_conf.parent_residue = self.parent_residue
-        new_conf.occ = self.occ
         new_conf.history = self.history
-        new_conf.charge = self.charge
-        new_conf.calculated = False # newly created conformer is not calculated
         new_conf.atoms = [atom.clone() for atom in self.atoms]
         for atom in new_conf.atoms:
             atom.parent_conf = new_conf
