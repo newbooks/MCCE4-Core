@@ -29,6 +29,8 @@ ACC_ATOM = "acc.atm"
 STEP2_OUT = "step2_out.pdb"
 ROT_STAT = "rot_stat"
 
+
+
 # This is for split_altloc()
 # A backbone atom should have residue name AND name match the following to be considered as backbone
 BACKBONE_ATOMS = {" N  ", " CA ", " C  ", " O  "}
@@ -101,3 +103,6 @@ H_BOND_ANGLE_SP = 180.0
 # pool size, max generations, and 3 pH values are defined in prm
 GA_crossover = 20       # do this number of crossovers in one period
 GA_mutation = 1         # do this number of mutations in one period
+# File names for logging
+GA_PROGRESS = "ga_progress.log"
+GA_OUTPUT_FOLDER = "ga_output"

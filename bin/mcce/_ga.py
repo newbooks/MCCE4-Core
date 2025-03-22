@@ -2,6 +2,7 @@
 Genetic Algorithm for MCCE
 """
 
+import os
 import logging
 import random
 from .pdbio import Residue, Protein
@@ -13,7 +14,8 @@ class Individual:
     def __init__(self, pool=None):
         self.parent_pool = pool
         self.chromosome = []  # a list of residues
-        self.fitness = None  # fitness score for this individual
+        self.fitness = 0.0  # fitness score for this individual
+        self.rank = 0  # rank for this individual (0 based)
 
     def to_mccepdb(self, fname):
         """
@@ -29,7 +31,7 @@ class Individual:
             individual_protein.residues[i] = residue
 
 
-        individual_protein.prepend_lines = ["# This is a mccepdb converted from an individual in GA pool\n"]
+        individual_protein.prepend_lines = [f"# Fitness = {self.fitness:.2f}; Rank = {self.rank:d}\n"]
         individual_protein.dump(fname)
 
 class Pool:
@@ -109,6 +111,17 @@ class Pool:
             individual.chromosome.append(new_residue)     
         return individual
 
+    def writepdb(self):
+        """
+        Write individuals in the pool to pdb files
+        """
+        # create GA_OUTPUT_FOLDER if not exists
+        if not os.path.exists(GA_OUTPUT_FOLDER):
+            os.makedirs(GA_OUTPUT_FOLDER)
+        # write individuals to pdb files
+        for i, individual in enumerate(self.population):
+            fname = os.path.join(GA_OUTPUT_FOLDER, f"pH{self.ph:04.1f}_{i:04d}.pdb")
+            individual.to_mccepdb(fname)
 
 
 def ga_optimize(self):  # Here self is an instance of MCCE
@@ -123,11 +136,32 @@ def ga_optimize(self):  # Here self is an instance of MCCE
     ga_crossover = GA_crossover
     ga_mutation = GA_mutation
 
-    logging.info(f"      GA pool size:{ga_pool}")
-    logging.info(f"      GA maximum generations:{ga_maxgen}")
-    logging.info(f"      GA solution pHs:{ga_phs}")
+    # Save the current handlers
+    logger = logging.getLogger()
+    original_handlers = logger.handlers.copy()
+
+    # Create a file handler
+    file_handler = logging.FileHandler(GA_PROGRESS, mode='w')
+    file_handler.setLevel(logging.INFO)
+    file_handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s: %(message)s", datefmt='%Y-%m-%d %H:%M:%S'))
+
+    logger.handlers = [file_handler]
+
+    # Start the GA optimization
+    logging.info("Genetic Algorithm optimization for MCCE:")
+    logging.info(f"   GA pool size:{ga_pool}")
+    logging.info(f"   GA maximum generations:{ga_maxgen}")
+    logging.info(f"   GA solution pHs:{ga_phs}")
     for ph in ga_phs:
-        logging.info(f"      Prepare GA pool at pH {ph:.2f}, may take a while ...")
+        logging.info(f"   Prepare GA pool at pH {ph:.2f} ...")
         pool = Pool(mcce=self, size=ga_pool, ph=ph)
-    
-    pool.population[0].to_mccepdb("ga_best.pdb")
+        logging.info(f"      Start to evolve ...")
+        #pool.evolve()
+        logging.info(f"      Done evolution.")
+        logging.info(f"      Write individuals to {GA_OUTPUT_FOLDER}")
+        pool.writepdb()
+
+    logging.info("Genetic Algorithm optimization completed.")
+
+    # Restore the original handlers
+    logger.handlers = original_handlers

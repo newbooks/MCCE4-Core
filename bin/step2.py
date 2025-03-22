@@ -90,11 +90,22 @@ if __name__ == "__main__":
 
     # explore conformers with Genetic Algorithm
     logging.info("   Explore conformers with Genetic Algorithm ...")
+    logging.info(f"      This may take a while, check {GA_PROGRESS} for GA progress.")
+
     mcce.ga_optimize()
-    logging.info("   Done with Genetic Algorithm.")
+    logging.info("   Done with Genetic Algorithm conformer search.")
     rot_stat.count_stat(mcce.protein, step="ga")
     rot_stat.write_stat(mcce.protein)
 
 
-
     mcce.protein.dump(STEP2_OUT)  # Save the protein to a pdb file
+
+        # print summary
+    
+    print("====================================================================")
+    print("Step 2 completed. Here is run summary:")
+    print("--------------------------------------------------------------------")    
+    print(f"  {STEP2_OUT:<16s}: Protein object in mccepdb file, used in step 3")
+    print(f"  {GA_PROGRESS:<16s}: GA progress log, information only")
+    print(f"  {GA_OUTPUT_FOLDER + '/':<16s}: GA selected individuals in mccepdb format")
+    print("====================================================================")
