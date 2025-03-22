@@ -8,6 +8,11 @@ from .pdbio import Residue
 from .constants import *
 from ._make_connect import get_atom_by_name
 
+class Individual:
+    def __init__(self):
+        self.chromosome = []  # a list of residues
+        self.fitness = None  # fitness score for this individual
+
 
 class Pool:
     """
@@ -48,7 +53,7 @@ class Pool:
         """
         Create an individual for the pool
         """
-        individual = []
+        individual = Individual()
         for i in self.index_flipper:
             residue = mcce.protein.residues[i]
             # randomly select a conformer from the flipper residues
@@ -75,7 +80,7 @@ class Pool:
                         if connected_atom:
                             atom.connect12.append(connected_atom)
                 # print(atom.atomname, [a.atomname for a in atom.connect12])
-            individual.append(residue)
+            individual.chromosome.append(residue)
             
         return individual
 
@@ -88,17 +93,13 @@ def ga_optimize(self):  # Here self is an instance of MCCE
     ga_phs = [float(self.prm.GA_PH1.value), float(self.prm.GA_PH2.value), float(self.prm.GA_PH3.value)]
     ga_pool = int(self.prm.GA_POOL.value)
     ga_maxgen = int(self.prm.GA_MAXGEN.value)
-    ga_preserve = GA_preserve
-    ga_single_cross = GA_single_cross
-    ga_double_cross = GA_double_cross
+    # the following two variables are numbers of crossovers and mutations in one period (generation)
+    ga_crossover = GA_crossover
     ga_mutation = GA_mutation
+
     logging.info(f"      GA pool size:{ga_pool}")
     logging.info(f"      GA maximum generations:{ga_maxgen}")
     logging.info(f"      GA solution pHs:{ga_phs}")
-    logging.info(f"      GA preserve population:{ga_preserve}")
-    logging.info(f"      GA single_cross rate:{ga_single_cross}")
-    logging.info(f"      GA double_cross rate:{ga_double_cross}")
-    logging.info(f"      GA mutation rate:{ga_mutation}")
     for ph in ga_phs:
         logging.info(f"      Prepare GA pool at pH {ph:.2f}, may take a while ...")
         pool = Pool(mcce=self, size=ga_pool, ph=ph)
