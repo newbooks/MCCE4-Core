@@ -31,27 +31,34 @@ torsion: 1-4 vdw
 hydrogen bond: angle and distance
 pH and Eh energy: environment pH/Eh and pK0, Eh0
 
+
 ### Sampling Method
-The goal of this step is to identify potential conformers, so we can use qualitative searching algorithms, such as Genetic Algorithms.
+The goal of this step is to identify potential conformers using qualitative searching algorithms, such as Genetic Algorithms (GA).
 
-- Place H and make ionization conformers
-- GA flow (To be revised)
+The following is a modified GA approach:
+
+- Place hydrogen atoms and generate ionization conformers based on CONFLIST conftypes.
+- GA flow (Pool size: 1000, GA_preserver = 0.2):
     - Initialization: generate N random microstates.
-    - Fitness evaluation: individual fitness, and population fitness average (PFA score)
-    - Selection
-    - Crossover: one-point crossover : two-point crossover = 1:1
-    - Mutation: dynamically adjusted from 1% to 5% based on rolling PFA score average
-    - Replacement
-    - Termination condition check: convergence check (rolling average PFA score of the last 5 generations does not improve) and max generation
-    - If termination condition is met, return the top 50% population
-- Do GA for pH = 4, 7, and 10
+        - Divide the protein into fixed residues and flipper residues.
+        - Flipper residues (conf[0] + conf[1]) will form microstates.
+        - Flipper residue side chains can only rotate during mutation.
+    - Fitness evaluation: assess individual fitness and population fitness average (PFA80 score). Individuals are placed in an ordered list.
+    - Selection: to avoid remaking connectivity, atoms are changed but never created during the GA cycle.
+        - Use tournament selection to randomly pick a group of 5 individuals from the pool, and the top two individuals will be used for crossover.
+        - Perform double crossover and single crossover alternately for a total of 20 times in a period.
+        - Perform one mutation from a randomly selected individual in one period.
+    - Replacement:
+        - After each crossover or mutation, calculate the fitness score and insert the new individual in the correct position in the ordered list.
+    - Termination condition check:
+        - After each period, calculate PFA80.
+        - Check for convergence (rolling average PFA80 score of the last 5 periods does not improve) and maximum periods.
+    - If the termination condition is met, return the top 50% of the population.
+- Perform GA for pH = 4, 7, and 10.
 
-Note: PFA score variations
-- PFA: whole population
-- PFA80: top 80% population to exclude the bottom performers
-- PFA50: top 50% population which is what we will use as final conformers
-
-The whole population average fitness score is commonly used to measure the convergence, but which score is appropriate in our application is a question.
+Note:
+- PFA80: top 80% of the population to exclude the bottom performers.
+- The atoms in a residue will be mapped to an array, and connect12 will use the index number of the atom in the array. This way, the connectivity will be preserved when propagating new individuals without remaking the connect12 records.
 
 ### Conformer Making Levels
 In the case of GA conformer making, the rotation angles are not limited by the rotation step size, so this mechanism can potentially create a large number of ending conformers. The control of the ending number of conformers is currently dependent on the conformer generating method, in the sense of how extensively to explore the rotational space. With GA, the control of bond rotations does not exist. However, the number of ending conformers in GA can be achieved by:
