@@ -35,6 +35,19 @@ def get_atom_by_name(conf, atomname):
     return None
 
 
+def reset_connect(self):  # Here, self is a MCCE object
+    """
+    Reset 12, 13, 14 connectivity list
+    """
+    for res in self.protein.residues:
+        for conf in res.conformers:
+            for atom in conf.atoms:
+                atom.connect12 = []
+                atom.connect13 = []
+                atom.connect14 = []
+
+
+
 def reset_connect12(self):  # Here, self is a MCCE object
     """
     Reset 12 connectivity list

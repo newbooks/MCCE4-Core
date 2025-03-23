@@ -18,6 +18,7 @@ class MCCE:
     from ._make_head1 import make_head1
     from ._load_mccepdb import load_mccepdb
     from ._place_missing_heavy_atoms import place_missing_heavy_atoms
+    from ._make_connect import reset_connect
     from ._make_connect import reset_connect12
     from ._make_connect import make_connect12
     from ._make_connect import make_connect12_fast
