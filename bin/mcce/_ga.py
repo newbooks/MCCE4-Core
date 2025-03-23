@@ -58,6 +58,8 @@ class Pool:
         self.fixed_residues = [mcce.protein.residues[i] for i in self.index_fixed]
         self.population = []
         self.pfa = None  # Population Fitness Average for the top 50% individuals
+        # reset connect12 and connect13
+        self.mcce.reset_connect()
         # create individuals. pay attention to the performance here
         for i in range(size):
             self.population.append(self.create_individual())
@@ -108,6 +110,14 @@ class Pool:
                         if connected_atom:
                             atom.connect12.append(connected_atom)
                 # print(atom.atomname, [a.atomname for a in atom.connect12])
+            # make connect13
+            for atom in selected_conformer.atoms:  # again, we only need this for side chains
+                atom.connect13 = []
+                for connected_atom in atom.connect12:
+                    for connected_atom2 in connected_atom.connect12:
+                        if connected_atom2 not in atom.connect13 and connected_atom2 not in atom.connect12 and connected_atom2 != atom:
+                            atom.connect13.append(connected_atom2)
+                # print(atom.atomname, [a.atomname for a in atom.connect12], [a.atomname for a in atom.connect13])
             individual.chromosome.append(new_residue)     
         return individual
 
