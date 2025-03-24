@@ -9,7 +9,7 @@ from collections import deque
 from .pdbio import Residue, Protein
 from .constants import *
 from ._make_connect import get_atom_by_name
-
+from ._sas import *
 
 class Individual:
     def __init__(self, pool=None):
@@ -51,7 +51,23 @@ class Individual:
         - elec energy
         - solvation energy, pH and Eh are NOT part of the fitness, as we are only exploring in the rotational space
         """
-        # inituialize the sas for atoms and side chanin conformers
+        # initialize the sas for atoms and side chanin conformers. *SAS relies on r_vdw to determine the SAS radius*
+        # background atoms from the fixed residues
+        background_atoms = []
+        for i in self.parent_pool.index_fixed:
+            for conf in self.parent_pool.mcce.protein.residues[i].conformers:
+                background_atoms += conf.atoms
+        # background atoms from the conf[0] of flipper residues
+        for i in self.parent_pool.index_flipper:  # remember, conf[0] keeps lineages to the original residue
+            background_atoms += self.parent_pool.mcce.protein.residues[i].conformers[0].atoms
+
+        for res in self.chromosome:
+            for atom in res.conformers[1].atoms:
+                other_atoms = list(set(res.conformers[1].atoms) - {atom})
+                atom.sas = sas_atom(atom, background_atoms + other_atoms)
+                atom.sas_percentage = atom.sas / (4*3.14159*(atom.r_vdw+PROBE_RAD)**2)
+                #print(atom.atomname, atom.sas, atom.sas_percentage)
+
 
         # get atom list
 
@@ -88,6 +104,7 @@ class Pool:
         self.pfa_queue = deque(maxlen=GA_PFA_queue)  # keep the last pfa values
         # create individuals. pay attention to the performance here
         self.mcce.reset_connect()  # reset all connect12 and connect13
+        self.mcce.assign_qr()  # assign charges and radii
         for i in range(size):
             self.population.append(self.create_individual())
     
