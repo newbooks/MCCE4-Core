@@ -128,8 +128,6 @@ def sas_protein(self):  # Here, self is a MCCE object
 
     
 
-
-
 def sas_pdb(pdb, probe):
     """
     Compute SAS for a pdb file

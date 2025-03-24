@@ -5,10 +5,11 @@ Genetic Algorithm for MCCE
 import os
 import logging
 import random
+from collections import deque
 from .pdbio import Residue, Protein
 from .constants import *
 from ._make_connect import get_atom_by_name
-        
+
 
 class Individual:
     def __init__(self, pool=None):
@@ -41,6 +42,30 @@ class Individual:
         for res in self.chromosome:
             print(f"{res._flag} (=GA)-> {res.conformers[0].parent_residue._flag} (=Empty), {res.conformers[1].parent_residue._flag} (=GA)")
 
+
+    def get_fitness(self):
+        """
+        Calculate the fitness of this individual with fast force field
+        The fitness score is energy with these components:
+        - vdW energy
+        - elec energy
+        - solvation energy, pH and Eh are NOT part of the fitness, as we are only exploring in the rotational space
+        """
+        # inituialize the sas for atoms and side chanin conformers
+
+        # get atom list
+
+        # loop over all atoms against all atoms to calculate the energy
+
+            # calculate the distance
+
+            # calculate vdw
+
+            # calculate elec
+
+            # compose fitness score
+
+
 class Pool:
     """
     Class for Pool in Genetic Algorithm
@@ -52,22 +77,17 @@ class Pool:
     - flipper_residues = individual: list of flipper residues. This list makes an individual
     - population: list of individuals in the pool
     """
-
-
-
-    def __init__(self, mcce, size, ph):
+    def __init__(self, mcce, size):
         # input parameters
         self.mcce = mcce
         self.size = size
-        self.ph = ph
         # own properties
         self.index_fixed, self.index_flipper = self.divide_fixed_flipper()
         self.fixed_residues = [mcce.protein.residues[i] for i in self.index_fixed]
         self.population = []
-        self.pfa = None  # Population Fitness Average for the top 50% individuals
-        # reset connect12 and connect13
-        self.mcce.reset_connect()
+        self.pfa_queue = deque(maxlen=GA_PFA_queue)  # keep the last pfa values
         # create individuals. pay attention to the performance here
+        self.mcce.reset_connect()  # reset all connect12 and connect13
         for i in range(size):
             self.population.append(self.create_individual())
     
@@ -147,17 +167,28 @@ class Pool:
                 except Exception as e:
                     print(f"Failed to delete {file_path}. Reason: {e}")
         # write individuals to pdb files
-        for i, individual in enumerate(self.population):
-            fname = os.path.join(GA_OUTPUT_FOLDER, f"pH{self.ph:04.1f}_{i:04d}.pdb")
+        for i, individual in enumerate(self.population[:self.size//2]):
+            fname = os.path.join(GA_OUTPUT_FOLDER, f"state_{i:04d}.pdb")
             individual.to_mccepdb(fname)
 
+    def evolve(self):
+        """
+        Evolve the pool
+        """
+        # initial fitness calculation
+        for individual in self.population:
+            individual.get_fitness()
+        self.population.sort(key=lambda x: x.fitness)
+        self.pfa = sum([individual.fitness for individual in self.population[:self.size//2]]) / (self.size//2)
 
-def ga_optimize(self):  # Here self is an instance of MCCE
+
+
+
+def ga_optimize(self, writepdb=False):  # Here self is an instance of MCCE
     """
     Genetic Algorithm for MCCE
     """
     # gather constants and parameters for GA
-    ga_phs = [float(self.prm.GA_PH1.value), float(self.prm.GA_PH2.value), float(self.prm.GA_PH3.value)]
     ga_pool = int(self.prm.GA_POOL.value)
     ga_maxgen = int(self.prm.GA_MAXGEN.value)
     # the following two variables are numbers of crossovers and mutations in one period (generation)
@@ -179,16 +210,14 @@ def ga_optimize(self):  # Here self is an instance of MCCE
     logging.info("Genetic Algorithm optimization for MCCE:")
     logging.info(f"   GA pool size:{ga_pool}")
     logging.info(f"   GA maximum generations:{ga_maxgen}")
-    logging.info(f"   GA solution pHs:{ga_phs}")
-    for ph in ga_phs:
-        logging.info(f"   Prepare GA pool at pH {ph:.2f} ...")
-        pool = Pool(mcce=self, size=ga_pool, ph=ph)
-        logging.info(f"      Start to evolve ...")
-        #pool.evolve()
-        logging.info(f"      Done evolution.")
+    logging.info(f"   Prepare GA pool ...")
+    pool = Pool(mcce=self, size=ga_pool)
+    logging.info(f"      Start to evolve ...")
+    pool.evolve()
+    logging.info(f"      Done evolution.")
+    if writepdb:
         logging.info(f"      Write individuals to {GA_OUTPUT_FOLDER}")
         pool.writepdb()
-
     logging.info("Genetic Algorithm optimization completed.")
 
     # pool.population[2].test_lineage()
