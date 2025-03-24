@@ -21,7 +21,7 @@ def parse_arguments():
     parser.add_argument("-f", metavar="ftpl_folder", default="", help="Load from this ftpl folder")
     parser.add_argument("-r", metavar="prm", nargs="+", default=[], help="Load additional runprm files, in order")
     parser.add_argument("-l", "--level", metavar="run_level", default=1, type=int, help="Run level: 1, 2, or 3, default is 1.")
-    parser.add_argument("--use_head1", default=False, action="store_true", help=f"Use {STEP1_HEAD} to overwrite run.prm and run_level to make rotamers")
+    parser.add_argument("--writepdb", default=False, action="store_true", help=f"Write GA microstates to mccepdb under {GA_OUTPUT_FOLDER}")
     parser.add_argument("--debug", default=False, action="store_true", help="Print debug information")
     
     return parser.parse_args()
@@ -91,21 +91,21 @@ if __name__ == "__main__":
     # explore conformers with Genetic Algorithm
     logging.info("   Explore conformers with Genetic Algorithm ...")
     logging.info(f"      This may take a while, check {GA_PROGRESS} for GA progress.")
-
-    mcce.ga_optimize()
-    logging.info("   Done with Genetic Algorithm conformer search.")
+    mcce.ga_optimize(writepdb=args.writepdb)
     rot_stat.count_stat(mcce.protein, step="ga")
     rot_stat.write_stat(mcce.protein)
+    logging.info("   Done with Genetic Algorithm conformer search.")
 
 
     mcce.protein.dump(STEP2_OUT)  # Save the protein to a pdb file
 
-        # print summary
+    # print summary
     
     print("====================================================================")
     print("Step 2 completed. Here is run summary:")
     print("--------------------------------------------------------------------")    
     print(f"  {STEP2_OUT:<16s}: Protein object in mccepdb file, used in step 3")
     print(f"  {GA_PROGRESS:<16s}: GA progress log, information only")
-    print(f"  {GA_OUTPUT_FOLDER + '/':<16s}: GA selected individuals in mccepdb format")
+    if args.writepdb:
+        print(f"  {GA_OUTPUT_FOLDER + '/':<16s}: GA selected individuals in mccepdb format")
     print("====================================================================")

@@ -54,7 +54,7 @@ The following is a modified GA approach:
         - After each period, calculate PFA80.
         - Check for convergence (rolling average PFA80 score of the last 5 periods does not improve) and maximum periods.
     - If the termination condition is met, return the top 50% of the population.
-- Perform GA for pH = 4, 7, and 10.
+- in GA, pH and Eh are not part of energy calculation so that all conftypes have a equal chance to be sampled.
 
 Note:
 - PFA80: top 80% of the population to exclude the bottom performers.

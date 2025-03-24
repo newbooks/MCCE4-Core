@@ -174,7 +174,11 @@ cython_debug/
 *.record
 step1_out.pdb
 step2_out.pdb
+rot_stat
+run.prm
 *.stripped.pdb
 acc.res
 acc.atm
+*.lst
 .vscode/
+ga_output/
