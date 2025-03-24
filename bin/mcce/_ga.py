@@ -34,6 +34,13 @@ class Individual:
         individual_protein.prepend_lines = [f"# Fitness = {self.fitness:.2f}; Rank = {self.rank:d}\n"]
         individual_protein.dump(fname)
 
+    def test_lineage(self):  # for debugging
+        """
+        Test the lineage of this , conf[0] should have parent residue as the original residue while conf[1] should have parent residue as the new residue
+        """
+        for res in self.chromosome:
+            print(f"{res._flag} (=GA)-> {res.conformers[0].parent_residue._flag} (=Empty), {res.conformers[1].parent_residue._flag} (=GA)")
+
 class Pool:
     """
     Class for Pool in Genetic Algorithm
@@ -94,7 +101,9 @@ class Pool:
             new_residue.chain = residue.chain
             new_residue.sequence = residue.sequence
             new_residue.insertion = residue.insertion
+            new_residue._flag = "GA"
             new_residue.conformers = [residue.conformers[0], selected_conformer]  # backbone is a reference while selected_conformer is a copy
+            selected_conformer.parent_residue = new_residue  # note conf[0] still maintain its parent residue to the original residue
             for atom in selected_conformer.atoms:
                 key = ("CONNECT", atom.atomname, selected_conformer.conftype)
                 if key in self.mcce.tpl:
@@ -128,6 +137,15 @@ class Pool:
         # create GA_OUTPUT_FOLDER if not exists
         if not os.path.exists(GA_OUTPUT_FOLDER):
             os.makedirs(GA_OUTPUT_FOLDER)
+        else:
+            # remove all files in GA_OUTPUT_FOLDER
+            for file in os.listdir(GA_OUTPUT_FOLDER):
+                file_path = os.path.join(GA_OUTPUT_FOLDER, file)
+                try:
+                    if os.path.isfile(file_path) or os.path.islink(file_path):
+                        os.unlink(file_path)
+                except Exception as e:
+                    print(f"Failed to delete {file_path}. Reason: {e}")
         # write individuals to pdb files
         for i, individual in enumerate(self.population):
             fname = os.path.join(GA_OUTPUT_FOLDER, f"pH{self.ph:04.1f}_{i:04d}.pdb")
@@ -173,5 +191,6 @@ def ga_optimize(self):  # Here self is an instance of MCCE
 
     logging.info("Genetic Algorithm optimization completed.")
 
+    # pool.population[2].test_lineage()
     # Restore the original handlers
     logger.handlers = original_handlers

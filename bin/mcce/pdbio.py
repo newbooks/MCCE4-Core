@@ -210,7 +210,7 @@ class Residue:
         self.insertion = ""         # insertion code
         self.conformers = []        # list of conformers in the residue
         self.resid = ()             # residue ID, (resname, chain, sequence, insertion)
-
+        self._flag = ""             # internal use flag
 
 class Protein:
     """

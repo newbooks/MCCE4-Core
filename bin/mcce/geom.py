@@ -61,6 +61,10 @@ class Vector:
     def distance(self, other):
         return (self - other).norm()
     
+    def distance_squared(self, other):
+        vd = self - other
+        return vd.dot(vd)
+    
     def orthogonal(self):
         """
         Return an orthogonal vector
