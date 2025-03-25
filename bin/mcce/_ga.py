@@ -119,7 +119,7 @@ class Pool:
                     index_flipper.append(i)
                 else:  # one side chain but no rotatable
                     index_fixed.append(i)
-            else:  # more than one side chain
+            else:  # more than one side chain, flipper includes conftype
                 index_flipper.append(i)
         return index_fixed, index_flipper
 
