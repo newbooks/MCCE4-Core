@@ -85,7 +85,7 @@ R_VDW = {   # radius and energy well depth
 }
 
 # Default values for SAS calculation
-UNASSIGEDN_RAD = 2.0
+UNASSIGEDN_RAD = 1.2  # this is because many times r_vdw of H atoms are assigned to 0.0
 PROBE_RAD = 1.4
 
 
