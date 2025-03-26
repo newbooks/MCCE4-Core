@@ -24,12 +24,10 @@ Another possible cause of missing good conformers is the discrete nature of the 
 ### Force Field
 Consider developing a set of quick empirical functions to account for all the forces/energies used in step 4 and apply them in step 2. These force functions don't have to be perfect.
 
+embedding depth: an alternative to sas
 vdw: empirical function based on distance^2 
-ele: Coulomb's law
-desolvation: function of SAS and charge
-torsion: 1-4 vdw
-hydrogen bond: angle and distance
-pH and Eh energy: environment pH/Eh and pK0, Eh0
+ele: Coulomb's law modified embedding depth
+exposure penalty (desolvation): charge * embedding depth
 
 
 ### Sampling Method
