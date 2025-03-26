@@ -100,11 +100,10 @@ H_BOND_ANGLE_SP2 = 120.0
 H_BOND_ANGLE_SP = 180.0
 
 # Gnetic Algorithm parameters
-# pool size, max generations, and 3 pH values are defined in prm
-GA_crossover = 20       # do this number of crossovers in one period
-GA_mutation = 1         # do this number of mutations in one period
+GA_crossover_rate = 0.8      
+GA_mutation_rate = 0.05
 GA_PFA_queue = 10       # number of PFA values to keep in the queue
-GA_PFA_threshold = 0.1  # threshold for PFA value change to consider convergence
+GA_PFA_threshold = 0.1  # threshold for PFA value change to be considered as converged
 # File names for logging
 GA_PROGRESS = "ga_progress.log"
 GA_OUTPUT_FOLDER = "ga_output"

@@ -9,7 +9,6 @@ from collections import deque
 from .pdbio import Residue, Protein
 from .constants import *
 from ._make_connect import get_atom_by_name
-from ._sas import *
 
 class Individual:
     def __init__(self, pool=None):
@@ -61,12 +60,10 @@ class Individual:
         for i in self.parent_pool.index_flipper:  # remember, conf[0] keeps lineages to the original residue
             background_atoms += self.parent_pool.mcce.protein.residues[i].conformers[0].atoms
 
+        # get embedding depth for all atoms
         for res in self.chromosome:
             for atom in res.conformers[1].atoms:
                 other_atoms = list(set(res.conformers[1].atoms) - {atom})
-                atom.sas = sas_atom(atom, background_atoms + other_atoms)
-                atom.sas_percentage = atom.sas / (4*3.14159*(atom.r_vdw+PROBE_RAD)**2)
-                #print(atom.atomname, atom.sas, atom.sas_percentage)
 
 
         # get atom list
@@ -201,42 +198,3 @@ class Pool:
 
 
 
-def ga_optimize(self, writepdb=False):  # Here self is an instance of MCCE
-    """
-    Genetic Algorithm for MCCE
-    """
-    # gather constants and parameters for GA
-    ga_pool = int(self.prm.GA_POOL.value)
-    ga_maxgen = int(self.prm.GA_MAXGEN.value)
-    # the following two variables are numbers of crossovers and mutations in one period (generation)
-    ga_crossover = GA_crossover
-    ga_mutation = GA_mutation
-
-    # Save the current handlers
-    logger = logging.getLogger()
-    original_handlers = logger.handlers.copy()
-
-    # Create a file handler
-    file_handler = logging.FileHandler(GA_PROGRESS, mode='w')
-    file_handler.setLevel(logging.INFO)
-    file_handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s: %(message)s", datefmt='%Y-%m-%d %H:%M:%S'))
-
-    logger.handlers = [file_handler]
-
-    # Start the GA optimization
-    logging.info("Genetic Algorithm optimization for MCCE:")
-    logging.info(f"   GA pool size:{ga_pool}")
-    logging.info(f"   GA maximum generations:{ga_maxgen}")
-    logging.info(f"   Prepare GA pool ...")
-    pool = Pool(mcce=self, size=ga_pool)
-    logging.info(f"      Start to evolve ...")
-    pool.evolve()
-    logging.info(f"      Done evolution.")
-    if writepdb:
-        logging.info(f"      Write individuals to {GA_OUTPUT_FOLDER}")
-        pool.writepdb()
-    logging.info("Genetic Algorithm optimization completed.")
-
-    # pool.population[2].test_lineage()
-    # Restore the original handlers
-    logger.handlers = original_handlers
