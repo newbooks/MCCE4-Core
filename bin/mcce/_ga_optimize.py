@@ -8,7 +8,7 @@ _ga_forcefield.py: forcefield functions for GA (not encourged to modify)
 
 import logging
 from .constants import *
-from _ga_lib import *
+from ._ga_lib import *
 
 def ga_optimize(self, writepdb=False):  # Here self is an instance of MCCE
     """
@@ -41,6 +41,9 @@ def ga_optimize(self, writepdb=False):  # Here self is an instance of MCCE
     logging.info(f"   Prepare GA pool ...")
 
     # Initialize the pool, this includes computing fitness score for each individual and sorting the pool
+    pool = Pool(mcce=self, size=ga_pool_size)
+    # pool.population[0].print_connect12()
+    logging.info(f"      Done preparing pool.")
 
     # Start the evolution
         # Crossover, loop over ga_crossover_number times
@@ -58,7 +61,6 @@ def ga_optimize(self, writepdb=False):  # Here self is an instance of MCCE
 
 
 
-    # pool = Pool(mcce=self, size=ga_pool)
     # logging.info(f"      Start to evolve ...")
     # pool.evolve()
     # logging.info(f"      Done evolution.")
