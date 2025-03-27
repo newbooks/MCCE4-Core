@@ -3,7 +3,6 @@ Genetic Algorithm for MCCE
 """
 
 import os
-import logging
 import random
 from collections import deque
 from .pdbio import Residue, Protein
@@ -83,11 +82,9 @@ class Pool:
     """
     Class for Pool in Genetic Algorithm
     A pool has:
-    - size: number of individuals in the pool
+    - size: number of individuals in the pool, also equals len(population)
     - index_fixed: indices of fixed residues
     - index_flipper: indices of flipper residues
-    - fixed_residues: list of fixed residues. This is shared by all individuals in the pool
-    - flipper_residues = individual: list of flipper residues. This list makes an individual
     - population: list of individuals in the pool
     """
     def __init__(self, mcce, size):
@@ -96,7 +93,6 @@ class Pool:
         self.size = size
         # own properties
         self.index_fixed, self.index_flipper = self.divide_fixed_flipper()
-        self.fixed_residues = [mcce.protein.residues[i] for i in self.index_fixed]
         self.population = []
         self.pfa_queue = deque(maxlen=GA_PFA_queue)  # keep the last pfa values
         # create individuals. pay attention to the performance here
