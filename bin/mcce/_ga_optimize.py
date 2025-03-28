@@ -45,6 +45,14 @@ def ga_optimize(self, writepdb=False):  # Here self is an instance of MCCE
     # pool.population[0].print_connect12()
     logging.info(f"      Done preparing pool.")
 
+    # testing the pool clone function and time
+    logging.info(f"      Start to clone testing ...")
+    test_clone(pool)            
+
+
+
+    logging.info(f"      Done cloning and testing.")
+
     # Start the evolution
         # Crossover, loop over ga_crossover_number times
             # select two parents
