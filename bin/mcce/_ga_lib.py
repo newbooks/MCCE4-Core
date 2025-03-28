@@ -51,10 +51,55 @@ class _Conformer:
         new_conformer = _Conformer()
         new_conformer.conftype = self.conftype
         new_conformer.atoms = [atom.clone() for atom in self.atoms]
-        new_conformer.rotatables = self.rotatables
-        new_conformer.history = self.history
-        new_conformer.parent_residue = self.parent_residue
+        new_conformer.parent_residue = self.parent_residue  # by default, a cloned conformer shares the same parent residue, update it later
+        # Create a dictionary to map old atoms to new atoms
+        atom_mapping = {}
+        for old_atom, new_atom in zip(self.atoms, new_conformer.atoms):
+            atom_mapping[old_atom] = new_atom
+        # Update connect12 and connect13 for the new atoms, using the mapping for in-conformer atoms and old atoms for out-conformer atoms (backbone is shared)
+        for old_atom, new_atom in atom_mapping.items():
+            new_atom.connect12 = [
+                atom_mapping[atom] if atom in atom_mapping else atom 
+                for atom in old_atom.connect12
+            ]
+            new_atom.connect13 = [
+                atom_mapping[atom] if atom in atom_mapping else atom 
+                for atom in old_atom.connect13
+            ]
+        # update rotatables
+        for key, value in self.rotatables.items():
+            if key[0] in atom_mapping:
+                atom1 = atom_mapping[key[0]]
+            else:
+                atom1 = key[0]
+            if key[1] in atom_mapping:
+                atom2 = atom_mapping[key[1]]
+            else:
+                atom2 = key[1]
+            new_key = (atom1, atom2)
+            new_conformer.rotatables[new_key] = [atom_mapping[atom] for atom in value]  # affected atoms are always in the same side chain conformer
+
         return new_conformer
+
+
+class _Residue:
+    """
+    Internal Residue class for GA
+    """
+    def __init__(self):
+        self.conformers = []
+        self._flag = "GA" # flag for this residue, GA means this is a GA residue
+
+    def clone(self):
+        """
+        Clone this residue
+        """
+        new_residue = _Residue()
+        new_residue.conformers[0] = self.conformers[0]  # backbone is shared
+        new_residue.conformers[1] = self.conformers[1].clone()  # clone the side chain conformer
+        new_residue.conformers[1].parent_residue = new_residue  # set the parent residue to this residue for the new conformer
+        return new_residue
+
 
 class Individual:
     """
@@ -78,10 +123,8 @@ class Individual:
         for i in self.parent_pool.index_flipper:
             residue = self.parent_pool.mcce.protein.residues[i]
             selected_conformer = random.choice(residue.conformers[1:]).clone()
-            selected_conformer.history = selected_conformer.history[:2] + "G" + selected_conformer.history[3:]  # mark as GA selected
             
-            new_residue = Residue()
-            new_residue._flag = "GA"
+            new_residue = _Residue()
             selected_conformer.parent_residue = new_residue
 
             for atom in selected_conformer.atoms:
