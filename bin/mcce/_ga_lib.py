@@ -3,10 +3,12 @@ General Genetic Algorithm Library
 """
 import os
 import random
+import logging
 from collections import deque
 from .pdbio import Residue, Protein, Atom
 from .constants import *
 from ._make_connect import get_atom_by_name
+
 
 class _Atom:
     """
@@ -95,8 +97,8 @@ class _Residue:
         Clone this residue
         """
         new_residue = _Residue()
-        new_residue.conformers[0] = self.conformers[0]  # backbone is shared
-        new_residue.conformers[1] = self.conformers[1].clone()  # clone the side chain conformer
+        new_residue.conformers.append(self.conformers[0])  # backbone is shared
+        new_residue.conformers.append(self.conformers[1].clone())  # clone the side chain conformer
         new_residue.conformers[1].parent_residue = new_residue  # set the parent residue to this residue for the new conformer
         return new_residue
 
@@ -154,9 +156,9 @@ class Individual:
         Clone this individual
         """
         new_individual = Individual(pool=self.parent_pool)
-        #new_individual.chromosome = [residue.clone() for residue in self.chromosome]
+        new_individual.chromosome = [residue.clone() for residue in self.chromosome]
         return new_individual
-
+    
 
     def print_connect12(self):
         """
@@ -300,3 +302,40 @@ class Pool:
 
 
 
+def test_clone(pool):
+    for individual in pool.population:
+        new_individual = individual.clone()
+        # Test the clone function, debug only
+        # 1. check if the cloned individual has the same atoms in the residues of its chromosome
+        # 2. check if the cloned atoms have correct connect12 and connect13
+        # 3. check if the residues in the cloned individual have the rotatables
+        if len(new_individual.chromosome) != len(individual.chromosome):
+            logging.error("         The length of the chromosome is not the same after cloning.")
+        for i in range(len(individual.chromosome)):
+            res = individual.chromosome[i]
+            new_res = new_individual.chromosome[i]
+            for atom1, atom2 in zip(res.conformers[0].atoms, new_res.conformers[0].atoms):
+                if atom1 != atom2:   # backbone atoms point to the same atom
+                    logging.error("         The backbone atoms in the original and cloned residues are not the same.")
+            for atom1, atom2 in zip(res.conformers[1].atoms, new_res.conformers[1].atoms):
+                if atom1 == atom2:
+                    logging.error("         The side chain atoms in the original and cloned residues point to the same atom.")
+                else:
+                    if atom1.atomname != atom2.atomname:
+                        logging.error("         The side chain atoms in the original and cloned residues have different names.")
+                    for a, b in zip(atom1.connect12, atom2.connect12):
+                        if a.atomname != b.atomname:
+                            logging.error("         The connect12 atoms in the original and cloned residues have different names.")
+                    for a, b in zip(atom1.connect13, atom2.connect13):
+                        if a.atomname != b.atomname:
+                            logging.error("         The connect13 atoms in the original and cloned residues have different names.")
+            zipped_keys = zip(res.conformers[1].rotatables.keys(), new_res.conformers[1].rotatables.keys())
+            for key1, key2 in zipped_keys:
+                if key1[0].atomname != key2[0].atomname:
+                    logging.error("         The rotatable bond atom 1 in the original and cloned residues have different names.")
+                if key1[1] != key2[1]:
+                    logging.error("         The rotatable bond atom 2 in the original and cloned residues have different names.")
+                affected_atoms1 = res.rotatbles[key1]
+                affected_atoms2 = new_res.rotatbles[key2]
+                if [a.atomname != b.atomname for a, b in zip(affected_atoms1, affected_atoms2)]:
+                    logging.error("         The affected atoms in the original and cloned residues have different names.")
