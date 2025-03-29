@@ -48,9 +48,6 @@ def ga_optimize(self, writepdb=False):  # Here self is an instance of MCCE
     # testing the pool clone function and time
     logging.info(f"      Start to clone testing ...")
     test_clone(pool)            
-
-
-
     logging.info(f"      Done cloning and testing.")
 
     # Start the evolution

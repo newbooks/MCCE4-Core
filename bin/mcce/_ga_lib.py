@@ -20,7 +20,7 @@ class _Atom:
         self.r_vdw = None
         self.e_vdw = None
         self.r_boundary = None
-        self.crg = None
+        self.charge = None
         self.connect12 = []
         self.connect13 = []
 
@@ -29,12 +29,26 @@ class _Atom:
         Clone this atom
         """
         new_atom = _Atom()
+        new_atom.atomname = self.atomname  # atom name is immutable
         new_atom.xyz = self.xyz
         new_atom.r_vdw = self.r_vdw
         new_atom.e_vdw = self.e_vdw
         new_atom.r_boundary = self.r_boundary
-        new_atom.crg = self.crg
+        new_atom.charge = self.charge
         return new_atom
+
+    def inherit(self, atom):
+        """
+        Inherit properties from an original Atom object
+        """
+        self.atomname = atom.atomname
+        self.xyz = atom.xyz
+        self.r_vdw = atom.r_vdw
+        self.e_vdw = atom.e_vdw
+        self.r_boundary = atom.r_boundary
+        self.charge = atom.charge
+        # connect12 and connect13 will be set later when creating the conformer
+        # Note: connect12 and connect13 are not inherited, they will be set based on the new conformer context
 
 class _Conformer:
     """
@@ -83,6 +97,42 @@ class _Conformer:
 
         return new_conformer
 
+    def inherit(self, conformer):
+        """
+        Inherit properties from an original Conformer object
+        """
+        self.conftype = conformer.conftype
+        for atom in conformer.atoms:
+            new_atom = _Atom()
+            new_atom.inherit(atom)
+            self.atoms.append(new_atom)
+        self.parent_residue = conformer.parent_residue  # by default, a new conformer shares the same parent residue, in GA we will update it later
+        # create a mapping old atoms to new atoms
+        atom_mapping = {}
+        for old_atom, new_atom in zip(conformer.atoms, self.atoms):
+            atom_mapping[old_atom] = new_atom
+        # update connect12 and connect13 for the new atoms
+        for old_atom, new_atom in atom_mapping.items():
+            new_atom.connect12 = [
+                atom_mapping[atom] if atom in atom_mapping else atom 
+                for atom in old_atom.connect12
+            ]
+            new_atom.connect13 = [
+                atom_mapping[atom] if atom in atom_mapping else atom 
+                for atom in old_atom.connect13
+            ]
+        # update rotatables
+        for key, value in conformer.rotatables.items():
+            if key[0] in atom_mapping:
+                atom1 = atom_mapping[key[0]]
+            else:
+                atom1 = key[0]
+            if key[1] in atom_mapping:
+                atom2 = atom_mapping[key[1]]
+            else:
+                atom2 = key[1]
+            new_key = (atom1, atom2)
+            self.rotatables[new_key] = [atom_mapping[atom] for atom in value]  # affected atoms are always in the same side chain conformer
 
 class _Residue:
     """
@@ -120,12 +170,12 @@ class Individual:
 
     def create(self):
         """
-        Create an individual
+        Create an individual, the side chain conformer will have _Atom objects instead of the original Atom objects.
         """
         for i in self.parent_pool.index_flipper:
             residue = self.parent_pool.mcce.protein.residues[i]
-            selected_conformer = random.choice(residue.conformers[1:]).clone()
-            
+            selected_conformer = _Conformer()
+            selected_conformer.inherit(random.choice(residue.conformers[1:]))            
             new_residue = _Residue()
             selected_conformer.parent_residue = new_residue
 
@@ -176,13 +226,18 @@ class Individual:
         individual_protein = Protein()
         individual_protein.residues = len(self.parent_pool.mcce.protein.residues) * [None]
         # put back fixed residues
-        for ires, residue in zip(self.parent_pool.index_fixed, self.parent_pool.fixed_residues):
+        fixed_residues = [self.parent_pool.mcce.protein.residues[i] for i in self.parent_pool.index_fixed]
+        for ires, residue in zip(self.parent_pool.index_fixed, fixed_residues):
             individual_protein.residues[ires] = residue
         # put back flipper residues
         for i, residue in zip(self.parent_pool.index_flipper, self.chromosome):
             individual_protein.residues[i] = residue
-
-
+            individual_protein.residues[i].resname = self.parent_pool.mcce.protein.residues[i].resname  # keep the original residue name
+            individual_protein.residues[i].chain = self.parent_pool.mcce.protein.residues[i].chain  # keep the original chain ID
+            individual_protein.residues[i].resid = self.parent_pool.mcce.protein.residues[i].resid  # keep the original residue ID
+            individual_protein.residues[i].sequence = self.parent_pool.mcce.protein.residues[i].sequence  # keep the original sequence
+            individual_protein.residues[i].insertion = self.parent_pool.mcce.protein.residues[i].insertion  # keep the original insertion code
+            individual_protein.residues[i].conformers[1].history = individual_protein.residues[i].conformers[1].conftype[-2:] + "G" + "_"*7
         individual_protein.prepend_lines = [f"# Fitness = {self.fitness:.2f}; Rank = {self.rank:d}\n"]
         individual_protein.dump(fname)
 
@@ -331,11 +386,14 @@ def test_clone(pool):
                             logging.error("         The connect13 atoms in the original and cloned residues have different names.")
             zipped_keys = zip(res.conformers[1].rotatables.keys(), new_res.conformers[1].rotatables.keys())
             for key1, key2 in zipped_keys:
-                if key1[0].atomname != key2[0].atomname:
+                if key1[0] is not None and (key1[0].atomname != key2[0].atomname):
                     logging.error("         The rotatable bond atom 1 in the original and cloned residues have different names.")
-                if key1[1] != key2[1]:
-                    logging.error("         The rotatable bond atom 2 in the original and cloned residues have different names.")
-                affected_atoms1 = res.rotatbles[key1]
-                affected_atoms2 = new_res.rotatbles[key2]
-                if [a.atomname != b.atomname for a, b in zip(affected_atoms1, affected_atoms2)]:
+                if key1[1].atomname != key2[1].atomname:
+                    logging.error(f"         The rotatable bond atom 2 in the original {key1[1].atomname} and cloned residues {key2[1].atomname} have different names.")
+                affected_atoms1_atomnames = [a.atomname for a in res.conformers[1].rotatables[key1]]
+                affected_atoms2_atomnames = [a.atomname for a in new_res.conformers[1].rotatables[key2]]
+                
+                if affected_atoms1_atomnames != affected_atoms2_atomnames:
                     logging.error("         The affected atoms in the original and cloned residues have different names.")
+                    logging.error(f"         Original: {affected_atoms1_atomnames}")
+                    logging.error(f"         Cloned: {affected_atoms2_atomnames}")
