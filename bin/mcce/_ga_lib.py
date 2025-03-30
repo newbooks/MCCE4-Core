@@ -198,32 +198,28 @@ class Individual:
 
     def create(self):
         """
-        Create an individual, the side chain conformer will have _Atom objects instead of the original Atom objects.
+        Create an individual with side chain conformers having _Atom objects instead of the original Atom objects.
         """
         for i in self.parent_pool.index_flipper:
             residue = self.parent_pool.mcce.protein.residues[i]
             selected_conformer = _Conformer()
-            selected_conformer.inherit(random.choice(residue.conformers[1:]))            
-            new_residue = _Residue()
-            selected_conformer.parent_residue = new_residue
+            selected_conformer.inherit(random.choice(residue.conformers[1:]))
+            selected_conformer.parent_residue = new_residue = _Residue()
 
             for atom in selected_conformer.atoms:
-                key = ("CONNECT", atom.atomname, selected_conformer.conftype)
-                if key in self.parent_pool.mcce.tpl:
-                    connected_atomnames = self.parent_pool.mcce.tpl[key].connected
-                else:
-                    connected_atomnames = []
+                connected_atomnames = self.parent_pool.mcce.tpl.get(
+                    ("CONNECT", atom.atomname, selected_conformer.conftype), []
+                ).connected
                 atom.connect12 = [
-                    get_atom_by_name(selected_conformer, name) or get_atom_by_name(residue.conformers[0], name)
+                    get_atom_by_name(selected_conformer, name) or 
+                    get_atom_by_name(residue.conformers[0], name)
                     for name in connected_atomnames if name
                 ]
-                atom.connect12 = [a for a in atom.connect12 if a]  # filter out None
-
+                atom.connect12 = list(filter(None, atom.connect12))
                 atom.connect13 = [
-                    connected_atom2
-                    for connected_atom in atom.connect12
-                    for connected_atom2 in connected_atom.connect12
-                    if connected_atom2 not in atom.connect12 and connected_atom2 != atom
+                    atom2 for atom1 in atom.connect12
+                    for atom2 in atom1.connect12
+                    if atom2 not in atom.connect12 and atom2 != atom
                 ]
 
             new_residue.conformers = [residue.conformers[0], selected_conformer]
@@ -252,22 +248,27 @@ class Individual:
         Convert this individual to a mccepdb object
         """
         individual_protein = Protein()
-        individual_protein.residues = len(self.parent_pool.mcce.protein.residues) * [None]
-        # put back fixed residues
-        fixed_residues = [self.parent_pool.mcce.protein.residues[i] for i in self.parent_pool.index_fixed]
-        for ires, residue in zip(self.parent_pool.index_fixed, fixed_residues):
-            individual_protein.residues[ires] = residue
-        # put back flipper residues
+        individual_protein.residues = [None] * len(self.parent_pool.mcce.protein.residues)
+
+        # Restore fixed residues
+        for i in self.parent_pool.index_fixed:
+            individual_protein.residues[i] = self.parent_pool.mcce.protein.residues[i]
+
+        # Restore flipper residues
         for i, residue in zip(self.parent_pool.index_flipper, self.chromosome):
+            original_residue = self.parent_pool.mcce.protein.residues[i]
             individual_protein.residues[i] = residue
-            individual_protein.residues[i].resname = self.parent_pool.mcce.protein.residues[i].resname  # keep the original residue name
-            individual_protein.residues[i].chain = self.parent_pool.mcce.protein.residues[i].chain  # keep the original chain ID
-            individual_protein.residues[i].resid = self.parent_pool.mcce.protein.residues[i].resid  # keep the original residue ID
-            individual_protein.residues[i].sequence = self.parent_pool.mcce.protein.residues[i].sequence  # keep the original sequence
-            individual_protein.residues[i].insertion = self.parent_pool.mcce.protein.residues[i].insertion  # keep the original insertion code
-            individual_protein.residues[i].conformers[1] = residue.conformers[1].to_original()  # clone the side chain conformer
-            individual_protein.residues[i].conformers[1].history = individual_protein.residues[i].conformers[1].conftype[-2:] + "G" + "_"*7
-            individual_protein.residues[i].conformers[1].parent_residue = self.parent_pool.mcce.protein.residues[i]
+            residue.resname = original_residue.resname
+            residue.chain = original_residue.chain
+            residue.resid = original_residue.resid
+            residue.sequence = original_residue.sequence
+            residue.insertion = original_residue.insertion
+            residue.conformers[1] = residue.conformers[1].to_original()
+            residue.conformers[1].history = f"{residue.conformers[1].conftype[-2:]}G{'_'*7}"
+            residue.conformers[1].parent_residue = original_residue
+
+        individual_protein.prepend_lines = [f"# Fitness = {self.fitness:.2f}; Rank = {self.rank:d}\n"]
+        individual_protein.dump(fname)
                
         
         individual_protein.prepend_lines = [f"# Fitness = {self.fitness:.2f}; Rank = {self.rank:d}\n"]
