@@ -220,12 +220,12 @@ def sp2_1known(r0, r1, r2):
     ux = uy.cross(uz)
     ux.normalize()
 
-    cos_theta = math.cos(math.radians(H_BOND_ANGLE_SP2-90))  # bond angle is 120 degrees, but we need the angle between H and x axis
-    sin_theta = math.sin(math.radians(H_BOND_ANGLE_SP2-90))
-    u4 = ux * cos_theta + uy * sin_theta
+    cos_theta = math.cos(math.radians(H_BOND_ANGLE_SP2 - 90))
+    sin_theta = math.sin(math.radians(H_BOND_ANGLE_SP2 - 90))
+    u4 = ux * cos_theta - uy * sin_theta
     u4.normalize()
     r4 = r0 + u4 * H_BOND_LENGTH
-    u3 = ux * (-cos_theta) + uy * sin_theta
+    u3 = ux * (-cos_theta) - uy * sin_theta
     u3.normalize()
     r3 = r0 + u3 * H_BOND_LENGTH
     return r3, r4
