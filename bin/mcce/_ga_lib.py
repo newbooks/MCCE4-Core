@@ -5,7 +5,7 @@ import os
 import random
 import logging
 from collections import deque
-from .pdbio import Residue, Protein, Atom
+from .pdbio import Residue, Conformer, Protein, Atom
 from .constants import *
 from ._make_connect import get_atom_by_name
 
@@ -49,6 +49,21 @@ class _Atom:
         self.charge = atom.charge
         # connect12 and connect13 will be set later when creating the conformer
         # Note: connect12 and connect13 are not inherited, they will be set based on the new conformer context
+
+    def to_original(self):
+        """
+        Convert this atom to the original Atom object
+        """
+        new_atom = Atom()
+        new_atom.atomname = self.atomname
+        new_atom.xyz = self.xyz
+        new_atom.r_vdw = self.r_vdw
+        new_atom.e_vdw = self.e_vdw
+        new_atom.r_boundary = self.r_boundary
+        new_atom.charge = self.charge
+        new_atom.parent_conf = None
+        return new_atom
+
 
 class _Conformer:
     """
@@ -133,6 +148,19 @@ class _Conformer:
                 atom2 = key[1]
             new_key = (atom1, atom2)
             self.rotatables[new_key] = [atom_mapping[atom] for atom in value]  # affected atoms are always in the same side chain conformer
+
+    def to_original(self):
+        """
+        Convert this conformer to the original Conformer objects
+        """
+        new_conformer = Conformer()
+        new_conformer.conftype = self.conftype
+        new_conformer.parent_residue = None  # set the parent residue to None for the original conformer
+        for atom in self.atoms:
+            new_atom = atom.to_original()
+            new_atom.parent_conf = new_conformer  # set the parent conformer to the original conformer
+            new_conformer.atoms.append(new_atom)            
+        return new_conformer
 
 class _Residue:
     """
@@ -237,7 +265,11 @@ class Individual:
             individual_protein.residues[i].resid = self.parent_pool.mcce.protein.residues[i].resid  # keep the original residue ID
             individual_protein.residues[i].sequence = self.parent_pool.mcce.protein.residues[i].sequence  # keep the original sequence
             individual_protein.residues[i].insertion = self.parent_pool.mcce.protein.residues[i].insertion  # keep the original insertion code
+            individual_protein.residues[i].conformers[1] = residue.conformers[1].to_original()  # clone the side chain conformer
             individual_protein.residues[i].conformers[1].history = individual_protein.residues[i].conformers[1].conftype[-2:] + "G" + "_"*7
+            individual_protein.residues[i].conformers[1].parent_residue = self.parent_pool.mcce.protein.residues[i]
+               
+        
         individual_protein.prepend_lines = [f"# Fitness = {self.fitness:.2f}; Rank = {self.rank:d}\n"]
         individual_protein.dump(fname)
 
