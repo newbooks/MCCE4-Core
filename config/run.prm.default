@@ -56,7 +56,8 @@ t      Step2. Do pruning?                                           (PRUNE)
 0.5    Step2. Root mean square deviation cutoff for clustering      (PRUNE_RMSD)
 1000   Step2. Pool population for GA                                (GA_POOL)
 10000  Step2. Max generations GA                                    (GA_MAXGEN)
-
+0.8    Step2. GA crossover rate                                     (GA_CROSSOVER)
+0.05   Step2. GA mutation rate                                      (GA_MUTATION)
 
 step 3:
 80.0   Step3. Solvent dielectric constant for DelPhi             (EPSILON_SOLV)
