@@ -51,12 +51,17 @@ def ga_optimize(self, writepdb=False):  # Here self is an instance of MCCE
     # logging.info(f"      Done cloning and testing.")
 
     # Start the evolution
-        # Crossover, loop over ga_crossover_number times
+        # Double Crossover = pool_size * crossover_rate / 2, loop over ga_crossover_number times
             # select two parents
             # crossover -  obtain two new individuals
             # calculate fitness scores for the new individuals
             # replace the worst individuals with the new individuals
-        # Mutation, loop over ga_mutation times
+        # Single Crossover = pool_size * crossover_rate / 2, loop over ga_crossover_number times
+            # select two parents
+            # crossover -  obtain two new individuals
+            # calculate fitness scores for the new individuals
+            # replace the worst individuals with the new individuals
+        # Mutation = pool_size * mutation_rate, loop over ga_mutation times
             # select one individual
             # mutate - obtain a new individual
             # calculate fitness score for the new individual
