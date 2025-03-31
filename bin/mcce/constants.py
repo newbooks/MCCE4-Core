@@ -100,8 +100,6 @@ H_BOND_ANGLE_SP2 = 120.0
 H_BOND_ANGLE_SP = 180.0
 
 # Gnetic Algorithm parameters
-GA_crossover_rate = 0.8      
-GA_mutation_rate = 0.05
 GA_PFA_queue = 10       # number of PFA values to keep in the queue
 GA_PFA_threshold = 0.1  # threshold for PFA value change to be considered as converged
 # File names for logging

@@ -18,8 +18,8 @@ def ga_optimize(self, writepdb=False):  # Here self is an instance of MCCE
     ga_pool_size = int(self.prm.GA_POOL.value)
     ga_max_generations = int(self.prm.GA_MAXGEN.value)
     # the following two variables are numbers of crossovers and mutations in one period (generation)
-    ga_crossover_number = int(GA_crossover_rate * ga_pool_size)
-    ga_mutation = int(GA_mutation_rate * ga_pool_size)
+    ga_crossover_number = int(float(self.prm.GA_CROSSOVER.value) * ga_pool_size)
+    ga_mutation = int(float(self.prm.GA_MUTATION.value) * ga_pool_size)
 
     # Save the current handlers
     logger = logging.getLogger()
@@ -36,8 +36,8 @@ def ga_optimize(self, writepdb=False):  # Here self is an instance of MCCE
     logging.info("Genetic Algorithm optimization for MCCE:")
     logging.info(f"   GA pool size:{ga_pool_size}")
     logging.info(f"   GA maximum generations:{ga_max_generations}")
-    logging.info(f"   GA crossover rate:{GA_crossover_rate}")
-    logging.info(f"   GA mutation rate:{GA_mutation_rate}")
+    logging.info(f"   GA crossover rate:{ga_crossover_number} per generation")
+    logging.info(f"   GA mutation rate:{ga_mutation} per generation")
     logging.info(f"   Prepare GA pool ...")
 
     # Initialize the pool, this includes computing fitness score for each individual and sorting the pool
