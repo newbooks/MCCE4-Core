@@ -281,6 +281,7 @@ class Individual:
         for res in self.chromosome:
             print(f"{res._flag} (=GA)-> {res.conformers[0].parent_residue._flag} (=Empty), {res.conformers[1].parent_residue._flag} (=GA)")
 
+    from ._ga_forcefield import atom_embedding_depth
 
     def get_fitness(self):
         """

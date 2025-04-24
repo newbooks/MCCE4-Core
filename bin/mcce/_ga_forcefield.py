@@ -13,6 +13,31 @@ EPSILON_OUTER = 80.0
 
 import numpy as np
 
+# atom enbedding depth
+# Given an indidual in a pool, calculate the enbedding depth of each atom
+def atom_embedding_depth(self):  # self is individual in the pool
+    """
+    Calculate the embedding depth of each atom in the individual.
+    The embedding depth is defined as the percentage of 1 A cells that are occupied by atoms.
+    """
+    # Get all the atoms in the individual
+    background_atoms = []
+    # fixed atoms from the parent pool
+    for i in self.parent_pool.index_fixed:
+        for conf in self.parent_pool.mcce.protein.residues[i].conformers:
+            background_atoms += conf.atoms
+    # atoms from the conf[0] of flipper residues
+    for i in self.parent_pool.index_flipper:  # remember, conf[0] keeps lineages to the original residue
+        background_atoms += self.parent_pool.mcce.protein.residues[i].conformers[0].atoms
+    # get individual (flippable residue) atoms
+    individual_atoms = []
+    for res in self.chromosome:
+        individual_atoms += res.conformers[1].atoms
+
+    # get the dimension of the protein
+    
+
+
 # VDW
 def vdw_atom(atom1, atom2):
     pass
