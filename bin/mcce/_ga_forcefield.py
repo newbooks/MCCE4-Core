@@ -39,6 +39,10 @@ def atom_embedding_depth(self):  # self is individual in the pool
     x_min, y_min, z_min = coordinates.min(axis=0)
     x_max, y_max, z_max = coordinates.max(axis=0)
 
+    # grid the coordinates
+    x_bins = np.arange(x_min, x_max + 1, 1)
+
+
 
 # VDW
 def vdw_atom(atom1, atom2):
