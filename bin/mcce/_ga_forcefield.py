@@ -35,7 +35,9 @@ def atom_embedding_depth(self):  # self is individual in the pool
         individual_atoms += res.conformers[1].atoms
 
     # get the dimension of the protein
-    
+    coordinates = np.array([[atom.xyz.x, atom.xyz.y, atom.xyz.z] for atom in background_atoms + individual_atoms])
+    x_min, y_min, z_min = coordinates.min(axis=0)
+    x_max, y_max, z_max = coordinates.max(axis=0)
 
 
 # VDW

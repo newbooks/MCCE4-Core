@@ -50,7 +50,11 @@ def ga_optimize(self, writepdb=False):  # Here self is an instance of MCCE
     # test_clone(pool)            
     # logging.info(f"      Done cloning and testing.")
 
+
     # Start the evolution
+    # initial fitness score of individuals in the pool
+    pool.calculate_fitness()
+
         # Double Crossover = pool_size * crossover_rate / 2, loop over ga_crossover_number times
             # select two parents
             # crossover -  obtain two new individuals
