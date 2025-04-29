@@ -7,15 +7,27 @@ Fast forcefields for MCCE
 Primarily for internal use in Genetic Algorithm optimization.
 VDW, Coulomb, and SAS
 """
+import numpy as np
+from .constants import PROBE_RAD
 
 EPSILON_INNER = 8.0
 EPSILON_OUTER = 80.0
+GRID_SIZE = 1.0   # size of the grid in Angstrom
+GRID_DEPTH = 12.0  # depth to look into, this number should be larger than 2 x (the largest atom radius + the probe radius)
 
-import numpy as np
 
-# atom enbedding depth
+
+def xyz2index(xyz, x_min, y_min, z_min):
+    return
+
+
+def index2xyz(index, x_min, y_min, z_min):
+    return
+
+
+# atom embedding depth
 # Given an indidual in a pool, calculate the enbedding depth of each atom
-def atom_embedding_depth(self):  # self is individual in the pool
+def atom_embedding_depth(self):  # self is an individual in the pool
     """
     Calculate the embedding depth of each atom in the individual.
     The embedding depth is defined as the percentage of 1 A cells that are occupied by atoms.
@@ -39,8 +51,13 @@ def atom_embedding_depth(self):  # self is individual in the pool
     x_min, y_min, z_min = coordinates.min(axis=0)
     x_max, y_max, z_max = coordinates.max(axis=0)
 
-    # grid the coordinates
-    x_bins = np.arange(x_min, x_max + 1, 1)
+    # box size, when we define embedding depth, we need to define a box that contains all the atoms and expand it by the depth 
+    box_min = np.array([x_min - GRID_DEPTH/2 - PROBE_RAD, y_min - GRID_DEPTH/2 - PROBE_RAD, z_min - GRID_DEPTH/2 - PROBE_RAD])
+    box_max = np.array([x_max + GRID_DEPTH/2 + PROBE_RAD, y_max + GRID_DEPTH/2 + PROBE_RAD, z_max + GRID_DEPTH/2 + PROBE_RAD])
+
+
+
+    # once a box is defined, we need to define the grids and create a function to convert the coordinates to grid indices
 
 
 
