@@ -16,50 +16,31 @@ GRID_SIZE = 1.0   # size of the grid in Angstrom
 GRID_DEPTH = 12.0  # depth to look into, this number should be larger than 2 x (the largest atom radius + the probe radius)
 
 
+class Grid_Pool:     # self is a pool
+    """
+    A class to represent a grid system that covers a GA pool.
+    """
+    def __init__(self):
+        pass
 
-def xyz2index(xyz, x_min, y_min, z_min):
-    return
+    def xyz2index(xyz, x_min, y_min, z_min):
+        return
 
 
-def index2xyz(index, x_min, y_min, z_min):
-    return
+    def index2xyz(index, x_min, y_min, z_min):
+        return
+
+
 
 
 # atom embedding depth
 # Given an indidual in a pool, calculate the enbedding depth of each atom
-def atom_embedding_depth(self):  # self is an individual in the pool
+def atom_embedding_depth(self):  # self is an individual in a pool
     """
     Calculate the embedding depth of each atom in the individual.
     The embedding depth is defined as the percentage of 1 A cells that are occupied by atoms.
     """
-    # Get all the atoms in the individual
-    background_atoms = []
-    # fixed atoms from the parent pool
-    for i in self.parent_pool.index_fixed:
-        for conf in self.parent_pool.mcce.protein.residues[i].conformers:
-            background_atoms += conf.atoms
-    # atoms from the conf[0] of flipper residues
-    for i in self.parent_pool.index_flipper:  # remember, conf[0] keeps lineages to the original residue
-        background_atoms += self.parent_pool.mcce.protein.residues[i].conformers[0].atoms
-    # get individual (flippable residue) atoms
-    individual_atoms = []
-    for res in self.chromosome:
-        individual_atoms += res.conformers[1].atoms
-
-    # get the dimension of the protein
-    coordinates = np.array([[atom.xyz.x, atom.xyz.y, atom.xyz.z] for atom in background_atoms + individual_atoms])
-    x_min, y_min, z_min = coordinates.min(axis=0)
-    x_max, y_max, z_max = coordinates.max(axis=0)
-
-    # box size, when we define embedding depth, we need to define a box that contains all the atoms and expand it by the depth 
-    box_min = np.array([x_min - GRID_DEPTH/2 - PROBE_RAD, y_min - GRID_DEPTH/2 - PROBE_RAD, z_min - GRID_DEPTH/2 - PROBE_RAD])
-    box_max = np.array([x_max + GRID_DEPTH/2 + PROBE_RAD, y_max + GRID_DEPTH/2 + PROBE_RAD, z_max + GRID_DEPTH/2 + PROBE_RAD])
-
-
-
-    # once a box is defined, we need to define the grids and create a function to convert the coordinates to grid indices
-
-
+    pass
 
 # VDW
 def vdw_atom(atom1, atom2):
