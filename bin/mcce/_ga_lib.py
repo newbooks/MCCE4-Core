@@ -21,6 +21,7 @@ class _Atom:
         self.e_vdw = None
         self.r_boundary = None
         self.charge = None
+        self.embedding_depth = None  # embedding depth for this atom
         self.connect12 = []
         self.connect13 = []
 
@@ -281,6 +282,7 @@ class Individual:
         for res in self.chromosome:
             print(f"{res._flag} (=GA)-> {res.conformers[0].parent_residue._flag} (=Empty), {res.conformers[1].parent_residue._flag} (=GA)")
 
+    from ._ga_forcefield import atom_embedding_depth
 
     def get_fitness(self):
         """
@@ -290,21 +292,8 @@ class Individual:
         - elec energy
         - solvation energy, pH and Eh are NOT part of the fitness, as we are only exploring in the rotational space
         """
-        # initialize the sas for atoms and side chanin conformers. *SAS relies on r_vdw to determine the SAS radius*
-        # background atoms from the fixed residues
-        background_atoms = []
-        for i in self.parent_pool.index_fixed:
-            for conf in self.parent_pool.mcce.protein.residues[i].conformers:
-                background_atoms += conf.atoms
-        # background atoms from the conf[0] of flipper residues
-        for i in self.parent_pool.index_flipper:  # remember, conf[0] keeps lineages to the original residue
-            background_atoms += self.parent_pool.mcce.protein.residues[i].conformers[0].atoms
-
-        # get embedding depth for all atoms
-        for res in self.chromosome:
-            for atom in res.conformers[1].atoms:
-                other_atoms = list(set(res.conformers[1].atoms) - {atom})
-
+        # calculate embeeding depth for atoms on side chanin conformers
+        self.atom_embedding_depth()  # this will set the embedding depth for each atom in the individual
 
         # get atom list
 
@@ -387,7 +376,15 @@ class Pool:
         self.population.sort(key=lambda x: x.fitness)
         self.pfa = sum([individual.fitness for individual in self.population[:self.size//2]]) / (self.size//2)
 
-
+    def calculate_fitness(self):
+        """
+        Calculate the fitness of each individual in the pool
+        """
+        for individual in self.population:
+            individual.get_fitness()
+        self.population.sort(key=lambda x: x.fitness)  # Low energy (fitness scor) is better, ascending order
+        self.pfa = sum([individual.fitness for individual in self.population])/self.size
+        self.pfa_queue.append(self.pfa)
 
 
 def test_clone(pool):

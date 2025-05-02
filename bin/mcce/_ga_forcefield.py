@@ -7,11 +7,40 @@ Fast forcefields for MCCE
 Primarily for internal use in Genetic Algorithm optimization.
 VDW, Coulomb, and SAS
 """
+import numpy as np
+from .constants import PROBE_RAD
 
 EPSILON_INNER = 8.0
 EPSILON_OUTER = 80.0
+GRID_SIZE = 1.0   # size of the grid in Angstrom
+GRID_DEPTH = 12.0  # depth to look into, this number should be larger than 2 x (the largest atom radius + the probe radius)
 
-import numpy as np
+
+class Grid_Pool:     # self is a pool
+    """
+    A class to represent a grid system that covers a GA pool.
+    """
+    def __init__(self):
+        pass
+
+    def xyz2index(xyz, x_min, y_min, z_min):
+        return
+
+
+    def index2xyz(index, x_min, y_min, z_min):
+        return
+
+
+
+
+# atom embedding depth
+# Given an indidual in a pool, calculate the enbedding depth of each atom
+def atom_embedding_depth(self):  # self is an individual in a pool
+    """
+    Calculate the embedding depth of each atom in the individual.
+    The embedding depth is defined as the percentage of 1 A cells that are occupied by atoms.
+    """
+    pass
 
 # VDW
 def vdw_atom(atom1, atom2):
