@@ -6,7 +6,7 @@ MCCE4 Tool: Standalone Program to Calculate Atom Embedding Score
 
 import logging
 import argparse
-from .mcce.geom import *
+from mcce.geom import *
 
 logging_format = "%(asctime)s %(levelname)s: %(message)s"
 logging_format_debug = "%(asctime)s %(levelname)s [%(module)s]: %(message)s"
@@ -39,12 +39,30 @@ class Atom:
         self.element = ""
         self.xyz = Vector()
         self.radius = 0.0
+        self.embedding = 0.0
 
     def __repr__(self):
-        return f"Atom(type={self.atom_type}, coords={self.coordinates}, radius={self.radius})"
+        return f"{self.line[:30]}{self.xyz.x:8.3f}{self.xyz.y:8.3f}{self.xyz.z:8.3f}{self.radius:8.3f}{self.embedding:8.3f}"
 
 def load_atoms_from_pdb(pdb_file):
-    pass
+    lines = open(pdb_file).readlines()
+    atoms = []
+    
+    for line in lines:
+        if line.startswith("ATOM") or line.startswith("HETATM"):
+            atom = Atom()
+            atom.line = line.strip()
+            atomname = line[12:16]
+            if len(atomname.strip()) == 4 and atomname[0] == "H":
+                atom.element = " H"
+            else:
+                atom.element = atomname[:2]
+            atom.xyz = Vector((float(line[30:38]), float(line[38:46]), float(line[46:54])))
+            atom.radius = ATOM_RADII.get(atom.element, ATOM_RADIUS_UNKNOWN)
+            atoms.append(atom)
+   
+    return atoms
+
 
 
 if __name__ == "__main__":
@@ -52,3 +70,5 @@ if __name__ == "__main__":
     for pdb in args.pdb_file:
         print(f"Processing {pdb}...")            
         atoms = load_atoms_from_pdb(pdb)
+    for atom in atoms:
+        print(atom)
