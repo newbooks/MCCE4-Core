@@ -164,11 +164,6 @@ class Protein:
 
             atom.embedding = occupied_cells / total_cells if total_cells > 0 else 0
 
-        # Optionally, save the results to a file or print them
-        with open(f"{self.pdb_file}_embedding_scores.txt", "w") as f:
-            for atom in self.atoms:
-                f.write(f"{atom}\n")
-
     def write_embedding_scores(self):
         """Write the embedding scores to a file."""
         output_file = f"{self.pdb_file.rsplit('.', 1)[0]}.embedding"
@@ -184,10 +179,16 @@ if __name__ == "__main__":
         prot = Protein()
         prot.load_atoms_from_pdb(pdb)
         logging.info(f"Loaded {len(prot.atoms)} atoms from {pdb}")
-        prot.calculate_box()
-        logging.info(f"Grid Box with dimension {prot.grid.shape} calculated: Memory usage = {prot.grid.nbytes / 1024/1024:.2f} MB")
-        prot.atom_embedding_score()
-        logging.info(f"Atom embedding scores calculated for {pdb}")
+        logging.info(f"Start at...")
+        for i in range(100):
+            prot.calculate_box()
+            #logging.info(f"Grid Box with dimension {prot.grid.shape} calculated: Memory usage = {prot.grid.nbytes / 1024/1024:.2f} MB")
+            prot.atom_embedding_score()
+            #logging.info(f"Atom embedding scores calculated for {pdb}")
+        logging.info(f"End at...")
+        # 157, 149, 154 s before optimization (100 runs)
+
+
         prot.write_embedding_scores()
         output_file = f"{pdb.rsplit('.', 1)[0]}.embedding"
         logging.info(f"Scores written to {output_file}")
