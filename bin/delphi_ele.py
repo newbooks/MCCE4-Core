@@ -9,6 +9,10 @@ Output:
 import logging
 import argparse
 from mcce.geom import *
+import random
+import time
+# Seed the random number generator with the current time
+random.seed(time.time())
 
 logging_format = "%(asctime)s %(levelname)s: %(message)s"
 logging_format_debug = "%(asctime)s %(levelname)s [%(module)s]: %(message)s"
@@ -39,7 +43,6 @@ class Atom:
     def __init__(self):
         self.line = ""  # Original line from PDB file
         self.element = ""
-        self.xyz = Vector()
         self.radius = 0.0
         self.charge = 0.0
 
@@ -59,14 +62,38 @@ def read_pdb(pdb_file):
                     atom.element = " H"
                 else:
                     atom.element = atomname[:2]
-                atom.xyz = Vector((float(line[30:38]), float(line[38:46]), float(line[46:54])))
                 atom.radius = ATOM_RADII.get(atom.element, ATOM_RADIUS_UNKNOWN)
 
-                atom.xyz = Vector(float(line[30:38]), float(line[38:46]), float(line[46:54]))
-                atom.radius = ATOM_RADII.get(atom.element, ATOM_RADIUS_UNKNOWN)
                 atoms.append(atom)
     return atoms
 
+def assign_charges(atoms):
+    """
+    Assign charges to atoms of the protein. +1 charge is assigned to a random atom of each side chain conformer.
+    The reason a random atom is chosen is that more atoms with different embedding depth will be sampled.
+    """
+
+    sidechain_atoms = {}
+    for atom in atoms:
+        # colelct all atoms of the same side chain
+        sidechain_id = atom.line[17:30]
+        if sidechain_id[-3:] != "000":
+            if sidechain_id not in sidechain_atoms:
+                sidechain_atoms[sidechain_id] = []
+            sidechain_atoms[sidechain_id].append(atom)
+    for sidechain_id, sidechain_atoms in sidechain_atoms.items():
+        random_atom = random.choice(sidechain_atoms)
+        random_atom.charge = 1.0
+        
+
+def write_pdb(atoms, output_file):
+    """
+    Write the modified atoms to a new PDB file.
+    """
+    with open(output_file, 'w') as f:
+        for atom in atoms:
+            line = atom.line[:54] + f"{atom.radius:8.3f}" + f"{atom.charge:12.3f}" + atom.line[74:]
+            f.write(line + '\n')
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format=logging_format, datefmt=logging_datefmt)
@@ -78,3 +105,5 @@ if __name__ == "__main__":
         exit(1)
 
     atoms = read_pdb(args.pdb_file)
+    assign_charges(atoms)
+    write_pdb(atoms, "step2_out.pdb")
