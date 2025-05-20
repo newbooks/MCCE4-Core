@@ -32,7 +32,7 @@ Max_Radius = max(list(ATOM_RADII.values()) + [ATOM_RADIUS_UNKNOWN])  # Maximum r
 Grid_Expansion = Max_Radius + PROBE_RAD + GRID_DEPTH + GRID_SIZE # Maximum expansion of the grid box to account for atom radii and probe radius
 
 def parse_arguments():
-    helpmsg = "Calculate atom embedding score for a given protein structure"
+    helpmsg = "Calculate atom embedding score for a given protein structure (microstate)"
     parser = argparse.ArgumentParser(description=helpmsg)
     parser.add_argument("pdb_file", nargs='+', default=[], help="PDB file(s) to be processed")
     

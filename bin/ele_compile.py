@@ -1,4 +1,8 @@
-# Modeling Electrostatic Potential Using Coulomb's Law and Embedding Depth
+#!/usr/bin/env python
+"""
+MCCE4 Tool: Compile Electrostatic Energy
+Description: Compile electrostatic energy for a given protein structure (microstate)
+This script does the Step 3 of the ele fitting
 
 Step 0. Calculate the embedding score
 
@@ -17,9 +21,11 @@ Step 3. Compile ele from delphi and embedding score to a csv file
 ele_compile.py will grab information from /tmp/pbe files and embedding score to make a csv file
 
 Columns:
-- distance
-- embedding score
+- distance between atom 1 and atom 2
+- embedding score atom 1
+- embedding score atom 2
 - internal epsilon
 - external epsilon 
 - Columbs potential
-- delphi calculated potential
+- electrostatic energy calculated by delphi
+"""
