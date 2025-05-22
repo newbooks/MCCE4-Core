@@ -107,3 +107,4 @@ if __name__ == "__main__":
     atoms = read_pdb(args.pdb_file)
     assign_charges(atoms)
     write_pdb(atoms, "step2_out.pdb")
+    logging.info(f"MCCE PDB file written to step2_out.pdb for step3.py")
