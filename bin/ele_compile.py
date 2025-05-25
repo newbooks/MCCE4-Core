@@ -18,7 +18,7 @@ step3.py -s delphi --debug
 ```
 
 Step 3. Compile ele from delphi and embedding score to a csv file
-ele_compile.py will grab information from /tmp/pbe files and embedding score to make a csv file
+ele_compile.py will grab information from opp files under energies folder and embedding score to make a csv file
 
 Columns:
 - distance between atom 1 and atom 2
@@ -50,10 +50,11 @@ class AtomProperties:
     def __repr__(self):
         return f"{self.line[:30]}{self.xyz.x:8.3f}{self.xyz.y:8.3f}{self.xyz.z:8.3f}{self.radius:8.3f}{self.embedding:8.3f}"
 
-def get_embedding_score(fname):
-    """Create atom_properties dictionary and initialize it with atom embedding score."""
-    atom_properties = {}
-
+def update_embedding_score(atoms, fname):
+    """
+    Update embedding scores for atoms.
+    """
+    
     # Load the embedding score file
     if not os.path.isfile(fname):
         logging.error(f"Embedding score file {fname} not found")
@@ -68,35 +69,42 @@ def get_embedding_score(fname):
             chainid = line[21]
             resseq = line[22:26]
             atom_id = (atomname, resname, chainid, resseq)
-            atom = AtomProperties()
-            atom.xyz = Vector((float(line[30:38].strip()), float(line[38:46].strip()), float(line[46:54].strip())))
-            atom.radius = float(line[54:62].strip())
-            atom.embedding = float(line[62:].strip())
-            # print(f"{atom_id}: {atom.xyz}, {atom.radius:6.3f}, {atom.charge:6.3f}, {atom.embedding:6.3f}")
-            atom_properties[atom_id] = atom    
+            if atom_id in atoms:
+                atoms[atom_id].embedding = float(line[62:].strip())            
     
-    return atom_properties
-
-def update_charge(atom_properties):
-    """Update the atom properties with charge information from step2_out.pdb."""
+def load_atoms():
+    """
+    Load atom properties from step2_out.pdb.
+        - confid
+        - xyz
+        - radius
+        - charge
+    We only care about the charge atoms. That is, one atom from one side chain. This way, the geometry environment of atoms is distinct.
+    """
     pdb_file = "step2_out.pdb"
     if not os.path.isfile(pdb_file):
         logging.error(f"PDB file {pdb_file} not found")
         exit(1)
-    with open(pdb_file, "r") as f:
-        pdb_lines = f.readlines()
+    pdb_lines = open(pdb_file).readlines()
     pdb_lines = [line.strip() for line in pdb_lines if line.strip()]  # Remove empty lines
+    atoms = {}
     for line in pdb_lines:
         if line.startswith("ATOM  ") or line.startswith("HETATM"):
+            atom = AtomProperties()
             atomname = line[12:16]
             resname = line[17:20]
             chainid = line[21]
             resseq = line[22:26]
             atom_id = (atomname, resname, chainid, resseq)
             confid = resname + line[80:82] + line[21:30]
-            if atom_id in atom_properties:
-                atom_properties[atom_id].charge = float(line[62:74].strip())
-                atom_properties[atom_id].confid = confid
+            atom.xyz = Vector((float(line[30:38].strip()), float(line[38:46].strip()), float(line[46:54].strip())))
+            atom.radius = float(line[54:62].strip())
+            atom.charge = float(line[62:74].strip())
+            atom.confid = confid
+            if abs(atom.charge) > 0.1:
+                atoms[atom_id] = atom
+
+    return atoms
 
 
 def get_electrostatic_energy(atom_properties):
@@ -147,9 +155,15 @@ The output CSV contains columns such as distances, embedding scores, internal/ex
         logging.error("Please provide a state name from step 2 states without file extension")
         exit(1)
     
+    logging.info("Loading atoms from step2_out.pdb ...")
+    atoms = load_atoms()
+
     logging.info(f"Loading embedding score from {args.statename}.embedding ...")
-    atom_properties = get_embedding_score(f"{args.statename}.embedding")
-    logging.info("Updating charge and conformer ID for atoms using step2_out.pdb ...")
-    update_charge(atom_properties)
-    logging.info("Obtaining Calculating electrostatic energy from pbe folders under /tmp ...")
-    electrostatic_energy = get_electrostatic_energy(atom_properties)
+    update_embedding_score(atoms, f"{args.statename}.embedding")
+
+    # print the atom properties
+    for atom_id, atom in atoms.items():
+        logging.info(f"Atom ID: {atom_id}, Confid: {atom.confid}, XYZ: {atom.xyz}, Radius: {atom.radius}, Charge: {atom.charge}, Embedding: {atom.embedding}")
+
+    # logging.info("Obtaining Calculating electrostatic energy from pbe folders under /tmp ...")
+    # electrostatic_energy = get_electrostatic_energy(atom_properties)
