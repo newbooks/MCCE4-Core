@@ -107,7 +107,7 @@ def load_atoms():
     return atoms
 
 
-def get_electrostatic_energy(atom_properties):
+def get_electrostatic_energy(atoms):
     """
     Get electrostatic energy from PBE files.
     Electrostatic energy is calculated by delphi and stored in /tmp/pbe files.
@@ -116,19 +116,8 @@ def get_electrostatic_energy(atom_properties):
     What goes into the csv file is the matrix of atoms from atom_proterties if the atom charge is not 0.  
     """
     # Get the PBE file name
-    cwd = os.getcwd().replace("/", ".").strip(".")
-    prefix = f"/tmp/pbe_{cwd}."
-
-    for atom_id, atom in atom_properties.items():
-        if atom.charge == 0:
-            continue
-        pbe_file = prefix+atom.confid
-        if not os.path.isdir(pbe_file):
-            logging.error(f"PBE folder {pbe_file} not found")
-            exit(1)
-
-
-
+    confids = [atom.confid for atom in atoms.values()]
+    print(f"CONF IDs: {confids}")
 
 if __name__ == "__main__":
     # Set up logging    
@@ -165,5 +154,5 @@ The output CSV contains columns such as distances, embedding scores, internal/ex
     for atom_id, atom in atoms.items():
         logging.info(f"Atom ID: {atom_id}, Confid: {atom.confid}, XYZ: {atom.xyz}, Radius: {atom.radius}, Charge: {atom.charge}, Embedding: {atom.embedding}")
 
-    # logging.info("Obtaining Calculating electrostatic energy from pbe folders under /tmp ...")
-    # electrostatic_energy = get_electrostatic_energy(atom_properties)
+    logging.info("Obtaining electrostatic energy from opp ...")
+    electrostatic_energy = get_electrostatic_energy(atoms)
