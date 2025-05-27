@@ -115,9 +115,17 @@ def get_electrostatic_energy(atoms):
     PBE files will be loaded once and stored in a dictionary.
     What goes into the csv file is the matrix of atoms from atom_proterties if the atom charge is not 0.  
     """
-    # Get the PBE file name
-    confids = [atom.confid for atom in atoms.values()]
 
+    # reverse search for the atom properties
+    conformers = {}
+    for atom_id, atom in atoms.items():
+        if atom.confid not in conformers:
+            conformers[atom.confid] = atom_id
+        else:
+            logging.warning(f"Confid {atom.confid} already exists, skipping {atom_id}")
+
+    # Get the PBE file name
+    confids = list(conformers.keys())
     for iconf in range(len(confids)-1):
         conf1 = confids[iconf]
         fname = "energies/"+ conf1 + ".opp"
@@ -160,8 +168,9 @@ The output CSV contains columns such as distances, embedding scores, internal/ex
     update_embedding_score(atoms, f"{args.statename}.embedding")
 
     # print the atom properties
-    for atom_id, atom in atoms.items():
-        logging.info(f"Atom ID: {atom_id}, Confid: {atom.confid}, XYZ: {atom.xyz}, Radius: {atom.radius}, Charge: {atom.charge}, Embedding: {atom.embedding}")
+    # for atom_id, atom in atoms.items():
+    #     logging.info(f"Atom ID: {atom_id}, Confid: {atom.confid}, XYZ: {atom.xyz}, Radius: {atom.radius}, Charge: {atom.charge}, Embedding: {atom.embedding}")
+
 
     logging.info("Obtaining electrostatic energy from opp ...")
     electrostatic_energy = get_electrostatic_energy(atoms)
