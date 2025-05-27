@@ -117,7 +117,16 @@ def get_electrostatic_energy(atoms):
     """
     # Get the PBE file name
     confids = [atom.confid for atom in atoms.values()]
-    print(f"CONF IDs: {confids}")
+
+    for iconf in range(len(confids)-1):
+        conf1 = confids[iconf]
+        fname = "energies/"+ conf1 + ".opp"
+        if not os.path.isfile(fname):
+            logging.error(f"Opp file {fname} not found")
+            exit(1)
+        opp_lines = open(fname).readlines()
+
+
 
 if __name__ == "__main__":
     # Set up logging    
