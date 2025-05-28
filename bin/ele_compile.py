@@ -24,10 +24,8 @@ Columns:
 - distance between atom 1 and atom 2
 - embedding score atom 1
 - embedding score atom 2
-- internal epsilon
-- external epsilon 
-- Columbs potential
-- electrostatic energy calculated by delphi
+- Columbs potential in kcal/mol
+- electrostatic energy calculated by delphi in kcal/mol
 """
 
 import logging
@@ -37,7 +35,7 @@ from mcce.geom import *
 
 # Constants
 k_coulomb = 332.06371  # Coulomb's constant in kcal/(mol*Å*e^2)
-
+# KCAL2KT = 1.688
 
 class AtomProperties:
     def __init__(self):
@@ -126,6 +124,9 @@ def get_electrostatic_energy(atoms):
 
     # Get the PBE file name
     confids = list(conformers.keys())
+    
+    # get pairwise ele
+    pairwise_ele = {}
     for iconf in range(len(confids)-1):
         conf1 = confids[iconf]
         fname = "energies/"+ conf1 + ".opp"
@@ -133,7 +134,13 @@ def get_electrostatic_energy(atoms):
             logging.error(f"Opp file {fname} not found")
             exit(1)
         opp_lines = open(fname).readlines()
+        for line in opp_lines:
+            fields = line.strip().split()
+            conf2 = fields[1]
+            ele = float(fields[5])
+            pairwise_ele[(conformers[conf1], conformers[conf2])] = ele  # translate to atom pairs
 
+    return pairwise_ele
 
 
 if __name__ == "__main__":
@@ -173,4 +180,20 @@ The output CSV contains columns such as distances, embedding scores, internal/ex
 
 
     logging.info("Obtaining electrostatic energy from opp ...")
-    electrostatic_energy = get_electrostatic_energy(atoms)
+    pairwise_ele = get_electrostatic_energy(atoms)
+
+    logging.info("Compiling results into CSV file ...")
+    output_file = f"{args.statename}_compiled.csv"
+    with open(output_file, 'w') as f:
+        f.write("Conf1,Conf2,Distance,Embedding1,Embedding2,CoulombPotential,PBPotential\n")
+        for (atom_id1, atom_id2), ele in pairwise_ele.items():
+            atom1 = atoms[atom_id1]
+            atom2 = atoms[atom_id2]
+            distance = atom1.xyz.distance(atom2.xyz)
+            embedding1 = atom1.embedding
+            embedding2 = atom2.embedding
+            coulomb_potential = k_coulomb * (atom1.charge * atom2.charge) /4.0 / distance if distance > 0 else 0.0
+            
+            f.write(f"{atom1.confid},{atom2.confid},{distance:.3f},{embedding1:.3f},{embedding2:.3f},{coulomb_potential:.3f},{ele:.3f}\n")
+
+    logging.info(f"Results compiled into {output_file}. Energy unit is kcal/mol.")
