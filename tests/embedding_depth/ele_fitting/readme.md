@@ -1,28 +1,59 @@
 # Modeling Electrostatic Potential Using Coulomb's Law and Embedding Depth
 
-Step 0. Calculate the embedding score
+1. Step 1: Microstate pdb files
+
+Before modeling, you need to have microstate pdb files. A microstate file has the same format as MCCE step2_out.pdb, except only one side chain conformer instead of multiple conformers is given to each residue.
+
+You can create such microstate pdb file using
 ```
-embedding_score.py pdb
+step2.py --writepdb
+```
+The microstate pdb files are in folder "ga_output".
+
+
+2. Step 2: Embedding score
+Use this command to calculate the embedding score on a selected microstate pdb file
+```
+embedding_score.py microstate_pdb
 ```
 
-Step 1. Prepare step2_out.pdb by ele_setup.py
-ele_setup.py will prepare a file from step2_out.pdb in which:
-1. the atom radius will be set to the values used by embedding depth score calculation.
-2. the atom charge will be set to +1 per conformer on one atom, so that the opp reports atom to atom ele
-
-Step 2. Run delphi
-After step2_out.pdb is ready, we will switch to MCCE4 to use step3.py run delphi
+3. Step 3: step2_out.pdb
+This step prepares step2_out.pdb by ele_setup.py.
 ```
-step3.py -s delphi --debug
+ele_setup.py microstate_pdb
 ```
 
-Step 3. Compile ele from delphi and embedding score to a csv file
-ele_compile.py will grab information from /tmp/pbe files and embedding score to make a csv file
+This script alters the atom radius and charge so 
+- the redius matches the values in embedding score calculation
+- the charge is +1 for one random atom in one side chain
 
-Columns:
-- distance
-- embedding score
-- internal epsilon
-- external epsilon 
-- Columbs potential
-- delphi calculated potential
+This way the atom to atom pairwise interaction is the same as conformer to conformer interaction reported by MCCE step3.
+
+4. Step 4: Run delphi using step3.py.
+
+When step2_out.pdb is ready, we will switch to MCCE4 to use step3.py run delphi
+```
+step3.py -s delphi
+```
+
+5. Step 5: Compile ele from delphi and embedding score to a csv file
+At this point, you should have an energies directory with opp files. The ele_compile.py will grab information from opp files and embedding score to make a csv file.
+
+```
+ele_compile microstate
+```
+Columns in CSV file:
+- Conf1
+- Conf2
+- Distance
+- Embedding1
+- Embedding2
+- CoulombPotential
+- PBPotential
+
+6. Modeling
+Use script:
+- ele_fitting.py
+
+Use Jupyter Notebook
+- ele_fitting.ipynb
