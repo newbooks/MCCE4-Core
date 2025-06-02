@@ -14,7 +14,6 @@ The input is a CSV file with the following columns:
 """
 
 
-
 # import the modules
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -29,6 +28,7 @@ from xgboost import XGBRegressor
 import joblib
 import argparse
 import logging
+import time
 
 D_in = 4.0    # inner dielectric constant (Coulomb potential)
 D_out = 80.0  # outter dielectric constant
@@ -75,7 +75,7 @@ if __name__ == "__main__":
 
 
     # Split the data into training and testing sets
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=int(time.time()))
 
     # Standardize the features
     scaler = StandardScaler()
@@ -117,7 +117,7 @@ if __name__ == "__main__":
 
     # Fit a Random Forest Regressor
     logging.info("Fitting Random Forest Regressor ...")
-    rf_model = RandomForestRegressor(n_estimators=100, random_state=42)
+    rf_model = RandomForestRegressor(n_estimators=100, random_state=int(time.time()))
     rf_model.fit(X_train_scaled, y_train)
     # Predict on the test set
     y_pred_rf = rf_model.predict(X_test_scaled)
@@ -142,7 +142,7 @@ if __name__ == "__main__":
 
     # Fit an XGBoost Regressor
     logging.info("Fitting XGBoost Regressor ...")
-    xgb_model = XGBRegressor(n_estimators=100, random_state=42, verbosity=0)
+    xgb_model = XGBRegressor(n_estimators=100, random_state=int(time.time()), verbosity=0)
     xgb_model.fit(X_train_scaled, y_train)
     # Predict on the test set
     y_pred_xgb = xgb_model.predict(X_test_scaled)
