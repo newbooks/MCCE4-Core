@@ -1,11 +1,8 @@
 #!/usr/bin/env python
 """
-Use Random Forest to fit a model, using 
-1. the original Coulomb potential 
-2. distance
-3. radius 
-4. embedding score
-to predict electrostatic energy.
+Use Random Forest to fit a model. Compare these strategies:
+1. Use medium protein as training, predict small, medium and large proteins
+2. Use combined training set (small + medium + large) to predict all proteins
 """
 
 import logging
