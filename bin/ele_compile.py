@@ -22,6 +22,8 @@ ele_compile.py will grab information from opp files under energies folder and em
 
 Columns:
 - distance between atom 1 and atom 2
+- radius of atom 1
+- radius of atom 2
 - embedding score atom 1
 - embedding score atom 2
 - Columbs potential in kcal/mol
@@ -185,15 +187,17 @@ The output CSV contains columns such as distances, embedding scores, internal/ex
     logging.info("Compiling results into CSV file ...")
     output_file = f"{args.statename}_compiled.csv"
     with open(output_file, 'w') as f:
-        f.write("Conf1,Conf2,Distance,Embedding1,Embedding2,CoulombPotential,PBPotential\n")
+        f.write("Conf1,Conf2,Distance,Radius1,Radius2,Embedding1,Embedding2,CoulombPotential,PBPotential\n")
         for (atom_id1, atom_id2), ele in pairwise_ele.items():
             atom1 = atoms[atom_id1]
             atom2 = atoms[atom_id2]
             distance = atom1.xyz.distance(atom2.xyz)
+            radius1 = atom1.radius
+            radius2 = atom2.radius
             embedding1 = atom1.embedding
             embedding2 = atom2.embedding
             coulomb_potential = k_coulomb * (atom1.charge * atom2.charge) /4.0 / distance if distance > 0 else 0.0
-            
-            f.write(f"{atom1.confid},{atom2.confid},{distance:.3f},{embedding1:.3f},{embedding2:.3f},{coulomb_potential:.3f},{ele:.3f}\n")
+
+            f.write(f"{atom1.confid},{atom2.confid},{distance:.3f},{radius1:.3f},{radius2:.3f},{embedding1:.3f},{embedding2:.3f},{coulomb_potential:.3f},{ele:.3f}\n")
 
     logging.info(f"Results compiled into {output_file}. Energy unit is kcal/mol.")
