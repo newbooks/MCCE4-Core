@@ -38,6 +38,9 @@ from mcce.geom import *
 # Constants
 k_coulomb = 332.06371  # Coulomb's constant in kcal/(mol*Å*e^2)
 # KCAL2KT = 1.688
+D_in = 4.0   # inner dielectric constant (Coulomb potential was calculated with this dielectric constant)
+D_out = 80.0 # outter dielectric constant
+
 
 class AtomProperties:
     def __init__(self):
@@ -187,17 +190,14 @@ The output CSV contains columns such as distances, embedding scores, internal/ex
     logging.info("Compiling results into CSV file ...")
     output_file = f"{args.statename}_compiled.csv"
     with open(output_file, 'w') as f:
-        f.write("Conf1,Conf2,Distance,Radius1,Radius2,Embedding1,Embedding2,CoulombPotential,PBPotential\n")
+        f.write("Conf1,Conf2,Distance,Radius1,Radius2,Embedding1,Embedding2,CoulombPotential,AdjustedCoulombPotential,PBPotential\n")
         for (atom_id1, atom_id2), ele in pairwise_ele.items():
-            atom1 = atoms[atom_id1]
-            atom2 = atoms[atom_id2]
+            atom1, atom2 = atoms[atom_id1], atoms[atom_id2]
             distance = atom1.xyz.distance(atom2.xyz)
-            radius1 = atom1.radius
-            radius2 = atom2.radius
-            embedding1 = atom1.embedding
-            embedding2 = atom2.embedding
-            coulomb_potential = k_coulomb * (atom1.charge * atom2.charge) /4.0 / distance if distance > 0 else 0.0
-
-            f.write(f"{atom1.confid},{atom2.confid},{distance:.3f},{radius1:.3f},{radius2:.3f},{embedding1:.3f},{embedding2:.3f},{coulomb_potential:.3f},{ele:.3f}\n")
+            embedding_avg = (atom1.embedding + atom2.embedding) / 2.0
+            coulomb_potential = k_coulomb * atom1.charge * atom2.charge / D_in / distance if distance > 0 else 0.0
+            adjusted_coulomb = coulomb_potential * ((D_out - D_in) * embedding_avg + D_in) / D_out
+            f.write(f"{atom1.confid},{atom2.confid},{distance:.3f},{atom1.radius:.3f},{atom2.radius:.3f},"
+                    f"{atom1.embedding:.3f},{atom2.embedding:.3f},{coulomb_potential:.3f},{adjusted_coulomb:.3f},{ele:.3f}\n")
 
     logging.info(f"Results compiled into {output_file}. Energy unit is kcal/mol.")

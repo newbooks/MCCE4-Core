@@ -33,6 +33,7 @@ def parse_arguments():
     helpmsg += "- Embedding1: Embedding score for atom 1\n"
     helpmsg += "- Embedding2: Embedding score for atom 2\n"
     helpmsg += "- CoulombPotential: Coulomb potential between two atoms\n"
+    helpmsg += "- AdjustedCoulombPotential: Adjusted Coulomb potential based on embedding scores\n"
     helpmsg += "- PBPotential: Electrostatic energy from Poisson-Boltzmann calculation\n"
     parser = argparse.ArgumentParser(description=helpmsg, formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument("csv_file", help="One CSV file containing embedding scores and electrostatic energies")
@@ -52,12 +53,12 @@ if __name__ == "__main__":
     df = pd.read_csv(main_csv_file)
     logging.info(f"Loaded {len(df)} rows from {main_csv_file}.")
     # Check if the required columns are present
-    required_columns = ['Conf1', 'Conf2', 'Distance', 'Radius1', 'Radius2', 'Embedding1', 'Embedding2', 'CoulombPotential', 'PBPotential']
+    required_columns = ['Conf1', 'Conf2', 'Distance', 'Radius1', 'Radius2', 'Embedding1', 'Embedding2', 'CoulombPotential', 'AdjustedCoulombPotential', 'PBPotential']
     if not all(col in df.columns for col in required_columns):
         logging.error(f"CSV file {main_csv_file} is missing required columns: {required_columns}")
         exit(1)
     # Split the data into features and target variable
-    X = df[['Distance', 'Radius1', 'Radius2', 'Embedding1', 'Embedding2', 'CoulombPotential']]
+    X = df[['Distance', 'Radius1', 'Radius2', 'Embedding1', 'Embedding2', 'CoulombPotential', 'AdjustedCoulombPotential']]
     y = df['PBPotential']
 
     # Split the data into training and testing sets
@@ -113,5 +114,55 @@ if __name__ == "__main__":
     png_fname = main_csv_file.rsplit('.', 1)[0] + '_rf_predictions_vs_actual.png'  # save as the same name as the main CSV file
     plt.savefig(png_fname)
     logging.info(f"Saved the plot of Random Forest predictions vs actual values to {png_fname}.")
+
+    # Drop some features that are not important or non-independent
+    X = df[['Distance', 'AdjustedCoulombPotential']]
+    y = df['PBPotential']
+    # Split the data into training and testing sets
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=int(time.time()))
+    # Standardize the features    
+    X_train_scaled = scaler.fit_transform(X_train)
+    X_test_scaled = scaler.transform(X_test)
+    # Train a new Random Forest Regressor with reduced features
+    rf_model_reduced = RandomForestRegressor(n_estimators=100, random_state=int(time.time()))
+    rf_model_reduced.fit(X_train_scaled, y_train)
+    # Make predictions on the test set
+    y_pred_rf_reduced = rf_model_reduced.predict(X_test_scaled)
+    # Calculate R^2 score and RMSE for the reduced Random Forest
+    r2_rf_reduced = r2_score(y_test, y_pred_rf_reduced)
+    rmse_rf_reduced = np.sqrt(mean_squared_error(y_test, y_pred_rf_reduced))
+    y_range_reduced = np.ptp(y_test)  # Range of actual values
+    normalized_rmse_rf_reduced = rmse_rf_reduced / y_range_reduced if y_range_reduced != 0 else rmse_rf_reduced  # Normalize RMSE by range of actual values
+    logging.info(f"Reduced Random Forest Regressor R^2: {r2_rf_reduced:.3f}, RMSE: {rmse_rf_reduced:.3f}, Normalized RMSE: {normalized_rmse_rf_reduced:.3f}")
+    # Get the feature importances for the reduced model
+    feature_importances_reduced = rf_model_reduced.feature_importances_
+    feature_names_reduced = X.columns
+    # Create a DataFrame for feature importances
+    feature_importance_df_reduced = pd.DataFrame({'Feature': feature_names_reduced, 'Importance': feature_importances_reduced})
+    # Sort the DataFrame by importance
+    feature_importance_df_reduced = feature_importance_df_reduced.sort_values(by='Importance', ascending=False)
+    # Print the feature importances for the reduced model
+    logging.info("Feature Importances from Reduced Random Forest Regressor:")
+    logging.info(feature_importance_df_reduced)
+    # Plot the predictions vs actual values for the reduced model
+    plt.figure(figsize=(10, 6))
+    sns.scatterplot(x=y_test, y=rf_model_reduced.predict(X_test_scaled), alpha=0.6)
+    plt.plot([y.min(), y.max()], [y.min(), y.max()], 'r--', lw=2)
+    plt.xlabel("Actual PB Potential")
+    plt.ylabel("Predicted PB Potential")
+    plt.title("Reduced Random Forest Regressor: Actual vs Predicted")
+    # print the R^2 and RMSE on the plot
+    plt.text(0.05, 0.95, f"R^2: {r2_rf_reduced:.3f} (Good if > 0.8)\nRMSE: {normalized_rmse_rf_reduced:.3f} (Good if < 0.05)", transform=plt.gca().transAxes,
+             fontsize=12, verticalalignment='top', bbox=dict(facecolor='white', alpha=0.5))
+    # print the feature importances on the plot
+    plt.text(0.05, 0.85, "Feature Importances:\n" + "\n".join([f"{row['Feature']}: {row['Importance']:.3f}" for _, row in feature_importance_df_reduced.iterrows()]), transform=plt.gca().transAxes,
+             fontsize=12, verticalalignment='top', bbox=dict(facecolor='white', alpha=0.5))
+    plt.grid(True)
+    # save the plot
+    png_fname_reduced = main_csv_file.rsplit('.', 1)[0] + '_rf_reduced_predictions_vs_actual.png'  # save as the same name as the main CSV file
+    plt.savefig(png_fname_reduced)
+    logging.info(f"Saved the plot of Reduced Random Forest predictions vs actual values to {png_fname_reduced}.")
+    # Show the plots
+    plt.tight_layout()
 
     plt.show()

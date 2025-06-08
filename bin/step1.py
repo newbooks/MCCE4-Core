@@ -86,7 +86,7 @@ if __name__ == "__main__":
     # 2. move backbone atoms to conformer[0] or create new_ftpl for unknown cofactors
     # 3. split altloc atoms to conformers
     # 4. assign conformer types to conformers
-    protein.new_ftpl(tpl)  # Assign conformer types to conformers
+    protein.new_ftpl(tpl)  # Create a new_ftpl for unknown cofactors, if any
     protein.split_backbone(tpl)  # Split backbone atoms to conformer[0]
     protein.split_altloc()  # Split altloc atoms to conformers
     # for res in protein.residues:

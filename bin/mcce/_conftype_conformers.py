@@ -523,13 +523,21 @@ def propogate_swap(self): # Here self is a MCCE object
     """
     Propogate conformers by ROT_SWAP rules
     """
+    # print residue id, conformer id, and conftype for each conformer
+    # for res in self.protein.residues:
+    #     for conf in res.conformers:
+    #         print(f"   {res.resid} {res.resname} {conf.confid} {conf.conftype}")
+
     for res in self.protein.residues:
         query_key = ("ROT_SWAP", res.resname)
         if query_key in self.tpl:
             swap_rule = self.tpl[query_key]
             swap_from = [a[0] for a in swap_rule.swapables]
             swap_to = [a[1] for a in swap_rule.swapables]
+            swapped = False
+            new_confs = []
             for conf in res.conformers[1:]:
+                # print(f"   {res.resid} {res.resname} {conf.confid} {conf.conftype} has swap rule {swap_rule}")
                 new_conf = conf.clone()
                 swap_from_atoms = [a for a in new_conf.atoms if a.atomname in swap_from]
                 swap_to_atoms = [a for a in new_conf.atoms if a.atomname in swap_to]
@@ -537,9 +545,9 @@ def propogate_swap(self): # Here self is a MCCE object
                     logging.warning(f"   {res.resname} {conf.conftype} has {len(swap_from_atoms)} swap from atoms and {len(swap_to_atoms)} swap to atoms")
                     continue 
                 new_conf.history = conf.history[:2] + "W" + conf.history[3:]
-                swapped = False
                 for i in range(len(swap_from)):
                     swap_from_atoms[i].xyz, swap_to_atoms[i].xyz = swap_to_atoms[i].xyz, swap_from_atoms[i].xyz
-                    swapped = True
+                new_confs.append(new_conf)
+                swapped = True
             if swapped:
-                res.conformers.append(new_conf)
+                res.conformers.extend(new_confs)
