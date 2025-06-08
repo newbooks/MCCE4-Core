@@ -18,148 +18,151 @@ from sklearn.ensemble import RandomForestRegressor
 import joblib
 import time
 
+training_csv_file_medium = "medium/state_0001_compiled.csv"  # Main CSV file
+training_csv_file_mix = "mix/state_0001_compiled.csv"  # Main CSV file
+prediction_csv_files = [
+    "small/state_0401_compiled.csv",  # Small protein dataset
+    "medium/state_0401_compiled.csv",  # Medium protein dataset
+    "large/state_0401_compiled.csv"    # Large protein dataset
+]
 
 def parse_arguments():
-    helpmsg = "Use Random Forest to fit a model, using the original Coulomb potential, distance, radius, and embedding score to predict electrostatic energy.\n"
-    helpmsg += "The input is a CSV file with the following columns:\n"
-    helpmsg += "- Conf1: Conformer ID for atom 1\n"
-    helpmsg += "- Conf2: Conformer ID for atom 2\n"
-    helpmsg += "- Distance: Distance between two atoms in Angstroms\n"
-    helpmsg += "- Radius1: Radius for atom 1\n"
-    helpmsg += "- Radius2: Radius for atom 2\n"
-    helpmsg += "- Embedding1: Embedding score for atom 1\n"
-    helpmsg += "- Embedding2: Embedding score for atom 2\n"
-    helpmsg += "- CoulombPotential: Coulomb potential between two atoms\n"
-    helpmsg += "- AdjustedCoulombPotential: Adjusted Coulomb potential based on embedding scores\n"
-    helpmsg += "- PBPotential: Electrostatic energy from Poisson-Boltzmann calculation\n"
+    helpmsg = "Use Random Forest to fit a model, then predict on other datasets.\n"
     parser = argparse.ArgumentParser(description=helpmsg, formatter_class=argparse.RawTextHelpFormatter)
-    parser.add_argument("csv_file", help="One CSV file containing embedding scores and electrostatic energies")
-
     return parser.parse_args()
 
 if __name__ == "__main__":
     args = parse_arguments()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s", datefmt='%Y-%m-%d %H:%M:%S')
-    logging.info("Starting evaluation of ML models...")
 
-    # Use the first CSV file as the main dataset for training and evaluation
-    main_csv_file = args.csv_file
-    logging.info(f"Using {main_csv_file} as the main dataset.")
-
-    # Load the main dataset
-    df = pd.read_csv(main_csv_file)
-    logging.info(f"Loaded {len(df)} rows from {main_csv_file}.")
-    # Check if the required columns are present
-    required_columns = ['Conf1', 'Conf2', 'Distance', 'Radius1', 'Radius2', 'Embedding1', 'Embedding2', 'CoulombPotential', 'AdjustedCoulombPotential', 'PBPotential']
-    if not all(col in df.columns for col in required_columns):
-        logging.error(f"CSV file {main_csv_file} is missing required columns: {required_columns}")
-        exit(1)
-    # Split the data into features and target variable
-    X = df[['Distance', 'Radius1', 'Radius2', 'Embedding1', 'Embedding2', 'CoulombPotential', 'AdjustedCoulombPotential']]
-    y = df['PBPotential']
-
-    # Split the data into training and testing sets
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=int(time.time()))
-    logging.info(f"Split data into {len(X_train)} training and {len(X_test)} testing samples.")
+    # Strategy 1: Train on medium protein, predict on small, medium, and large proteins
+    logging.info("Loading training data from medium protein dataset...")
+    df_medium = pd.read_csv(training_csv_file_medium)
+    X_medium = df_medium[['Distance', 'AdjustedCoulombPotential']]
+    y_medium = df_medium['PBPotential']
+    # Split the medium dataset into training and validation sets
+    X_train_medium, X_val_medium, y_train_medium, y_val_medium = train_test_split(X_medium, y_medium, test_size=0.2, random_state=int(time.time()))
     # Standardize the features
     scaler = StandardScaler()
-    X_train_scaled = scaler.fit_transform(X_train)
-    X_test_scaled = scaler.transform(X_test)
-    logging.info("Standardized the features.")
+    X_train_medium = scaler.fit_transform(X_train_medium)
+    X_val_medium = scaler.transform(X_val_medium)
 
-    # Train a Random Forest Regressor
-    rf_model = RandomForestRegressor(n_estimators=100, random_state=int(time.time()))
-    rf_model.fit(X_train_scaled, y_train)
-    logging.info("Trained Random Forest Regressor.")
-    # Save the trained model
-    joblib.dump(rf_model, 'rf_model.pkl')
-    logging.info("Saved the trained Random Forest model to rf_model.pkl.")
-    # Make predictions on the test set
-    y_pred_rf = rf_model.predict(X_test_scaled)
-    # Calculate R^2 score and RMSE for Random Forest
-    r2_rf = r2_score(y_test, y_pred_rf)
-    rmse_rf = np.sqrt(mean_squared_error(y_test, y_pred_rf))
-    y_range = np.ptp(y_test)  # Range of actual values
-    normalized_rmse_rf = rmse_rf / y_range if y_range != 0 else rmse_rf  # Normalize RMSE by range of actual values
-    logging.info(f"Random Forest Regressor R^2: {r2_rf:.3f}, RMSE: {rmse_rf:.3f}, Normalized RMSE: {normalized_rmse_rf:.3f}")
-    # Get the feature importances
-    feature_importances = rf_model.feature_importances_
-    feature_names = X.columns
-    # Create a DataFrame for feature importances
-    feature_importance_df = pd.DataFrame({'Feature': feature_names, 'Importance': feature_importances})
-    # Sort the DataFrame by importance
-    feature_importance_df = feature_importance_df.sort_values(by='Importance', ascending=False)
-    # Print the feature importances
-    logging.info("Feature Importances from Random Forest Regressor:")
-    logging.info(feature_importance_df)
-    # Plot the predictions vs actual values
+    logging.info("Training Random Forest model on medium protein dataset...")
+    rf_medium = RandomForestRegressor(n_estimators=100, random_state=int(time.time()))
+    rf_medium.fit(X_train_medium, y_train_medium)
+    logging.info("Evaluating model on medium protein validation set...")
+    y_pred_medium = rf_medium.predict(X_val_medium)
+    rmse_medium = np.sqrt(mean_squared_error(y_val_medium, y_pred_medium))
+    y_range = np.ptp(y_val_medium)  # Range of true values
+    normalized_rmse_medium = rmse_medium / y_range if y_range != 0 else 0
+    r2_medium = r2_score(y_val_medium, y_pred_medium)
+    logging.info(f"Medium Protein - RMSE: {normalized_rmse_medium:.3f}, R2: {r2_medium:.3f}")
+    # Plot the training results
     plt.figure(figsize=(10, 6))
-    sns.scatterplot(x=y_test, y=y_pred_rf, alpha=0.6)
-    plt.plot([y.min(), y.max()], [y.min(), y.max()], 'r--', lw=2)
-    plt.xlabel("Actual PB Potential")
-    plt.ylabel("Predicted PB Potential")
-    plt.title("Random Forest Regressor: Actual vs Predicted")
-    # print the R^2 and RMSE on the plot
-    plt.text(0.05, 0.95, f"R^2: {r2_rf:.3f} (Good if > 0.8)\nRMSE: {normalized_rmse_rf:.3f} (Good if < 0.05)", transform=plt.gca().transAxes,
-             fontsize=12, verticalalignment='top', bbox=dict(facecolor='white', alpha=0.5))
-    # print the feature importances on the plot
-    plt.text(0.05, 0.85, "Feature Importances:\n" + "\n".join([f"{row['Feature']}: {row['Importance']:.3f}" for _, row in feature_importance_df.iterrows()]), transform=plt.gca().transAxes,
-             fontsize=12, verticalalignment='top', bbox=dict(facecolor='white', alpha=0.5))
+    sns.scatterplot(x=y_val_medium, y=y_pred_medium)
+    plt.xlabel("True PBPotential")
+    plt.ylabel("Predicted PBPotential")
+    plt.title("Training by Medium Protein: True vs Predicted PBPotential on training set")
     plt.grid(True)
-#    plt.show()  # Uncomment this line to display the plot interactively
-    # save the plot
-    png_fname = main_csv_file.rsplit('.', 1)[0] + '_rf_predictions_vs_actual.png'  # save as the same name as the main CSV file
-    plt.savefig(png_fname)
-    logging.info(f"Saved the plot of Random Forest predictions vs actual values to {png_fname}.")
+    plt.xlim(y_val_medium.min(), y_val_medium.max())
+    plt.ylim(y_val_medium.min(), y_val_medium.max())
+    # Add a diagonal line for perfect predictions
+    plt.plot([y_val_medium.min(), y_val_medium.max()], [y_val_medium.min(), y_val_medium.max()], 'k--', lw=2)
+    # print the R^2 and RMSE on the plot
+    plt.text(0.05, 0.95, f"R^2: {r2_medium:.3f} Good if > 0.9\nRMSE: {normalized_rmse_medium:.3f} Good if < 0.05", transform=plt.gca().transAxes, fontsize=12, verticalalignment='top')
+    plt.savefig("medium_training_results.png")
 
-    # Drop some features that are not important or non-independent
-    X = df[['Distance', 'AdjustedCoulombPotential']]
-    y = df['PBPotential']
-    # Split the data into training and testing sets
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=int(time.time()))
-    # Standardize the features    
-    X_train_scaled = scaler.fit_transform(X_train)
-    X_test_scaled = scaler.transform(X_test)
-    # Train a new Random Forest Regressor with reduced features
-    rf_model_reduced = RandomForestRegressor(n_estimators=100, random_state=int(time.time()))
-    rf_model_reduced.fit(X_train_scaled, y_train)
-    # Make predictions on the test set
-    y_pred_rf_reduced = rf_model_reduced.predict(X_test_scaled)
-    # Calculate R^2 score and RMSE for the reduced Random Forest
-    r2_rf_reduced = r2_score(y_test, y_pred_rf_reduced)
-    rmse_rf_reduced = np.sqrt(mean_squared_error(y_test, y_pred_rf_reduced))
-    y_range_reduced = np.ptp(y_test)  # Range of actual values
-    normalized_rmse_rf_reduced = rmse_rf_reduced / y_range_reduced if y_range_reduced != 0 else rmse_rf_reduced  # Normalize RMSE by range of actual values
-    logging.info(f"Reduced Random Forest Regressor R^2: {r2_rf_reduced:.3f}, RMSE: {rmse_rf_reduced:.3f}, Normalized RMSE: {normalized_rmse_rf_reduced:.3f}")
-    # Get the feature importances for the reduced model
-    feature_importances_reduced = rf_model_reduced.feature_importances_
-    feature_names_reduced = X.columns
-    # Create a DataFrame for feature importances
-    feature_importance_df_reduced = pd.DataFrame({'Feature': feature_names_reduced, 'Importance': feature_importances_reduced})
-    # Sort the DataFrame by importance
-    feature_importance_df_reduced = feature_importance_df_reduced.sort_values(by='Importance', ascending=False)
-    # Print the feature importances for the reduced model
-    logging.info("Feature Importances from Reduced Random Forest Regressor:")
-    logging.info(feature_importance_df_reduced)
-    # Plot the predictions vs actual values for the reduced model
+    # Use the trained model to predict on small, medium, and large protein datasets
+    for prediction_csv_file in prediction_csv_files:
+        logging.info(f"Loading prediction data from {prediction_csv_file}...")
+        df_pred = pd.read_csv(prediction_csv_file)
+        X_pred = df_pred[['Distance', 'AdjustedCoulombPotential']]
+        X_pred = scaler.transform(X_pred)
+        y_pred = rf_medium.predict(X_pred)
+        # Calculate RMSE and R^2 for predictions
+        rmse_pred = np.sqrt(mean_squared_error(df_pred['PBPotential'], y_pred))
+        y_range_pred = np.ptp(df_pred['PBPotential'])  # Range of true values
+        normalized_rmse_pred = rmse_pred / y_range_pred if y_range_pred != 0 else 0
+        r2_pred = r2_score(df_pred['PBPotential'], y_pred)
+        logging.info(f"Predictions on {prediction_csv_file} - RMSE: {normalized_rmse_pred:.3f}, R2: {r2_pred:.3f}, Normalized RMSE: {normalized_rmse_pred:.3f}")
+        # plot the predictions
+        plt.figure(figsize=(10, 6))
+        sns.scatterplot(x=df_pred['PBPotential'], y=y_pred, alpha=0.6)
+        plt.xlim(df_pred['PBPotential'].min(), df_pred['PBPotential'].max())
+        plt.ylim(df_pred['PBPotential'].min(), df_pred['PBPotential'].max())
+        plt.grid(True)
+        plt.xlabel("True PBPotential")
+        plt.ylabel("Predicted PBPotential")
+        plt.title(f"Prediction on {prediction_csv_file}: True vs Predicted PBPotential")
+        plt.plot([df_pred['PBPotential'].min(), df_pred['PBPotential'].max()], [df_pred['PBPotential'].min(), df_pred['PBPotential'].max()], 'k--', lw=2)
+        # print the R^2 and RMSE on the plot
+        plt.text(0.05, 0.95, f"R^2: {r2_pred:.3f} Good if > 0.9\nRMSE: {normalized_rmse_pred:.3f} Good if < 0.05", transform=plt.gca().transAxes, fontsize=12, verticalalignment='top')
+        plt.savefig(f"{prediction_csv_file.replace('_compiled.csv', '_predicted_medium.png')}")
+
+    # show the predictions
+    plt.show()
+    # close the plots
+    plt.close('all')
+
+    # Strategy 2: Train on combined dataset (small + medium + large), predict on all datasets
+    logging.info("Loading training data from combined small, medium, and large protein datasets...")
+    df_mix = pd.read_csv(training_csv_file_mix)
+    X_mix = df_mix[['Distance', 'AdjustedCoulombPotential']]
+    y_mix = df_mix['PBPotential']
+    # Split the combined dataset into training and validation sets
+    X_train_mix, X_val_mix, y_train_mix, y_val_mix = train_test_split(X_mix, y_mix, test_size=0.2, random_state=int(time.time()))
+    # Standardize the features
+    scaler_mix = StandardScaler()
+    X_train_mix = scaler_mix.fit_transform(X_train_mix)
+    X_val_mix = scaler_mix.transform(X_val_mix)
+    logging.info("Training Random Forest model on combined dataset...")
+    rf_mix = RandomForestRegressor(n_estimators=100, random_state=int(time.time()))
+    rf_mix.fit(X_train_mix, y_train_mix)
+    logging.info("Evaluating model on combined validation set...")
+    y_pred_mix = rf_mix.predict(X_val_mix)
+    rmse_mix = np.sqrt(mean_squared_error(y_val_mix, y_pred_mix))
+    y_range_mix = np.ptp(y_val_mix)  # Range of true values
+    normalized_rmse_mix = rmse_mix / y_range_mix if y_range_mix != 0 else 0
+    r2_mix = r2_score(y_val_mix, y_pred_mix)
+    logging.info(f"Combined Dataset - RMSE: {normalized_rmse_mix:.3f}, R2: {r2_mix:.3f}")
+    # Plot the training results
     plt.figure(figsize=(10, 6))
-    sns.scatterplot(x=y_test, y=rf_model_reduced.predict(X_test_scaled), alpha=0.6)
-    plt.plot([y.min(), y.max()], [y.min(), y.max()], 'r--', lw=2)
-    plt.xlabel("Actual PB Potential")
-    plt.ylabel("Predicted PB Potential")
-    plt.title("Reduced Random Forest Regressor: Actual vs Predicted")
-    # print the R^2 and RMSE on the plot
-    plt.text(0.05, 0.95, f"R^2: {r2_rf_reduced:.3f} (Good if > 0.8)\nRMSE: {normalized_rmse_rf_reduced:.3f} (Good if < 0.05)", transform=plt.gca().transAxes,
-             fontsize=12, verticalalignment='top', bbox=dict(facecolor='white', alpha=0.5))
-    # print the feature importances on the plot
-    plt.text(0.05, 0.85, "Feature Importances:\n" + "\n".join([f"{row['Feature']}: {row['Importance']:.3f}" for _, row in feature_importance_df_reduced.iterrows()]), transform=plt.gca().transAxes,
-             fontsize=12, verticalalignment='top', bbox=dict(facecolor='white', alpha=0.5))
+    sns.scatterplot(x=y_val_mix, y=y_pred_mix)
+    plt.xlim(y_val_mix.min(), y_val_mix.max())
+    plt.ylim(y_val_mix.min(), y_val_mix.max())
     plt.grid(True)
-    # save the plot
-    png_fname_reduced = main_csv_file.rsplit('.', 1)[0] + '_rf_reduced_predictions_vs_actual.png'  # save as the same name as the main CSV file
-    plt.savefig(png_fname_reduced)
-    logging.info(f"Saved the plot of Reduced Random Forest predictions vs actual values to {png_fname_reduced}.")
-    # Show the plots
-    plt.tight_layout()
+    plt.xlabel("True PBPotential")
+    plt.ylabel("Predicted PBPotential")
+    plt.title("Training by Combined Dataset: True vs Predicted PBPotential on training set")
+    plt.plot([y_val_mix.min(), y_val_mix.max()], [y_val_mix.min(), y_val_mix.max()], 'k--', lw=2)
+    # print the R^2 and RMSE on the plot
+    plt.text(0.05, 0.95, f"R^2: {r2_mix:.3f} Good if > 0.9\nRMSE: {normalized_rmse_mix:.3f} Good if < 0.05", transform=plt.gca().transAxes, fontsize=12, verticalalignment='top')
+    plt.savefig("combined_training_results.png")
+    # Use the trained model to predict on small, medium, and large protein datasets
+    for prediction_csv_file in prediction_csv_files:
+        logging.info(f"Loading prediction data from {prediction_csv_file}...")
+        df_pred = pd.read_csv(prediction_csv_file)
+        X_pred = df_pred[['Distance', 'AdjustedCoulombPotential']]
+        X_pred = scaler_mix.transform(X_pred)
+        y_pred = rf_mix.predict(X_pred)
+        # Calculate RMSE and R^2 for predictions
+        rmse_pred = np.sqrt(mean_squared_error(df_pred['PBPotential'], y_pred))
+        y_range_pred = np.ptp(df_pred['PBPotential'])  # Range of true values
+        normalized_rmse_pred = rmse_pred / y_range_pred if y_range_pred != 0 else 0
+        r2_pred = r2_score(df_pred['PBPotential'], y_pred)
+        logging.info(f"Predictions on {prediction_csv_file} - RMSE: {normalized_rmse_pred:.3f}, R2: {r2_pred:.3f}")
+        # plot the predictions
+        plt.figure(figsize=(10, 6))
+        sns.scatterplot(x=df_pred['PBPotential'], y=y_pred, alpha=0.6)
+        plt.xlim(df_pred['PBPotential'].min(), df_pred['PBPotential'].max())
+        plt.ylim(df_pred['PBPotential'].min(), df_pred['PBPotential'].max())
+        plt.grid(True)
+        plt.xlabel("True PBPotential")
+        plt.ylabel("Predicted PBPotential")
+        plt.title(f"Prediction on {prediction_csv_file}: True vs Predicted PBPotential")
+        plt.plot([df_pred['PBPotential'].min(), df_pred['PBPotential'].max()], [df_pred['PBPotential'].min(), df_pred['PBPotential'].max()], 'k--', lw=2)
+        # print the R^2 and RMSE on the plot
+        plt.text(0.05, 0.95, f"R^2: {r2_pred:.3f} Good if > 0.9\nRMSE: {normalized_rmse_pred:.3f} Good if < 0.05", transform=plt.gca().transAxes, fontsize=12, verticalalignment='top')
+        plt.savefig(f"{prediction_csv_file.replace('_compiled.csv', '_predicted_mix.png')}")
 
     plt.show()

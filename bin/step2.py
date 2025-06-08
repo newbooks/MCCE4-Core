@@ -76,8 +76,15 @@ if __name__ == "__main__":
     rot_stat.count_stat(mcce.protein, step="swap")
     rot_stat.write_stat(mcce.protein)
 
+    # print residue id, conformer id, and conftype for each conformer
+    # for res in mcce.protein.residues:
+    #     for conf in res.conformers:
+    #         print(f"   {res.resid} {res.resname} {conf.confid} {conf.conftype}")
+
+
     # expand conformers by conftypes
     logging.info("   Propogate conformers with conformer types and add H atoms ...")
+    # propogate conftypes
     mcce.propogate_conftypes()
     rot_stat.count_stat(mcce.protein, step="type")
     rot_stat.write_stat(mcce.protein)
