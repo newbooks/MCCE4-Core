@@ -11,10 +11,15 @@ step2.py --writepdb
 The microstate pdb files are in folder "ga_output".
 
 
-2. Step 2: Embedding score
+2. Step 2: Embedding score and local density score
 Use this command to calculate the embedding score on a selected microstate pdb file
 ```
 embedding_score.py microstate_pdb
+```
+
+Use this command to calculate the local density score on a selected microstate pdb file
+```
+local_density.py microstate_pdb
 ```
 
 3. Step 3: step2_out.pdb

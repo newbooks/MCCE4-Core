@@ -49,6 +49,7 @@ class AtomProperties:
         self.radius = 0.0
         self.charge = 0.0
         self.embedding = 0.0
+        self.density = 0
 
     def __repr__(self):
         return f"{self.line[:30]}{self.xyz.x:8.3f}{self.xyz.y:8.3f}{self.xyz.z:8.3f}{self.radius:8.3f}{self.embedding:8.3f}"
@@ -74,7 +75,33 @@ def update_embedding_score(atoms, fname):
             atom_id = (atomname, resname, chainid, resseq)
             if atom_id in atoms:
                 atoms[atom_id].embedding = float(line[62:].strip())            
+
+
+def update_density_score(atoms, fname):
+    """
+    Update local density scores for atoms.
+    Local density is calculated by step2_out.pdb and stored in a file with the same name as the state name.
+    The file contains lines like:
+    ATOM  1  N   ALA A   1      11.104  12.345  13.456  1.00  0.00           N
+    The last column is the local density score.
+    """
     
+    if not os.path.isfile(fname):
+        logging.error(f"Local density file {fname} not found")
+        exit(1)
+    density_lines = open(fname).readlines()
+    density_lines = [line.strip() for line in density_lines if line.strip()]  # Remove empty lines    
+    for line in density_lines:
+        if line.startswith("ATOM  ") or line.startswith("HETATM"):
+            atomname = line[12:16]
+            resname = line[17:20]
+            chainid = line[21]
+            resseq = line[22:26]
+            atom_id = (atomname, resname, chainid, resseq)
+            if atom_id in atoms:
+                atoms[atom_id].density = int(line[62:].strip())
+
+
 def load_atoms():
     """
     Load atom properties from step2_out.pdb.
@@ -179,6 +206,9 @@ The output CSV contains columns such as distances, embedding scores, internal/ex
     logging.info(f"Loading embedding score from {args.statename}.embedding ...")
     update_embedding_score(atoms, f"{args.statename}.embedding")
 
+    logging.info(f"Loading local density from {args.statename}.density ...")
+    update_density_score(atoms, f"{args.statename}.density")
+
     # print the atom properties
     # for atom_id, atom in atoms.items():
     #     logging.info(f"Atom ID: {atom_id}, Confid: {atom.confid}, XYZ: {atom.xyz}, Radius: {atom.radius}, Charge: {atom.charge}, Embedding: {atom.embedding}")
@@ -190,7 +220,7 @@ The output CSV contains columns such as distances, embedding scores, internal/ex
     logging.info("Compiling results into CSV file ...")
     output_file = f"{args.statename}_compiled.csv"
     with open(output_file, 'w') as f:
-        f.write("Conf1,Conf2,Distance,Radius1,Radius2,Embedding1,Embedding2,CoulombPotential,AdjustedCoulombPotential,PBPotential\n")
+        f.write("Conf1,Conf2,Distance,Radius1,Radius2,Embedding1,Embedding2,Density1,Density2,CoulombPotential,AdjustedCoulombPotential,PBPotential\n")
         for (atom_id1, atom_id2), ele in pairwise_ele.items():
             atom1, atom2 = atoms[atom_id1], atoms[atom_id2]
             distance = atom1.xyz.distance(atom2.xyz)
@@ -198,6 +228,6 @@ The output CSV contains columns such as distances, embedding scores, internal/ex
             coulomb_potential = k_coulomb * atom1.charge * atom2.charge / D_in / distance if distance > 0 else 0.0
             adjusted_coulomb = coulomb_potential * ((D_out - D_in) * embedding_avg + D_in) / D_out
             f.write(f"{atom1.confid},{atom2.confid},{distance:.3f},{atom1.radius:.3f},{atom2.radius:.3f},"
-                    f"{atom1.embedding:.3f},{atom2.embedding:.3f},{coulomb_potential:.3f},{adjusted_coulomb:.3f},{ele:.3f}\n")
+                    f"{atom1.embedding:.3f},{atom2.embedding:.3f},{atom1.density:d},{atom2.density:d},{coulomb_potential:.3f},{adjusted_coulomb:.3f},{ele:.3f}\n")
 
     logging.info(f"Results compiled into {output_file}. Energy unit is kcal/mol.")
