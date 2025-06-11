@@ -53,7 +53,10 @@ Columns in CSV file:
 - Distance
 - Embedding1
 - Embedding2
+- Density1
+- Density2
 - CoulombPotential
+- AdjustedCoulombPotential
 - PBPotential
 
 6. Modeling
