@@ -136,7 +136,7 @@ if __name__ == "__main__":
     std_dev_time = (sum((x - avg_time) ** 2 for x in run_times) / len(run_times)) ** 0.5
     print(f"Average run time: {avg_time:.2f} seconds, Standard Deviation: {std_dev_time:.2f} seconds")
     # Timing of the execution
-    # Original: 
+    # Original: 12.59+-0.14 (3.4 for embedding)
     # Improved version:
 
 
