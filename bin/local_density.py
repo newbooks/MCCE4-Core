@@ -15,6 +15,7 @@ import os
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+import time
 from mcce.geom import *
 
 # Constants
@@ -113,44 +114,61 @@ if __name__ == "__main__":
     args = parse_arguments()
     logging.basicConfig(level=logging.INFO, format=logging_format, datefmt=logging_datefmt)
     logging.info("Starting local density calculation...")
-    for pdb_file in args.pdb_file:
-        logging.info(f"Processing PDB file: {pdb_file}")
-        protein = Protein()
-        protein.load_pdb(pdb_file)
-        logging.info(f"Loaded {len(protein.atoms)} atoms from {pdb_file}")
-        protein.calculate_local_density()
-        protein.write_local_density()
-        logging.info(f"Local density scores written to {pdb_file.rsplit('.', 1)[0]}.density")
+
+    run_times = []
+    for i in range(5):
+        logging.info(f"Run {i+1} of 5")
+        # Start timing
+        time_start = time.time()
+        for pdb_file in args.pdb_file:
+            logging.info(f"Processing PDB file: {pdb_file}")
+            protein = Protein()
+            protein.load_pdb(pdb_file)
+            logging.info(f"Loaded {len(protein.atoms)} atoms from {pdb_file}")
+            protein.calculate_local_density()
+            protein.write_local_density()
+            logging.info(f"Local density scores written to {pdb_file.rsplit('.', 1)[0]}.density")
+        time_elapsed = time.time() - time_start
+        run_times.append(time_elapsed)
+    
+    # report average run time and standard deviation
+    avg_time = sum(run_times) / len(run_times)
+    std_dev_time = (sum((x - avg_time) ** 2 for x in run_times) / len(run_times)) ** 0.5
+    print(f"Average run time: {avg_time:.2f} seconds, Standard Deviation: {std_dev_time:.2f} seconds")
+    # Timing of the execution
+    # Original: 
+    # Improved version:
+
 
         # Compare with embedding scores if available
-        embedding_file = f"{pdb_file.rsplit('.', 1)[0]}.embedding"
-        if os.path.isfile(embedding_file):
-            logging.info(f"Comparing with embedding scores from {embedding_file}")
-            embedding_scores = {}
-            with open(embedding_file, 'r') as ef:
-                for line in ef:
-                    parts = line.strip().split()
-                    if len(parts) >= 6:
-                        atom_line = line[:54]
-                        embedding_score = float(parts[-1])
-                        embedding_scores[atom_line] = embedding_score
-            with open(f"{pdb_file.rsplit('.', 1)[0]}_density_vs_embedding.csv", 'w') as df:
-                df.write("Atom,LocalDensity,EmbeddingScore\n")
-                for atom in protein.atoms:
-                    atom_line = atom.line[:54]
-                    embedding_score = embedding_scores.get(atom_line, 0.0)
-                    df.write(f"{atom_line},{atom.local_density},{embedding_score}\n")
-            logging.info(f"Density vs embedding scores written to {pdb_file.rsplit('.', 1)[0]}_density_vs_embedding.csv")
-            df = pd.read_csv(f"{pdb_file.rsplit('.', 1)[0]}_density_vs_embedding.csv")
-            plt.figure(figsize=(10, 6))
-            sns.scatterplot(data=df, x="LocalDensity", y="EmbeddingScore")
-            plt.title(f"Local Density vs Embedding Score for {pdb_file}")
-            plt.xlabel("Local Density")
-            plt.ylabel("Embedding Score")
-            plt.grid()
-            plt.savefig(f"{pdb_file.rsplit('.', 1)[0]}_density_vs_embedding.png")
-            plt.show()
-            logging.info(f"Plot saved as {pdb_file.rsplit('.', 1)[0]}_density_vs_embedding.png")
-            plt.close()
-        else:
-            logging.info(f"No embedding scores found for {pdb_file}, skipping comparison.")
+        # embedding_file = f"{pdb_file.rsplit('.', 1)[0]}.embedding"
+        # if os.path.isfile(embedding_file):
+        #     logging.info(f"Comparing with embedding scores from {embedding_file}")
+        #     embedding_scores = {}
+        #     with open(embedding_file, 'r') as ef:
+        #         for line in ef:
+        #             parts = line.strip().split()
+        #             if len(parts) >= 6:
+        #                 atom_line = line[:54]
+        #                 embedding_score = float(parts[-1])
+        #                 embedding_scores[atom_line] = embedding_score
+        #     with open(f"{pdb_file.rsplit('.', 1)[0]}_density_vs_embedding.csv", 'w') as df:
+        #         df.write("Atom,LocalDensity,EmbeddingScore\n")
+        #         for atom in protein.atoms:
+        #             atom_line = atom.line[:54]
+        #             embedding_score = embedding_scores.get(atom_line, 0.0)
+        #             df.write(f"{atom_line},{atom.local_density},{embedding_score}\n")
+        #     logging.info(f"Density vs embedding scores written to {pdb_file.rsplit('.', 1)[0]}_density_vs_embedding.csv")
+        #     df = pd.read_csv(f"{pdb_file.rsplit('.', 1)[0]}_density_vs_embedding.csv")
+        #     plt.figure(figsize=(10, 6))
+        #     sns.scatterplot(data=df, x="LocalDensity", y="EmbeddingScore")
+        #     plt.title(f"Local Density vs Embedding Score for {pdb_file}")
+        #     plt.xlabel("Local Density")
+        #     plt.ylabel("Embedding Score")
+        #     plt.grid()
+        #     plt.savefig(f"{pdb_file.rsplit('.', 1)[0]}_density_vs_embedding.png")
+        #     plt.show()
+        #     logging.info(f"Plot saved as {pdb_file.rsplit('.', 1)[0]}_density_vs_embedding.png")
+        #     plt.close()
+        # else:
+        #     logging.info(f"No embedding scores found for {pdb_file}, skipping comparison.")

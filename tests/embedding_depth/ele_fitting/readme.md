@@ -62,6 +62,7 @@ Columns in CSV file:
 6. Modeling
 Use script:
 - ele_fitting.py
+- ele_fitting2.py
 
 Use Jupyter Notebook
 - ele_fitting.ipynb
