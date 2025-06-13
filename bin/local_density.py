@@ -78,26 +78,48 @@ class Protein:
 
     def calculate_local_density(self):
         """
-        Calculate local density for each atom.
+        Calculate local density for each atom using a 3D grid to accelerate neighbor search.
         Local density is the number of atoms within Local_Density_Radius from the atom.
         """
-        n_atoms = len(self.atoms)
+        # Build 3D grid
+        grid_size = Local_Density_Radius
+        grid = {}
+        def grid_index(x, y, z):
+            return (int(x // grid_size), int(y // grid_size), int(z // grid_size))
+
+        # Assign atoms to grid cells
+        for atom in self.atoms:
+            idx = grid_index(atom.xyz.x, atom.xyz.y, atom.xyz.z)
+            grid.setdefault(idx, []).append(atom)
+
         range_squared = Local_Density_Radius * Local_Density_Radius
-        for i in range(n_atoms-1):
-            atom_i = self.atoms[i]
-            for j in range(i+1, n_atoms):
-                atom_j = self.atoms[j]
-                if abs(atom_i.xyz.x - atom_j.xyz.x) < Local_Density_Radius and \
-                    abs(atom_i.xyz.y - atom_j.xyz.y) < Local_Density_Radius and \
-                        abs(atom_i.xyz.z - atom_j.xyz.z) < Local_Density_Radius:
-                    distance_squared = atom_i.xyz.distance_squared(atom_j.xyz)
-                    if distance_squared < range_squared:
-                        atom_i.inrange_atoms.append(atom_j)
-                        atom_j.inrange_atoms.append(atom_i)
+
+        # For each atom, only check atoms in the same and neighboring grid cells
+        for atom in self.atoms:
+            idx = grid_index(atom.xyz.x, atom.xyz.y, atom.xyz.z)
+            neighbors = []
+            for dx in (-1, 0, 1):
+                for dy in (-1, 0, 1):
+                    for dz in (-1, 0, 1):
+                        neighbor_idx = (idx[0]+dx, idx[1]+dy, idx[2]+dz)
+                        for other in grid.get(neighbor_idx, []):
+                            # Avoid double counting by only considering atoms with higher index
+                            if id(other) < id(atom):
+                                continue
+                            if abs(atom.xyz.x - other.xyz.x) < Local_Density_Radius and \
+                               abs(atom.xyz.y - other.xyz.y) < Local_Density_Radius and \
+                               abs(atom.xyz.z - other.xyz.z) < Local_Density_Radius:
+                                distance_squared = atom.xyz.distance_squared(other.xyz)
+                                if distance_squared < range_squared:
+                                    atom.inrange_atoms.append(other)
+                                    other.inrange_atoms.append(atom)
+            # No need to set local_density here; do it after all pairs are processed
 
         # Set local density score as the number of in-range atoms
         for atom in self.atoms:
             atom.local_density = len(atom.inrange_atoms)
+
+
 
     def write_local_density(self):
         """
@@ -136,7 +158,7 @@ if __name__ == "__main__":
     std_dev_time = (sum((x - avg_time) ** 2 for x in run_times) / len(run_times)) ** 0.5
     print(f"Average run time: {avg_time:.2f} seconds, Standard Deviation: {std_dev_time:.2f} seconds")
     # Timing of the execution
-    # Original: 12.59+-0.14 (3.4 for embedding)
+    # Original: 12.59+-0.14 (Office PC), 13.52+-0.25 (Home PC)
     # Improved version:
 
 
