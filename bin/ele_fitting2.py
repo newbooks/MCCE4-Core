@@ -35,7 +35,9 @@ import time
 D_in = 4.0    # inner dielectric constant (Coulomb potential)
 D_out = 80.0  # outter dielectric constant
 
-def fit_rf(X, y, title):
+def fit_rf(features, data, title):
+    X = data[features]
+    y = data['PBPotential']
     X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=int(time.time()))
     # Standardize the features
     scaler = StandardScaler()
@@ -100,36 +102,35 @@ if __name__ == "__main__":
             logging.error(f"Missing required column: {col}")
             exit(1)
     
-    # Evaluate all features as is
-    X = data[['Distance', 'Radius1', 'Radius2', 'Embedding1', 'Embedding2', 'Density1', 'Density2', 'CoulombPotential']]
-    y = data['PBPotential']
+    # Evaluate all features as is    
+    features = ['Distance', 'Radius1', 'Radius2', 'Embedding1', 'Embedding2', 'Density1', 'Density2', 'CoulombPotential']
     title = "All_Features"
     logging.info("Features and target variable prepared.")
-    fit_rf(X, y, title)
+    fit_rf(features, data, title)
 
-    # Use Distance and Adjusted Coulomb Potential
-    X = data[['Distance', 'AdjustedCoulombPotential']]
-    y = data['PBPotential']
-    title = "Distance+AdjustedCoulomb"
+    # Reduce some features by averaging the symmetric ones
+    # average embedding and density scores in the dataframe
+    logging.info("Reducing features by averaging symmetric ones...")
+    data['EmbeddingAverage'] = (data['Embedding1'] + data['Embedding2']) / 2
+    data['DensityAverage'] = (data['Density1'] + data['Density2']) / 2
+    title = "Independent features"
+    features = ['Distance', 'EmbeddingAverage', 'DensityAverage', 'CoulombPotential']
+    fit_rf(features, data, title)
     logging.info("Features and target variable prepared.")
-    fit_rf(X, y, title)
 
-    # Add density scores
-    X = data[['Distance', 'Density1', 'Density2', 'AdjustedCoulombPotential']]
-    y = data['PBPotential']
-    title = "Distance+Densities+Coulomb"
-    logging.info("Features and target variable prepared.")
-    fit_rf(X, y, title)
+    # Use the embedding modified Coulomb potential
+    logging.info("Using embedding modified Coulomb potential...")
+    features = ['Distance', 'EmbeddingAverage']
+    title = "Embedding_Modified_Coulomb_Potential"
+    fit_rf(features, data, title)
 
-    # Use average density scores
-    X = data[['Distance', 'Density1', 'Density2', 'AdjustedCoulombPotential']]
-    X = X.copy()
-    X['DensityAverage'] = (X['Density1'] + X['Density2']) / 2
-    y = data['PBPotential']
-    X.drop(columns=['Density1', 'Density2'], inplace=True)  # Remove individual densities
-    title = "Distance+DensitiesAverage+Coulomb"
-    fit_rf(X, y, title)
-    logging.info("Features and target variable prepared.")
+    # Use the density modified Coulomb potential
+    logging.info("Using density modified Coulomb potential...")
+    data['DmodifiedCoulombPotential'] = data['CoulombPotential'] * data['DensityAverage']
+    features = ['Distance', 'DmodifiedCoulombPotential']
+    title = "Density_Modified_Coulomb_Potential"
+    fit_rf(features, data, title)
+
 
     plt.show()
     plt.close()  # Close the plot to free memory

@@ -16,10 +16,15 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import time
+import numpy as np
+from scipy.spatial import cKDTree
 from mcce.geom import *
 
 # Constants
 Local_Density_Radius = 10.0  # Radius in Angstroms to count local density, embedding depth box size is about 7.0 Angstroms
+Segments = 6  # Number of segments to divide the radius for grid-based search
+Grid_Size = Local_Density_Radius / Segments  # Size of the grid cells in Angstroms
+InNeighbor_Range = int(Segments * 0.577) # Inner neighbor range, to avoid distance check for atoms within this range  
 
 logging_format = "%(asctime)s %(levelname)s: %(message)s"
 logging_format_debug = "%(asctime)s %(levelname)s [%(module)s]: %(message)s"
@@ -78,47 +83,24 @@ class Protein:
 
     def calculate_local_density(self):
         """
-        Calculate local density for each atom using a 3D grid to accelerate neighbor search.
-        Local density is the number of atoms within Local_Density_Radius from the atom.
+        Calculate local density (number of atoms within Local_Density_Radius) for each atom
+        using cKDTree for efficient nearest neighbor search.
         """
-        # Build 3D grid
-        grid_size = Local_Density_Radius
-        grid = {}
-        def grid_index(x, y, z):
-            return (int(x // grid_size), int(y // grid_size), int(z // grid_size))
-
-        # Assign atoms to grid cells
-        for atom in self.atoms:
-            idx = grid_index(atom.xyz.x, atom.xyz.y, atom.xyz.z)
-            grid.setdefault(idx, []).append(atom)
-
-        range_squared = Local_Density_Radius * Local_Density_Radius
-
-        # For each atom, only check atoms in the same and neighboring grid cells
-        for atom in self.atoms:
-            idx = grid_index(atom.xyz.x, atom.xyz.y, atom.xyz.z)
-            neighbors = []
-            for dx in (-1, 0, 1):
-                for dy in (-1, 0, 1):
-                    for dz in (-1, 0, 1):
-                        neighbor_idx = (idx[0]+dx, idx[1]+dy, idx[2]+dz)
-                        for other in grid.get(neighbor_idx, []):
-                            # Avoid double counting by only considering atoms with higher index
-                            if id(other) < id(atom):
-                                continue
-                            if abs(atom.xyz.x - other.xyz.x) < Local_Density_Radius and \
-                               abs(atom.xyz.y - other.xyz.y) < Local_Density_Radius and \
-                               abs(atom.xyz.z - other.xyz.z) < Local_Density_Radius:
-                                distance_squared = atom.xyz.distance_squared(other.xyz)
-                                if distance_squared < range_squared:
-                                    atom.inrange_atoms.append(other)
-                                    other.inrange_atoms.append(atom)
-            # No need to set local_density here; do it after all pairs are processed
-
-        # Set local density score as the number of in-range atoms
-        for atom in self.atoms:
-            atom.local_density = len(atom.inrange_atoms)
-
+        if not self.atoms:
+            logging.warning("No atoms loaded, skipping local density calculation.")
+            return
+        # Create a list of coordinates for cKDTree
+        coords = np.array([atom.xyz.to_np() for atom in self.atoms])
+        # Create a cKDTree for fast nearest neighbor search
+        tree = cKDTree(coords)
+        # Query the tree for neighbors within Local_Density_Radius
+        indices = tree.query_ball_tree(tree, r=Local_Density_Radius)
+        # For each atom, count the number of neighbors within Local_Density_Radius
+        for i, atom in enumerate(self.atoms):
+            # Get the indices of neighbors for this atom
+            neighbor_indices = indices[i]
+            # Count neighbors excluding itself
+            atom.local_density = len(neighbor_indices) - 1
 
 
     def write_local_density(self):
@@ -159,7 +141,7 @@ if __name__ == "__main__":
     print(f"Average run time: {avg_time:.2f} seconds, Standard Deviation: {std_dev_time:.2f} seconds")
     # Timing of the execution
     # Original: 12.59+-0.14 (Office PC), 13.52+-0.25 (Home PC)
-    # Improved version:
+    # Improved version: 0.55+-0.02 (Home PC)
 
 
         # Compare with embedding scores if available
