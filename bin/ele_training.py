@@ -77,7 +77,7 @@ def fit_rf(features, data, title):
     plt.savefig(f"{title}.png")
     # Save the trained model
     logging.info(f"Saving the trained model and scaler for {title} ...")
-    model_filename = f"{title.replace(' ', '_').lower()}_model_with_scaler.pkl"
+    model_filename = f"{title.replace(' ', '_').lower()}_with_scaler.pkl"
     joblib.dump({'model': rf, 'scaler': scaler}, model_filename)
     logging.info(f"Saved the trained model and scaler to {model_filename}.")
 

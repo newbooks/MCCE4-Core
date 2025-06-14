@@ -28,7 +28,9 @@ import argparse
 import logging
 import time
 
-def predict_rf(X, y, model, title):
+def predict_rf(features, data, model, title):
+    X = data[features]
+    y = data['PBPotential']
     rf = model['model']
     scaler = model['scaler']
     # Standardize the features
@@ -86,35 +88,57 @@ if __name__ == "__main__":
     # Load the data
     logging.info(f"Loading data from {args.input_csv} ...")
     data = pd.read_csv(args.input_csv)
+    # Prepare features and target variable
+    data['DensityAverage'] = (data['Density1'] + data['Density2']) / 2
+    data['EmbeddingAverage'] = (data['Embedding1'] + data['Embedding2']) / 2
 
-
-    # predict using the model without local density
-    X = data[['Distance', 'AdjustedCoulombPotential']]
-    y = data['PBPotential']
-    # Load model and scaler from without_local_density
-    logging.info("Loading model and scaler from without_local_density...")
+    # predict using the model 1
+    features = ['Distance', 'Radius1', 'Radius2', 'Embedding1', 'Embedding2', 'Density1', 'Density2', 'CoulombPotential']
+    fname = "all_features_model_with_scaler.pkl"
+    title = "All_Features"    # Load model and scaler from without_local_density
+    logging.info("Loading model %s" % fname)
     try:
-        model = joblib.load("without_local_density_model_with_scaler.pkl")
+        model = joblib.load(fname)
     except FileNotFoundError as e:
         logging.error(f"Error loading model or scaler: {e}")
         exit(1)
-    predict_rf(X, y, model, "Without Local Density")
+    predict_rf(features, data, model, title)
 
-
-    # predict using the model with local density
-    X = data[['Distance', 'Density1', 'Density2', 'AdjustedCoulombPotential']]
-    X = X.copy()
-    X['DensityAverage'] = (X['Density1'] + X['Density2']) / 2
-    X.drop(columns=['Density1', 'Density2'], inplace=True)  # Drop individual density columns
-    y = data['PBPotential']
-    # Load model and scaler from without_local_density
-    logging.info("Loading model and scaler from with_local_density...")
+    # predict using the model 2
+    features = ['Distance', 'EmbeddingAverage', 'CoulombPotential']
+    fname = "embedding_model_with_scaler.pkl"
+    title = "With Embedding Scores"
+    logging.info("Loading model %s" % fname)
     try:
-        model = joblib.load("with_local_density_model_with_scaler.pkl")
+        model = joblib.load(fname)
     except FileNotFoundError as e:
         logging.error(f"Error loading model or scaler: {e}")
         exit(1)
-    predict_rf(X, y, model, "With Local Density")
+    predict_rf(features, data, model, title)
 
+    # predict using the model 3
+    features = ['Distance', 'DensityAverage', 'CoulombPotential']
+    fname = "density_model_with_scaler.pkl"
+    title = "With Local Density"
+    logging.info("Loading model %s" % fname)
+    try:
+        model = joblib.load(fname)
+    except FileNotFoundError as e:
+        logging.error(f"Error loading model or scaler: {e}")
+        exit(1)
+    predict_rf(features, data, model, title)
+
+
+    # predict using the model 4
+    features = ['Distance', 'DensityAverage', 'EmbeddingAverage', 'CoulombPotential']
+    fname = "density+embedding_model_with_scaler.pkl"
+    title = "With Local Density and Embedding Scores"
+    logging.info("Loading model %s" % fname)
+    try:
+        model = joblib.load(fname)
+    except FileNotFoundError as e:
+        logging.error(f"Error loading model or scaler: {e}")
+        exit(1)
+    predict_rf(features, data, model, title)
 
     plt.show()  # Show the plot interactively
