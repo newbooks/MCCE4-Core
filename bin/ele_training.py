@@ -32,7 +32,9 @@ import argparse
 import logging
 import time
 
-def fit_rf(X, y, title):
+def fit_rf(features, data, title):
+    X = data[features]
+    y = data['PBPotential']
     X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=int(time.time()))
     # Standardize the features
     scaler = StandardScaler()
@@ -70,12 +72,12 @@ def fit_rf(X, y, title):
     feature_importance_adjusted_df = pd.DataFrame({'Feature': feature_names_adjusted, 'Importance': feature_importances_adjusted})
     feature_importance_adjusted_df = feature_importance_adjusted_df.sort_values(by='Importance', ascending=False)
     plt.text(0.05, 0.85, "\n".join([f"{row['Feature']}: {row['Importance']:.4f}" for _, row in feature_importance_adjusted_df.iterrows()]), transform=plt.gca().transAxes, fontsize=10, verticalalignment='top')
-    plt.xlim(y_val.min(), y_val.max())
-    plt.ylim(y_val.min(), y_val.max())
+    plt.xlim(y.min(), y.max())
+    plt.ylim(y.min(), y.max())
     plt.savefig(f"{title}.png")
     # Save the trained model
     logging.info(f"Saving the trained model and scaler for {title} ...")
-    model_filename = f"{title.replace(' ', '_').lower()}_model_with_scaler.pkl"
+    model_filename = f"{title.replace(' ', '_').lower()}_with_scaler.pkl"
     joblib.dump({'model': rf, 'scaler': scaler}, model_filename)
     logging.info(f"Saved the trained model and scaler to {model_filename}.")
 
@@ -94,23 +96,35 @@ if __name__ == "__main__":
     logging.info(f"Loading data from {args.input_csv} ...")
     data = pd.read_csv(args.input_csv)
 
-    # Prepare features and target variable - without local density
-    X = data[['Distance', 'AdjustedCoulombPotential']]
-    y = data['PBPotential']
+    # Prepare features and target variable
+    data['DensityAverage'] = (data['Density1'] + data['Density2']) / 2
+    data['EmbeddingAverage'] = (data['Embedding1'] + data['Embedding2']) / 2
 
     # Train the model
-    fit_rf(X, y, "Without Local Density")
-    logging.info("Model trained without local density features.")
+    features = ['Distance', 'Radius1', 'Radius2', 'Embedding1', 'Embedding2', 'Density1', 'Density2', 'CoulombPotential']
+    title = "All_Features"
+    fit_rf(features, data, title)
+    logging.info(f"Model trained by {title}.")
 
 
-    # Prepare features and target variable - with local density
-    X = data[['Distance', 'Density1', 'Density2', 'AdjustedCoulombPotential']]
-    X = X.copy()
-    X['DensityAverage'] = (X['Density1'] + X['Density2']) / 2
-    y = data['PBPotential']
-    X.drop(columns=['Density1', 'Density2'], inplace=True)  # Remove individual densities
-    fit_rf(X, y, "With Local Density")
-    logging.info("Model trained with local density features.")
+    # Train the second model
+    features = ['Distance', 'EmbeddingAverage', 'CoulombPotential']
+    title = "Embedding"
+    fit_rf(features, data, title)
+    logging.info(f"Model trained by {title}.")
+
+
+    # Train the third model
+    features = ['Distance', 'DensityAverage', 'CoulombPotential']
+    title = "Density"
+    fit_rf(features, data, title)
+    logging.info(f"Model trained by {title}.")
+
+    # Train the third model
+    features = ['Distance', 'DensityAverage', 'EmbeddingAverage', 'CoulombPotential']
+    title = "Density+Embedding"
+    fit_rf(features, data, title)
+    logging.info(f"Model trained by {title}.")
 
 
     plt.show()
