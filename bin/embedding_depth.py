@@ -6,9 +6,10 @@ MCCE4 Tool: Standalone Program to Calculate Atom Embedding Score
 
 import logging
 import argparse
-from mcce.geom import *
+from scipy.spatial import cKDTree
 import time
-
+import numpy as np
+from mcce.geom import *
 
 logging_format = "%(asctime)s %(levelname)s: %(message)s"
 logging_format_debug = "%(asctime)s %(levelname)s [%(module)s]: %(message)s"
@@ -59,7 +60,7 @@ class Protein:
         self.atoms = []  # List of Atom objects
         self.box = None  # Placeholder for the box object if needed
         self.grid = None  # Placeholder for the grid object if needed
-
+        self.neighbor_candidates = []  # List of points in the grid that are occupied by atoms and their probe radius
 
     def __repr__(self):
         return f"Protein: {self.pdb_file}, Atoms: {len(self.atoms)}"
@@ -83,7 +84,10 @@ class Protein:
                 self.atoms.append(atom)
 
     def calculate_box(self):
-        """Calculate the grid box for the protein based on atom coordinates."""
+        """
+        Calculate the grid box for the protein based on atom coordinates.
+        This grid bos is a list of coordinates that occupied by atoms and their probe radius.
+        """
 
         min_x = min(atom.xyz.x for atom in self.atoms) - Grid_Expansion
         max_x = max(atom.xyz.x for atom in self.atoms) + Grid_Expansion
@@ -120,50 +124,61 @@ class Protein:
                             y_cell = y_idx + dy
                             z_cell = z_idx + dz
                             self.grid[x_cell, y_cell, z_cell] = True
+        
+        # Convert the grid to points list. This list will be the neighbor candidates
+        self.neighbor_candidates = []
+        for x in range(self.grid.shape[0]):
+            for y in range(self.grid.shape[1]):
+                for z in range(self.grid.shape[2]):
+                    if self.grid[x, y, z]:
+                        # Convert grid indices back to coordinates
+                        coord = [
+                            min_x + x * GRID_SIZE,
+                            min_y + y * GRID_SIZE,
+                            min_z + z * GRID_SIZE
+                        ]
+                        self.neighbor_candidates.append(coord)  
 
 
     def atom_embedding_score(self):
-        """Calculate the embedding score for each atom."""
-        # if self.grid is None:
-        #     logging.error("Grid not calculated. Cannot compute embedding score.")
-        #     return
-
-        # grid_shape = self.grid.shape
-        box_min = self.box[0]
-
+        """Calculate the embedding depth for each atom."""
+        # The query set is the atoms, and the reference set is the neighbor_candidates
+        # Use KD Tree to find all neighbors within the embedding depth radius, then subtract the neighbors within the atom radius + probe radius
+        # Create a KDTree from the neighbor candidates
+        tree = cKDTree(self.neighbor_candidates)
         for atom in self.atoms:
-            x_idx = int((atom.xyz.x - box_min[0]) / GRID_SIZE)
-            y_idx = int((atom.xyz.y - box_min[1]) / GRID_SIZE)
-            z_idx = int((atom.xyz.z - box_min[2]) / GRID_SIZE)
-
-            occupied_cells = 0
-            total_cells = 0
-            outer_radius = int((atom.radius + PROBE_RAD + GRID_DEPTH) / GRID_SIZE)
-            inner_radius = int((atom.radius + PROBE_RAD) / GRID_SIZE)
-            outer_radius_sq = outer_radius * outer_radius
-            inner_radius_sq = inner_radius * inner_radius
+            # Calculate the embedding depth radius
+            embedding_depth_radius = atom.radius + PROBE_RAD + GRID_DEPTH
             
-            for dx in range(-outer_radius, outer_radius):
-                for dy in range(-outer_radius, outer_radius):
-                    for dz in range(-outer_radius, outer_radius):
-                        dist_sq = dx*dx + dy*dy + dz*dz
-                        if inner_radius_sq < dist_sq <= outer_radius_sq:
-                            total_cells += 1
-                            x_cell = x_idx + dx
-                            y_cell = y_idx + dy
-                            z_cell = z_idx + dz
-                            # if (0 <= x_cell < grid_shape[0] and
-                            #     0 <= y_cell < grid_shape[1] and
-                            #     0 <= z_cell < grid_shape[2] and
-                            #     self.grid[x_cell, y_cell, z_cell]):
-                            if self.grid[x_cell, y_cell, z_cell]:
-                                occupied_cells += 1
+            # Query the KDTree for neighbors within the embedding depth radius
+            indices = tree.query_ball_point(atom.xyz.to_np(), r=embedding_depth_radius)
+            
+            # Count the number of neighbors found
+            total_neighbors = len(indices)
+            
+            # Now query for neighbors within the atom radius + probe radius
+            inner_radius = atom.radius + PROBE_RAD
+            inner_indices = tree.query_ball_point(atom.xyz.to_np(), r=inner_radius)
+            
+            # Count the number of neighbors within the inner radius
+            inner_neighbors = len(inner_indices)
+            
+            # Estimate the total number of grids between embedding depth radius and inner radius by the volume of the spherical shell divided by the grid size
+            points_in_shell = (4/3 * np.pi * (embedding_depth_radius**3 - inner_radius**3))/ (GRID_SIZE**3)
 
-            atom.embedding = occupied_cells / total_cells if total_cells > 0 else 0
+            # Calculate the embedding score as the difference between total neighbors and inner neighbors, normalized by the estimated points in the shell
+            if points_in_shell > 0:
+                atom.embedding = (total_neighbors - inner_neighbors) / points_in_shell
+                # If the embedding score is over 1, set it to 1
+                # if atom.embedding > 1:
+                #     atom.embedding = 1
+            else:
+                # If no points in shell, set embedding to 0
+                atom.embedding = 0
 
     def write_embedding_scores(self):
         """Write the embedding scores to a file."""
-        output_file = f"{self.pdb_file.rsplit('.', 1)[0]}.embedding"
+        output_file = f"{self.pdb_file.rsplit('.', 1)[0]}.depth"
         with open(output_file, "w") as f:
             for atom in self.atoms:
                 f.write(f"{atom}\n")
@@ -171,10 +186,11 @@ class Protein:
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format=logging_format, datefmt=logging_datefmt)
     args = parse_arguments()
-
+    
     run_times = []
-    for i in range(5):
-        logging.info(f"Run {i+1} of 5")
+    N = 5  # Number of runs for averaging
+    for i in range(N):
+        logging.info(f"Run {i+1} of {N} ")
         # Start timing
         time_start = time.time()
         
@@ -200,5 +216,8 @@ if __name__ == "__main__":
     std_dev_time = (sum((x - avg_time) ** 2 for x in run_times) / len(run_times)) ** 0.5
     print(f"Average run time: {avg_time:.2f} seconds, Standard Deviation: {std_dev_time:.2f} seconds")
 
-    # Timing of the execution
-    # 3.47 +- 0.04 (Home PC)
+    # Timing of the execution on large/state_0001.pdb:
+    # embedding_score.py: 3.47 +- 0.04 (Home PC)
+    # embedding_depth.py: 1.85 +- 0.03 (Home PC)
+
+    # plot the embedding scores vs embedding depth
