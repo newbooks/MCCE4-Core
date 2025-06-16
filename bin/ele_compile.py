@@ -4,30 +4,26 @@ MCCE4 Tool: Compile Electrostatic Energy
 Description: Compile electrostatic energy for a given protein structure (microstate)
 This script does the Step 3 of the ele fitting
 
-Step 0. Calculate the embedding score
+Required files:
+- step2_out.pdb: PDB file with atom properties (charge, radius, etc.)
+- statename.density: Local density file for the state name
+- energies/step3_out.opp: Opp file with electrostatic energy calculated by delphi
 
-Step 1. Prepare step2_out.pdb by ele_setup.py
-delphi_ele.py will prepare a file from step2_out.pdb in which:
-1. the atom radius will be set to the values used by embedding depth score calculation.
-2. the atom charge will be set to +1 per conformer on one atom, so that the opp reports atom to atom ele
-
-Step 2. Run delphi
-After step2_out.pdb is ready, we will switch to MCCE4 to use step3.py run delphi
-```
-step3.py -s delphi --debug
-```
-
-Step 3. Compile ele from delphi and embedding score to a csv file
-ele_compile.py will grab information from opp files under energies folder and embedding score to make a csv file
-
+Output file:
 Columns:
-- distance between atom 1 and atom 2
-- radius of atom 1
-- radius of atom 2
-- embedding score atom 1
-- embedding score atom 2
-- Columbs potential in kcal/mol
-- electrostatic energy calculated by delphi in kcal/mol
+- Conf1: Conformer ID for atom 1
+- Conf2: Conformer ID for atom 2
+- Distance: Distance between two atoms in Angstroms
+- Radius1: radius of atom 1
+- Radius2: radius of atom 2
+- Density1_Near: Near density score for atom 1 
+- Density2_Near: Near density score for atom 2
+- Density1_Mid: Far density score for atom 1
+- Density2_Mid: Far density score for atom 2
+- Density1_Far: Far density score for atom 1
+- Density2_Far: Far density score for atom 2
+- CoulombPotential: Coulomb potential in kcal/mol
+- PBPotential: electrostatic energy calculated by delphi in kcal/mol
 """
 
 import logging
@@ -35,46 +31,23 @@ import argparse
 import os
 from mcce.geom import *
 
-# Constants
-k_coulomb = 332.06371  # Coulomb's constant in kcal/(mol*Å*e^2)
-# KCAL2KT = 1.688
-D_in = 4.0   # inner dielectric constant (Coulomb potential was calculated with this dielectric constant)
-D_out = 80.0 # outter dielectric constant
-
 
 class AtomProperties:
+    __slots__ = ("confid", "xyz", "radius", "charge", "density_near", "density_mid", "density_far")
+
     def __init__(self):
         self.confid = ""
         self.xyz = Vector()
         self.radius = 0.0
         self.charge = 0.0
-        self.embedding = 0.0
-        self.density = 0
+        self.density_near = 0
+        self.density_mid = 0
+        self.density_far = 0
 
     def __repr__(self):
-        return f"{self.line[:30]}{self.xyz.x:8.3f}{self.xyz.y:8.3f}{self.xyz.z:8.3f}{self.radius:8.3f}{self.embedding:8.3f}"
-
-def update_embedding_score(atoms, fname):
-    """
-    Update embedding scores for atoms.
-    """
-    
-    # Load the embedding score file
-    if not os.path.isfile(fname):
-        logging.error(f"Embedding score file {fname} not found")
-        exit(1)
-    embedding_lines = open(fname).readlines()
-    embedding_lines = [line.strip() for line in embedding_lines if line.strip()]  # Remove empty lines    
-    # we will store the embedding score in atom properties dictionary, indexed by atom id
-    for line in embedding_lines:
-        if line.startswith("ATOM  ") or line.startswith("HETATM"):
-            atomname = line[12:16]
-            resname = line[17:20]
-            chainid = line[21]
-            resseq = line[22:26]
-            atom_id = (atomname, resname, chainid, resseq)
-            if atom_id in atoms:
-                atoms[atom_id].embedding = float(line[62:].strip())            
+        return (f"{self.confid} {self.xyz.x:8.3f} {self.xyz.y:8.3f} {self.xyz.z:8.3f} "
+                f"{self.radius:8.3f} {self.charge:8.3f} {self.density_near:8d} "
+                f"{self.density_mid:8d} {self.density_far:8d}")
 
 
 def update_density_score(atoms, fname):
@@ -83,70 +56,59 @@ def update_density_score(atoms, fname):
     Local density is calculated by step2_out.pdb and stored in a file with the same name as the state name.
     The file contains lines like:
     ATOM  1  N   ALA A   1      11.104  12.345  13.456  1.00  0.00           N
-    The last column is the local density score.
+    The last columns are the local density scores.
     """
-    
     if not os.path.isfile(fname):
         logging.error(f"Local density file {fname} not found")
         exit(1)
-    density_lines = open(fname).readlines()
-    density_lines = [line.strip() for line in density_lines if line.strip()]  # Remove empty lines    
-    for line in density_lines:
-        if line.startswith("ATOM  ") or line.startswith("HETATM"):
-            atomname = line[12:16]
-            resname = line[17:20]
-            chainid = line[21]
-            resseq = line[22:26]
-            atom_id = (atomname, resname, chainid, resseq)
-            if atom_id in atoms:
-                atoms[atom_id].density = int(line[62:].strip())
+    with open(fname) as f:
+        for line in f:
+            if line.startswith(("ATOM  ", "HETATM")):
+                atom_id = (line[12:16], line[17:20], line[21], line[22:26])
+                if atom_id in atoms:
+                    # Expecting three density values at the end of the line
+                    densities = line[62:].split()
+                    if len(densities) >= 3:
+                        atoms[atom_id].density_near = int(densities[0])
+                        atoms[atom_id].density_mid = int(densities[1])
+                        atoms[atom_id].density_far = int(densities[2])
 
 
 def load_atoms():
     """
     Load atom properties from step2_out.pdb.
-        - confid
-        - xyz
-        - radius
-        - charge
-    We only care about the charge atoms. That is, one atom from one side chain. This way, the geometry environment of atoms is distinct.
+    Only charged atoms are considered.
     """
     pdb_file = "step2_out.pdb"
     if not os.path.isfile(pdb_file):
         logging.error(f"PDB file {pdb_file} not found")
         exit(1)
-    pdb_lines = open(pdb_file).readlines()
-    pdb_lines = [line.strip() for line in pdb_lines if line.strip()]  # Remove empty lines
     atoms = {}
-    for line in pdb_lines:
-        if line.startswith("ATOM  ") or line.startswith("HETATM"):
-            atom = AtomProperties()
-            atomname = line[12:16]
-            resname = line[17:20]
-            chainid = line[21]
-            resseq = line[22:26]
-            atom_id = (atomname, resname, chainid, resseq)
-            confid = resname + line[80:82] + line[21:30]
-            atom.xyz = Vector((float(line[30:38].strip()), float(line[38:46].strip()), float(line[46:54].strip())))
-            atom.radius = float(line[54:62].strip())
-            atom.charge = float(line[62:74].strip())
-            atom.confid = confid
-            if abs(atom.charge) > 0.1:
-                atoms[atom_id] = atom
-
+    with open(pdb_file) as f:
+        for line in f:
+            if line.startswith(("ATOM  ", "HETATM")):
+                atom = AtomProperties()
+                atomname = line[12:16]
+                resname = line[17:20]
+                chainid = line[21]
+                resseq = line[22:26]
+                atom_id = (atomname, resname, chainid, resseq)
+                confid = resname + line[80:82] + line[21:30]
+                atom.xyz = Vector((float(line[30:38]), float(line[38:46]), float(line[46:54])))
+                atom.radius = float(line[54:62])
+                atom.charge = float(line[62:74])
+                if abs(atom.charge) > 0.001:  # Only consider charged atoms
+                    atom.confid = confid
+                    atoms[atom_id] = atom
     return atoms
 
 
 def get_electrostatic_energy(atoms):
     """
-    Get electrostatic energy from PBE files.
-    Electrostatic energy is calculated by delphi and stored in /tmp/pbe files.
-    Coulomb potential is calculated by delphi and stored in /tmp/pbe files.
-    PBE files will be loaded once and stored in a dictionary.
-    What goes into the csv file is the matrix of atoms from atom_proterties if the atom charge is not 0.  
+    Get electrostatic energy from opp files.
+    Returns a dictionary mapping (atom_id1, atom_id2) to electrostatic energy.
     """
-
-    # reverse search for the atom properties
+    # Map confid to atom_id for quick lookup
     conformers = {}
     for atom_id, atom in atoms.items():
         if atom.confid not in conformers:
@@ -154,24 +116,26 @@ def get_electrostatic_energy(atoms):
         else:
             logging.warning(f"Confid {atom.confid} already exists, skipping {atom_id}")
 
-    # Get the PBE file name
-    confids = list(conformers.keys())
-    
-    # get pairwise ele
     pairwise_ele = {}
-    for iconf in range(len(confids)-1):
-        conf1 = confids[iconf]
-        fname = "energies/"+ conf1 + ".opp"
+    opp_dir = "energies"
+    for conf1, atom_id1 in conformers.items():
+        fname = os.path.join(opp_dir, f"{conf1}.opp")
         if not os.path.isfile(fname):
             logging.error(f"Opp file {fname} not found")
             exit(1)
-        opp_lines = open(fname).readlines()
-        for line in opp_lines:
-            fields = line.strip().split()
-            conf2 = fields[1]
-            ele = float(fields[5])
-            pairwise_ele[(conformers[conf1], conformers[conf2])] = ele  # translate to atom pairs
-
+        with open(fname) as opp_file:
+            for line in opp_file:
+                fields = line.strip().split()
+                if len(fields) < 6:
+                    continue
+                conf2 = fields[1]
+                atom_id2 = conformers.get(conf2)
+                if atom_id2 is not None:
+                    try:
+                        ele = float(fields[5])
+                        pairwise_ele[(atom_id1, atom_id2)] = ele
+                    except ValueError:
+                        continue
     return pairwise_ele
 
 
@@ -203,9 +167,6 @@ The output CSV contains columns such as distances, embedding scores, internal/ex
     logging.info("Loading atoms from step2_out.pdb ...")
     atoms = load_atoms()
 
-    logging.info(f"Loading embedding score from {args.statename}.embedding ...")
-    update_embedding_score(atoms, f"{args.statename}.embedding")
-
     logging.info(f"Loading local density from {args.statename}.density ...")
     update_density_score(atoms, f"{args.statename}.density")
 
@@ -220,14 +181,13 @@ The output CSV contains columns such as distances, embedding scores, internal/ex
     logging.info("Compiling results into CSV file ...")
     output_file = f"{args.statename}_compiled.csv"
     with open(output_file, 'w') as f:
-        f.write("Conf1,Conf2,Distance,Radius1,Radius2,Embedding1,Embedding2,Density1,Density2,CoulombPotential,AdjustedCoulombPotential,PBPotential\n")
+        f.write("Conf1,Conf2,Distance,Radius1,Radius2,Density1_Near,Density2_Near,Density1_Mid,Density2_Mid,Density1_Far,Density2_Far,CoulombPotential,PBPotential\n")
         for (atom_id1, atom_id2), ele in pairwise_ele.items():
             atom1, atom2 = atoms[atom_id1], atoms[atom_id2]
             distance = atom1.xyz.distance(atom2.xyz)
-            embedding_avg = (atom1.embedding + atom2.embedding) / 2.0
-            coulomb_potential = k_coulomb * atom1.charge * atom2.charge / D_in / distance if distance > 0 else 0.0
-            adjusted_coulomb = coulomb_potential * ((D_out - D_in) * embedding_avg + D_in) / D_out
+            coulomb_potential = atom1.charge * atom2.charge / distance if distance > 0 else 0.0
+            # write the row to the CSV file
             f.write(f"{atom1.confid},{atom2.confid},{distance:.3f},{atom1.radius:.3f},{atom2.radius:.3f},"
-                    f"{atom1.embedding:.3f},{atom2.embedding:.3f},{atom1.density:d},{atom2.density:d},{coulomb_potential:.3f},{adjusted_coulomb:.3f},{ele:.3f}\n")
+                    f"{atom1.density_near:.3f},{atom2.density_near:.3f},{atom1.density_mid:.3f},{atom2.density_mid:.3f},{atom1.density_far:.3f},{atom2.density_far:.3f},{coulomb_potential:.3f},{ele:.3f}\n")
 
     logging.info(f"Results compiled into {output_file}. Energy unit is kcal/mol.")

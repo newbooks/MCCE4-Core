@@ -11,12 +11,7 @@ step2.py --writepdb
 The microstate pdb files are in folder "ga_output".
 
 
-2. Step 2: Embedding score and local density score
-Use this command to calculate the embedding score on a selected microstate pdb file
-```
-embedding_score.py microstate_pdb
-```
-
+2. Step 2: Local density score
 Use this command to calculate the local density score on a selected microstate pdb file
 ```
 local_density.py microstate_pdb
@@ -51,18 +46,23 @@ Columns in CSV file:
 - Conf1
 - Conf2
 - Distance
-- Embedding1
-- Embedding2
-- Density1
-- Density2
+- Radius1
+- Radius2
+- Density1_Near
+- Density2_Near
+- Density1_Mid
+- Density2_Mid
+- Density1_Near
+- Density2_Near
 - CoulombPotential
-- AdjustedCoulombPotential
 - PBPotential
 
-6. Modeling
+6. Modeling, compare models
 Use script:
 - ele_fitting.py
-- ele_fitting2.py
 
-Use Jupyter Notebook
-- ele_fitting.ipynb
+7. Training and Prediction
+We use small(4pti), medium(4lzt) and large(2rcr) proteins to train a combined model and evaluate the performance of this combined model.
+```
+mkdir small
+```

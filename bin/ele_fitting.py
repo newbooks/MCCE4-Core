@@ -1,15 +1,19 @@
 #!/usr/bin/env python
 """
-Use compiled electrostatic energy to fit a model
-to predict electrostatic energy based on embedding scores and distances.
+Use compiled electrostatic energy to fit a model to predict electrostatic energy based on embedding scores and distances.
 
 The input is a CSV file with the following columns:
-- conf1: Conformer ID for atom 1
-- conf2: Conformer ID for atom 2
-- distance: Distance between two atoms in Angstroms
-- embedding1: Embedding score for atom 1
-- embedding2: Embedding score for atom 2
+- Conf1: Conformer ID for atom 1
+- Conf2: Conformer ID for atom 2
+- Distance: Distance between two atoms in Angstroms
+- Radius1: Radius for atom 1
+- Radius2: Radius for atom 2
+- Embedding1: Embedding score for atom 1
+- Embedding2: Embedding score for atom 2
+- Density1: Density score for atom 1
+- Density2: Density score for atom 2
 - CoulombPotential: Coulomb potential between two atoms
+- AdjustedCoulombPotential: Adjusted Coulomb potential based on embedding scores
 - PBPotential: Electrostatic energy from Poisson-Boltzmann calculation
 """
 
@@ -20,11 +24,9 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
-from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error, r2_score
 import numpy as np
 from sklearn.ensemble import RandomForestRegressor
-from xgboost import XGBRegressor
 import joblib
 import argparse
 import logging
@@ -32,6 +34,50 @@ import time
 
 D_in = 4.0    # inner dielectric constant (Coulomb potential)
 D_out = 80.0  # outter dielectric constant
+
+def fit_rf(features, data, title):
+    X = data[features]
+    y = data['PBPotential']
+    X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=int(time.time()))
+    # Standardize the features
+    scaler = StandardScaler()
+    X_train = scaler.fit_transform(X_train)
+    X_val = scaler.transform(X_val)
+    # Train a Random Forest model
+    logging.info(f"Training with {title}...")
+    rf_adjusted = RandomForestRegressor(n_estimators=100, random_state=int(time.time()))
+    rf_adjusted.fit(X_train, y_train)
+    # Evaluate the model
+    logging.info(f"Evaluating with {title} on validation set...")
+    y_pred_adjusted = rf_adjusted.predict(X_val)
+    rmse_adjusted = np.sqrt(mean_squared_error(y_val, y_pred_adjusted))
+    y_range_adjusted = np.ptp(y_val)  # Range of true values
+    normalized_rmse_adjusted = rmse_adjusted / y_range_adjusted if y_range_adjusted != 0 else 0
+    r2_adjusted = r2_score(y_val, y_pred_adjusted)
+    logging.info(f"Adjusted Coulomb Potential - R2: {r2_adjusted:.3f}, RMSE: {normalized_rmse_adjusted:.3f}")
+    # get feature importances
+    feature_importances_adjusted = rf_adjusted.feature_importances_
+    feature_names_adjusted = X.columns
+    # Log the feature importances
+    for name, importance in zip(feature_names_adjusted, feature_importances_adjusted):
+        logging.info(f"Feature: {name}, Importance: {importance:.4f}")
+    # Plot the results
+    plt.figure(figsize=(10, 6))
+    sns.scatterplot(x=y_val, y=y_pred_adjusted, alpha=0.5)
+    plt.grid(True)  # add grid lines
+    plt.plot([y_val.min(), y_val.max()], [y_val.min(), y_val.max()], 'r--', lw=2)  # Diagonal line
+    plt.xlabel("True PB Potential")
+    plt.ylabel("Predicted PB Potential")
+    plt.title(f"{title}")
+    # print R^2 and RMSE on the plot
+    plt.text(0.05, 0.95, f"R^2: {r2_adjusted:.3f} Good if > 0.9\nRMSE: {normalized_rmse_adjusted:.3f} Good if <0.05", transform=plt.gca().transAxes, fontsize=12, verticalalignment='top')
+    # Sort and add feature importances to the plot
+    feature_importance_adjusted_df = pd.DataFrame({'Feature': feature_names_adjusted, 'Importance': feature_importances_adjusted})
+    feature_importance_adjusted_df = feature_importance_adjusted_df.sort_values(by='Importance', ascending=False)
+    plt.text(0.05, 0.85, "\n".join([f"{row['Feature']}: {row['Importance']:.4f}" for _, row in feature_importance_adjusted_df.iterrows()]), transform=plt.gca().transAxes, fontsize=10, verticalalignment='top')
+    plt.xlim(y_val.min(), y_val.max())
+    plt.ylim(y_val.min(), y_val.max())
+    plt.savefig(f"{title}.png")
 
 
 if __name__ == "__main__":
@@ -43,142 +89,49 @@ if __name__ == "__main__":
     # Parse command line arguments
     parser = argparse.ArgumentParser(description="Fit a model to predict electrostatic energy based on embedding scores and distances.")
     parser.add_argument("input_csv", help="Input CSV file with columns: conf1, conf2, distance, embedding1, embedding2, CoulombPotential, PBPotential")
-    parser.add_argument("--output_model", default="electrostatic_model.pkl", help="Output model file name")
+    parser.add_argument("--output_model", default="", help="Output model file name")
     args = parser.parse_args()
 
     # Load the data
     logging.info(f"Loading data from {args.input_csv} ...")
     data = pd.read_csv(args.input_csv)
-
     # Check if required columns are present
-    required_columns = ['Conf1', 'Conf2', 'Distance', 'Embedding1', 'Embedding2', 'CoulombPotential', 'PBPotential']
+    required_columns = ['Conf1', 'Conf2', 'Distance', 'Radius1', 'Radius2', 'Embedding1', 'Embedding2', 'Density1', 'Density2', 'CoulombPotential', 'AdjustedCoulombPotential', 'PBPotential']
     for col in required_columns:
         if col not in data.columns:
             logging.error(f"Missing required column: {col}")
             exit(1)
-
-    # Prepare features and target variable
-    X = data[['Distance', 'Embedding1', 'Embedding2', 'CoulombPotential']]
-    y = data['PBPotential']
-
+    
+    # Evaluate all features as is    
+    features = ['Distance', 'Radius1', 'Radius2', 'Embedding1', 'Embedding2', 'Density1', 'Density2', 'CoulombPotential']
+    title = "All_Features"
     logging.info("Features and target variable prepared.")
-    # print(X.head())  # Print the first few rows of the features for debuggiSng
-    # print the target name
-    # print("\n  PBPotential")
-    # print(y.head())  # Print the first few rows of the target variable for debugging
+    fit_rf(features, data, title)
 
-    # Add columns that are likely to contribute to the model
-    X = X.copy()
-    X['EmbeddingAverage'] = (X['Embedding1'] + X['Embedding2']) / 2
-    # PBPotential = CoulombPotential * EmbeddingAverage + CoulombPotential * (1 - EmbeddingAverage) * D_in/D_out 
-    X['CoulombPotentialAdjusted'] = X['CoulombPotential'] * (D_in / D_out) * (1 - X['EmbeddingAverage']) + X['CoulombPotential'] * X['EmbeddingAverage']
+    # Reduce some features by averaging the symmetric ones
+    # average embedding and density scores in the dataframe
+    logging.info("Reducing features by averaging symmetric ones...")
+    data['EmbeddingAverage'] = (data['Embedding1'] + data['Embedding2']) / 2
+    data['DensityAverage'] = (data['Density1'] + data['Density2']) / 2
+    title = "Independent features"
+    features = ['Distance', 'EmbeddingAverage', 'DensityAverage', 'CoulombPotential']
+    fit_rf(features, data, title)
+    logging.info("Features and target variable prepared.")
+
+    # Use the embedding modified Coulomb potential
+    logging.info("Using embedding modified Coulomb potential...")
+    features = ['Distance', 'EmbeddingAverage']
+    title = "Embedding_Modified_Coulomb_Potential"
+    fit_rf(features, data, title)
+
+    # Use the density modified Coulomb potential
+    logging.info("Using density modified Coulomb potential...")
+    data['DmodifiedCoulombPotential'] = data['CoulombPotential'] * data['DensityAverage']
+    features = ['Distance', 'DmodifiedCoulombPotential']
+    title = "Density_Modified_Coulomb_Potential"
+    fit_rf(features, data, title)
 
 
-    # Split the data into training and testing sets
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=int(time.time()))
-
-    # Standardize the features
-    scaler = StandardScaler()
-    X_train_scaled = scaler.fit_transform(X_train)
-    X_test_scaled = scaler.transform(X_test)
-
-    # Fit a linear regression model
-    logging.info("Fitting linear regression model ...")
-    linear_model = LinearRegression()
-    linear_model.fit(X_train_scaled, y_train)
-
-    # Predict on the test set
-    y_pred_linear = linear_model.predict(X_test_scaled)
-
-    # Evaluate the linear model
-    mse_linear = mean_squared_error(y_test, y_pred_linear)
-    r2_linear = r2_score(y_test, y_pred_linear)
-    
-    logging.info(f"Linear Regression Model - MSE: {mse_linear}, R^2: {r2_linear}")
-
-    # Print MSA and R^2 with reference values (good or bad)
-    print(f"Linear Regression Model - MSE: {mse_linear:.4f} (Good if < 0.1)")
-    print(f"Linear Regression Model - R^2: {r2_linear:.4f} (Good if > 0.8)")
-    print(f"Linear Regression Model - Coefficients: {linear_model.coef_}")
-    print(f"Linear Regression Model - Intercept: {linear_model.intercept_}")          
-    
-
-    # plot the results
-    plt.figure(figsize=(10, 6))
-    plt.scatter(y_test, y_pred_linear, alpha=0.5)
-    plt.plot([y_test.min(), y_test.max()], [y_test.min(), y_test.max()], 'k--', lw=2)
-    plt.xlabel('True PBPotential')
-    plt.ylabel('Predicted PBPotential')
-    plt.title('Linear Regression Model: True vs Predicted PBPotential')
-    plt.grid()
-    # plt.savefig('linear_regression_results.png')
     plt.show()
+    plt.close()  # Close the plot to free memory
 
-
-    # Fit a Random Forest Regressor
-    logging.info("Fitting Random Forest Regressor ...")
-    rf_model = RandomForestRegressor(n_estimators=100, random_state=int(time.time()))
-    rf_model.fit(X_train_scaled, y_train)
-    # Predict on the test set
-    y_pred_rf = rf_model.predict(X_test_scaled)
-    # Evaluate the Random Forest model
-    mse_rf = mean_squared_error(y_test, y_pred_rf)
-    r2_rf = r2_score(y_test, y_pred_rf)
-    logging.info(f"Random Forest Model - MSE: {mse_rf}, R^2: {r2_rf}")
-    # Print MSA and R^2 with reference values (good or bad)
-    print(f"Random Forest Model - MSE: {mse_rf:.4f} (Good if < 0.1)")
-    print(f"Random Forest Model - R^2: {r2_rf:.4f} (Good if > 0.8)")
-    print(f"Random Forest Model - Feature Importances: {rf_model.feature_importances_}")
-    # plot the results
-    plt.figure(figsize=(10, 6))
-    plt.scatter(y_test, y_pred_rf, alpha=0.5)
-    plt.plot([y_test.min(), y_test.max()], [y_test.min(), y_test.max()], 'k--', lw=2)
-    plt.xlabel('True PBPotential')
-    plt.ylabel('Predicted PBPotential')
-    plt.title('Random Forest Model: True vs Predicted PBPotential')
-    plt.grid()
-    # plt.savefig('random_forest_results.png')
-    plt.show()
-
-    # Fit an XGBoost Regressor
-    logging.info("Fitting XGBoost Regressor ...")
-    xgb_model = XGBRegressor(n_estimators=100, random_state=int(time.time()), verbosity=0)
-    xgb_model.fit(X_train_scaled, y_train)
-    # Predict on the test set
-    y_pred_xgb = xgb_model.predict(X_test_scaled)
-    # Evaluate the XGBoost model
-    mse_xgb = mean_squared_error(y_test, y_pred_xgb)
-    r2_xgb = r2_score(y_test, y_pred_xgb)
-    logging.info(f"XGBoost Model - MSE: {mse_xgb}, R^2: {r2_xgb}")
-    # Print MSA and R^2 with reference values (good or bad)
-    print(f"XGBoost Model - MSE: {mse_xgb:.4f} (Good if < 0.1)")
-    print(f"XGBoost Model - R^2: {r2_xgb:.4f} (Good if > 0.8)")
-    print(f"XGBoost Model - Feature Importances: {xgb_model.feature_importances_}")
-    # plot the results
-    plt.figure(figsize=(10, 6))
-    plt.scatter(y_test, y_pred_xgb, alpha=0.5)
-    plt.plot([y_test.min(), y_test.max()], [y_test.min(), y_test.max()], 'k--', lw=2)
-    plt.xlabel('True PBPotential')
-    plt.ylabel('Predicted PBPotential')
-    plt.title('XGBoost Model: True vs Predicted PBPotential')
-    plt.grid()
-    # plt.savefig('xgboost_results.png')
-    plt.show()
-    # print the feature importances
-    importances = xgb_model.feature_importances_
-    feature_names = X.columns
-    feature_importances = pd.DataFrame({'Feature': feature_names, 'Importance': importances})
-    feature_importances = feature_importances.sort_values(by='Importance', ascending=False)
-    logging.info("Feature Importances:")
-    logging.info(feature_importances)
-
-
-    # Plot PBPotential vs CoulombPotentialAdjusted
-    plt.figure(figsize=(10, 6))
-    plt.scatter(X['CoulombPotentialAdjusted'], y, alpha=0.5)
-    plt.xlabel('CoulombPotentialAdjusted')
-    plt.ylabel('PBPotential')
-    plt.title('PBPotential vs CoulombPotentialAdjusted')
-    plt.grid()
-    # plt.savefig('pbpotential_vs_coulombpotentialadjusted.png')
-    plt.show()
