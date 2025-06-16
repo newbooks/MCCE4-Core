@@ -3,18 +3,20 @@
 Use compiled electrostatic energy to fit a model to predict electrostatic energy based on embedding scores and distances.
 
 The input is a CSV file with the following columns:
-- Conf1: Conformer ID for atom 1
-- Conf2: Conformer ID for atom 2
-- Distance: Distance between two atoms in Angstroms
-- Radius1: Radius for atom 1
-- Radius2: Radius for atom 2
-- Embedding1: Embedding score for atom 1
-- Embedding2: Embedding score for atom 2
-- Density1: Density score for atom 1
-- Density2: Density score for atom 2
-- CoulombPotential: Coulomb potential between two atoms
-- AdjustedCoulombPotential: Adjusted Coulomb potential based on embedding scores
-- PBPotential: Electrostatic energy from Poisson-Boltzmann calculation
+Columns in CSV file:
+- Conf1
+- Conf2
+- Distance
+- Radius1
+- Radius2
+- Density1_Near
+- Density2_Near
+- Density1_Mid
+- Density2_Mid
+- Density1_Near
+- Density2_Near
+- CoulombPotential
+- PBPotential
 """
 
 
@@ -27,13 +29,10 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import mean_squared_error, r2_score
 import numpy as np
 from sklearn.ensemble import RandomForestRegressor
-import joblib
 import argparse
 import logging
 import time
 
-D_in = 4.0    # inner dielectric constant (Coulomb potential)
-D_out = 80.0  # outter dielectric constant
 
 def fit_rf(features, data, title):
     X = data[features]
@@ -65,7 +64,7 @@ def fit_rf(features, data, title):
     plt.figure(figsize=(10, 6))
     sns.scatterplot(x=y_val, y=y_pred_adjusted, alpha=0.5)
     plt.grid(True)  # add grid lines
-    plt.plot([y_val.min(), y_val.max()], [y_val.min(), y_val.max()], 'r--', lw=2)  # Diagonal line
+    plt.plot([y.min(), y.max()], [y.min(), y.max()], 'r--', lw=2)  # Diagonal line
     plt.xlabel("True PB Potential")
     plt.ylabel("Predicted PB Potential")
     plt.title(f"{title}")
@@ -75,8 +74,8 @@ def fit_rf(features, data, title):
     feature_importance_adjusted_df = pd.DataFrame({'Feature': feature_names_adjusted, 'Importance': feature_importances_adjusted})
     feature_importance_adjusted_df = feature_importance_adjusted_df.sort_values(by='Importance', ascending=False)
     plt.text(0.05, 0.85, "\n".join([f"{row['Feature']}: {row['Importance']:.4f}" for _, row in feature_importance_adjusted_df.iterrows()]), transform=plt.gca().transAxes, fontsize=10, verticalalignment='top')
-    plt.xlim(y_val.min(), y_val.max())
-    plt.ylim(y_val.min(), y_val.max())
+    plt.xlim(y.min(), y.max())
+    plt.ylim(y.min(), y.max())
     plt.savefig(f"{title}.png")
 
 
@@ -95,40 +94,31 @@ if __name__ == "__main__":
     # Load the data
     logging.info(f"Loading data from {args.input_csv} ...")
     data = pd.read_csv(args.input_csv)
-    # Check if required columns are present
-    required_columns = ['Conf1', 'Conf2', 'Distance', 'Radius1', 'Radius2', 'Embedding1', 'Embedding2', 'Density1', 'Density2', 'CoulombPotential', 'AdjustedCoulombPotential', 'PBPotential']
-    for col in required_columns:
-        if col not in data.columns:
-            logging.error(f"Missing required column: {col}")
-            exit(1)
-    
-    # Evaluate all features as is    
-    features = ['Distance', 'Radius1', 'Radius2', 'Embedding1', 'Embedding2', 'Density1', 'Density2', 'CoulombPotential']
-    title = "All_Features"
-    logging.info("Features and target variable prepared.")
+    data['DensityNearAverage'] = (data['Density1_Near'] + data['Density2_Near']) / 2
+    data['DensityMidAverage'] = (data['Density1_Mid'] + data['Density2_Mid']) / 2
+    data['DensityFarAverage'] = (data['Density1_Far'] + data['Density2_Far']) / 2
+
+    # Evaluate all features as is
+    features = ['Distance', 'Radius1', 'Radius2', 'Density1_Near', 'Density2_Near', 'Density1_Mid', 'Density2_Mid', 'Density1_Far', 'Density2_Far', 'CoulombPotential']
+    title = "All Native Features"
     fit_rf(features, data, title)
 
-    # Reduce some features by averaging the symmetric ones
-    # average embedding and density scores in the dataframe
+    # Reduce some features by averaging the symmetric ones and removing the distance
     logging.info("Reducing features by averaging symmetric ones...")
-    data['EmbeddingAverage'] = (data['Embedding1'] + data['Embedding2']) / 2
-    data['DensityAverage'] = (data['Density1'] + data['Density2']) / 2
     title = "Independent features"
-    features = ['Distance', 'EmbeddingAverage', 'DensityAverage', 'CoulombPotential']
-    fit_rf(features, data, title)
-    logging.info("Features and target variable prepared.")
-
-    # Use the embedding modified Coulomb potential
-    logging.info("Using embedding modified Coulomb potential...")
-    features = ['Distance', 'EmbeddingAverage']
-    title = "Embedding_Modified_Coulomb_Potential"
+    features = ['DensityNearAverage', 'DensityMidAverage', 'DensityFarAverage', 'CoulombPotential']
     fit_rf(features, data, title)
 
-    # Use the density modified Coulomb potential
-    logging.info("Using density modified Coulomb potential...")
-    data['DmodifiedCoulombPotential'] = data['CoulombPotential'] * data['DensityAverage']
-    features = ['Distance', 'DmodifiedCoulombPotential']
-    title = "Density_Modified_Coulomb_Potential"
+    # Use the density mid average
+    logging.info("Using density mid average...")
+    features = ['DensityMidAverage', 'CoulombPotential']
+    title = "Mid Range Density"
+    fit_rf(features, data, title)
+
+    # Use the density far average
+    logging.info("Using density far average...")
+    features = ['DensityFarAverage', 'CoulombPotential']
+    title = "Density Far Average"
     fit_rf(features, data, title)
 
 

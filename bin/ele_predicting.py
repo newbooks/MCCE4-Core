@@ -58,7 +58,7 @@ def predict_rf(features, data, model, title):
     plt.xlabel("True PBPotential")
     plt.ylabel("Predicted PBPotential")
     plt.title(f"Prediction Results: {title}")
-    plt.plot([y.min(), y.max()], [y.min(), y.max()], 'k--', lw=2)
+    plt.plot([y.min(), y.max()], [y.min(), y.max()], 'r--', lw=2)
     plt.grid(True)
     plt.xlim(y.min(), y.max())
     plt.ylim(y.min(), y.max())
@@ -81,7 +81,7 @@ if __name__ == "__main__":
 
     # Parse command line arguments
     parser = argparse.ArgumentParser(description="Predict electrostatic energy using Random Forest.")
-    parser.add_argument("input_csv", help="Input CSV file with columns: Conf1, Conf2, Distance, Radius1, Radius2, Embedding1, Embedding2, Density1, Density2, CoulombPotential, AdjustedCoulombPotential, PBPotential")
+    parser.add_argument("input_csv", help="Input CSV file")
     args = parser.parse_args()
 
 
@@ -89,13 +89,14 @@ if __name__ == "__main__":
     logging.info(f"Loading data from {args.input_csv} ...")
     data = pd.read_csv(args.input_csv)
     # Prepare features and target variable
-    data['DensityAverage'] = (data['Density1'] + data['Density2']) / 2
-    data['EmbeddingAverage'] = (data['Embedding1'] + data['Embedding2']) / 2
+    data['DensityNearAverage'] = (data['Density1_Near'] + data['Density2_Near']) / 2
+    data['DensityMidAverage'] = (data['Density1_Mid'] + data['Density2_Mid']) / 2
+    data['DensityFarAverage'] = (data['Density1_Far'] + data['Density2_Far']) / 2
 
-    # predict using the model 1
-    features = ['Distance', 'Radius1', 'Radius2', 'Embedding1', 'Embedding2', 'Density1', 'Density2', 'CoulombPotential']
-    fname = "all_features_model_with_scaler.pkl"
-    title = "All_Features"    # Load model and scaler from without_local_density
+    # predict using the saved model
+    features = ['DensityNearAverage', 'DensityMidAverage', 'DensityFarAverage', 'CoulombPotential']
+    fname = "local_density_with_scaler.pkl"
+    title = "Predicted"    # Load model and scaler from without_local_density
     logging.info("Loading model %s" % fname)
     try:
         model = joblib.load(fname)
@@ -104,41 +105,5 @@ if __name__ == "__main__":
         exit(1)
     predict_rf(features, data, model, title)
 
-    # predict using the model 2
-    features = ['Distance', 'EmbeddingAverage', 'CoulombPotential']
-    fname = "embedding_model_with_scaler.pkl"
-    title = "With Embedding Scores"
-    logging.info("Loading model %s" % fname)
-    try:
-        model = joblib.load(fname)
-    except FileNotFoundError as e:
-        logging.error(f"Error loading model or scaler: {e}")
-        exit(1)
-    predict_rf(features, data, model, title)
-
-    # predict using the model 3
-    features = ['Distance', 'DensityAverage', 'CoulombPotential']
-    fname = "density_model_with_scaler.pkl"
-    title = "With Local Density"
-    logging.info("Loading model %s" % fname)
-    try:
-        model = joblib.load(fname)
-    except FileNotFoundError as e:
-        logging.error(f"Error loading model or scaler: {e}")
-        exit(1)
-    predict_rf(features, data, model, title)
-
-
-    # predict using the model 4
-    features = ['Distance', 'DensityAverage', 'EmbeddingAverage', 'CoulombPotential']
-    fname = "density+embedding_model_with_scaler.pkl"
-    title = "With Local Density and Embedding Scores"
-    logging.info("Loading model %s" % fname)
-    try:
-        model = joblib.load(fname)
-    except FileNotFoundError as e:
-        logging.error(f"Error loading model or scaler: {e}")
-        exit(1)
-    predict_rf(features, data, model, title)
 
     plt.show()  # Show the plot interactively

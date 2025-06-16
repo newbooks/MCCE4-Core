@@ -113,24 +113,33 @@ if __name__ == "__main__":
     args = parse_arguments()
     logging.basicConfig(level=logging.INFO, format=logging_format, datefmt=logging_datefmt)
     logging.info("Starting local density calculation...")
+    for pdb_file in args.pdb_file:
+        logging.info(f"Processing PDB file: {pdb_file}")
+        protein = Protein()
+        protein.load_pdb(pdb_file)
+        logging.info(f"Loaded {len(protein.atoms)} atoms from {pdb_file}")
+        protein.calculate_local_density()
+        protein.write_local_density()
+        logging.info(f"Local density scores written to {pdb_file.rsplit('.', 1)[0]}.density")
 
-    run_times = []
-    for i in range(5):
-        logging.info(f"Run {i+1} of 5")
-        # Start timing
-        time_start = time.time()
-        for pdb_file in args.pdb_file:
-            logging.info(f"Processing PDB file: {pdb_file}")
-            protein = Protein()
-            protein.load_pdb(pdb_file)
-            logging.info(f"Loaded {len(protein.atoms)} atoms from {pdb_file}")
-            protein.calculate_local_density()
-            protein.write_local_density()
-            logging.info(f"Local density scores written to {pdb_file.rsplit('.', 1)[0]}.density")
-        time_elapsed = time.time() - time_start
-        run_times.append(time_elapsed)
+
+    # run_times = []
+    # for i in range(5):
+    #     logging.info(f"Run {i+1} of 5")
+    #     # Start timing
+    #     time_start = time.time()
+    #     for pdb_file in args.pdb_file:
+    #         logging.info(f"Processing PDB file: {pdb_file}")
+    #         protein = Protein()
+    #         protein.load_pdb(pdb_file)
+    #         logging.info(f"Loaded {len(protein.atoms)} atoms from {pdb_file}")
+    #         protein.calculate_local_density()
+    #         protein.write_local_density()
+    #         logging.info(f"Local density scores written to {pdb_file.rsplit('.', 1)[0]}.density")
+    #     time_elapsed = time.time() - time_start
+    #     run_times.append(time_elapsed)
     
-    # report average run time and standard deviation
-    avg_time = sum(run_times) / len(run_times)
-    std_dev_time = (sum((x - avg_time) ** 2 for x in run_times) / len(run_times)) ** 0.5
-    print(f"Average run time: {avg_time:.2f} seconds, Standard Deviation: {std_dev_time:.2f} seconds")
+    # # report average run time and standard deviation
+    # avg_time = sum(run_times) / len(run_times)
+    # std_dev_time = (sum((x - avg_time) ** 2 for x in run_times) / len(run_times)) ** 0.5
+    # print(f"Average run time: {avg_time:.2f} seconds, Standard Deviation: {std_dev_time:.2f} seconds")

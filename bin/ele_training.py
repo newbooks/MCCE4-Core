@@ -62,7 +62,7 @@ def fit_rf(features, data, title):
     plt.figure(figsize=(10, 6))
     sns.scatterplot(x=y_val, y=y_pred_adjusted, alpha=0.5)
     plt.grid(True)  # add grid lines
-    plt.plot([y_val.min(), y_val.max()], [y_val.min(), y_val.max()], 'r--', lw=2)  # Diagonal line
+    plt.plot([y.min(), y.max()], [y.min(), y.max()], 'r--', lw=2)  # Diagonal line
     plt.xlabel("True PB Potential")
     plt.ylabel("Predicted PB Potential")
     plt.title(f"{title}")
@@ -102,25 +102,10 @@ if __name__ == "__main__":
     data['DensityFarAverage'] = (data['Density1_Far'] + data['Density2_Far']) / 2
 
     # Train the model
-    features = ['Distance', 'DensityNearAverage', 'DensityMidAverage', 'DensityFarAverage', 'CoulombPotential']
-    title = "All_density"
+    features = ['DensityNearAverage', 'DensityMidAverage', 'DensityFarAverage', 'CoulombPotential']
+    title = "Local Density"
     fit_rf(features, data, title)
     logging.info(f"Model trained by {title}.")
-
-
-    # Train the second model
-    features = ['Distance', 'DensityNearAverage', 'DensityFarAverage', 'CoulombPotential']
-    title = "Near+Far_density"
-    fit_rf(features, data, title)
-    logging.info(f"Model trained by {title}.")
-
-
-    # Train the third model
-    features = ['Distance', 'DensityMidAverage', 'DensityFarAverage', 'CoulombPotential']
-    title = "Mid+Far_density"
-    fit_rf(features, data, title)
-    logging.info(f"Model trained by {title}.")
-
 
 
     plt.show()
