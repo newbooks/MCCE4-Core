@@ -62,7 +62,7 @@ def fit_rf(features, data, title):
     plt.figure(figsize=(10, 6))
     sns.scatterplot(x=y_val, y=y_pred_adjusted, alpha=0.5)
     plt.grid(True)  # add grid lines
-    plt.plot([y_val.min(), y_val.max()], [y_val.min(), y_val.max()], 'r--', lw=2)  # Diagonal line
+    plt.plot([y.min(), y.max()], [y.min(), y.max()], 'r--', lw=2)  # Diagonal line
     plt.xlabel("True PB Potential")
     plt.ylabel("Predicted PB Potential")
     plt.title(f"{title}")
@@ -97,32 +97,13 @@ if __name__ == "__main__":
     data = pd.read_csv(args.input_csv)
 
     # Prepare features and target variable
-    data['DensityAverage'] = (data['Density1'] + data['Density2']) / 2
-    data['EmbeddingAverage'] = (data['Embedding1'] + data['Embedding2']) / 2
+    data['DensityNearAverage'] = (data['Density1_Near'] + data['Density2_Near']) / 2
+    data['DensityMidAverage'] = (data['Density1_Mid'] + data['Density2_Mid']) / 2
+    data['DensityFarAverage'] = (data['Density1_Far'] + data['Density2_Far']) / 2
 
     # Train the model
-    features = ['Distance', 'Radius1', 'Radius2', 'Embedding1', 'Embedding2', 'Density1', 'Density2', 'CoulombPotential']
-    title = "All_Features"
-    fit_rf(features, data, title)
-    logging.info(f"Model trained by {title}.")
-
-
-    # Train the second model
-    features = ['Distance', 'EmbeddingAverage', 'CoulombPotential']
-    title = "Embedding"
-    fit_rf(features, data, title)
-    logging.info(f"Model trained by {title}.")
-
-
-    # Train the third model
-    features = ['Distance', 'DensityAverage', 'CoulombPotential']
-    title = "Density"
-    fit_rf(features, data, title)
-    logging.info(f"Model trained by {title}.")
-
-    # Train the third model
-    features = ['Distance', 'DensityAverage', 'EmbeddingAverage', 'CoulombPotential']
-    title = "Density+Embedding"
+    features = ['DensityNearAverage', 'DensityMidAverage', 'DensityFarAverage', 'CoulombPotential']
+    title = "Local Density"
     fit_rf(features, data, title)
     logging.info(f"Model trained by {title}.")
 
