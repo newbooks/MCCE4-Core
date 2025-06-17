@@ -82,6 +82,7 @@ if __name__ == "__main__":
     # Parse command line arguments
     parser = argparse.ArgumentParser(description="Predict electrostatic energy using Random Forest.")
     parser.add_argument("input_csv", help="Input CSV file")
+    parser.add_argument("--model", default="local_density_with_scaler.pkl", help="Path to the saved model and scaler in pkl format")
     args = parser.parse_args()
 
 
@@ -95,13 +96,13 @@ if __name__ == "__main__":
 
     # predict using the saved model
     features = ['DensityNearAverage', 'DensityMidAverage', 'DensityFarAverage', 'CoulombPotential']
-    fname = "local_density_with_scaler.pkl"
-    title = "Predicted"    # Load model and scaler from without_local_density
+    fname = args.model     # Load model and scaler from args.model
+    title = "Predicted Electrostatic Energy with pre-trained model"
     logging.info("Loading model %s" % fname)
     try:
         model = joblib.load(fname)
     except FileNotFoundError as e:
-        logging.error(f"Error loading model or scaler: {e}")
+        logging.error(f"Model not found: {e}")
         exit(1)
     predict_rf(features, data, model, title)
 
