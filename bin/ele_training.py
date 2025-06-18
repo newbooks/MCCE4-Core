@@ -50,8 +50,8 @@ def fit_rf(features, data, title):
     rmse_adjusted = np.sqrt(mean_squared_error(y_val, y_pred_adjusted))
     y_range_adjusted = np.ptp(y_val)  # Range of true values
     normalized_rmse_adjusted = rmse_adjusted / y_range_adjusted if y_range_adjusted != 0 else 0
-    r2_adjusted = r2_score(y_val, y_pred_adjusted)
-    logging.info(f"Adjusted Coulomb Potential - R2: {r2_adjusted:.3f}, RMSE: {normalized_rmse_adjusted:.3f}")
+    r2 = r2_score(y_val, y_pred_adjusted)
+    logging.info(f"Adjusted Coulomb Potential - R2: {r2:.3f}, RMSE: {normalized_rmse_adjusted:.3f}")
     # get feature importances
     feature_importances_adjusted = rf.feature_importances_
     feature_names_adjusted = X.columns
@@ -67,7 +67,7 @@ def fit_rf(features, data, title):
     plt.ylabel("Predicted PB Potential")
     plt.title(f"{title}")
     # print R^2 and RMSE on the plot
-    plt.text(0.05, 0.95, f"R^2: {r2_adjusted:.3f} Good if > 0.9\nRMSE: {normalized_rmse_adjusted:.3f} Good if <0.05", transform=plt.gca().transAxes, fontsize=12, verticalalignment='top')
+    plt.text(0.05, 0.95, f"R^2: {r2:.3f} Good if > 0.9\nRMSE: {normalized_rmse_adjusted:.3E} Good if <0.05", transform=plt.gca().transAxes, fontsize=12, verticalalignment='top')
     # Sort and add feature importances to the plot
     feature_importance_adjusted_df = pd.DataFrame({'Feature': feature_names_adjusted, 'Importance': feature_importances_adjusted})
     feature_importance_adjusted_df = feature_importance_adjusted_df.sort_values(by='Importance', ascending=False)
@@ -89,7 +89,7 @@ if __name__ == "__main__":
 
     # Parse command line arguments
     parser = argparse.ArgumentParser(description="Train a model to predict electrostatic energy based on embedding scores and distances.")
-    parser.add_argument("input_csv", help="Input CSV file with columns: Conf1, Conf2, Distance, Radius1, Radius2, Embedding1, Embedding2, Density1, Density2, CoulombPotential, AdjustedCoulombPotential, PBPotential")
+    parser.add_argument("input_csv", help="Input CSV file")
     args = parser.parse_args()
 
     # Load the data
@@ -97,15 +97,20 @@ if __name__ == "__main__":
     data = pd.read_csv(args.input_csv)
 
     # Prepare features and target variable
-    data['DensityNearAverage'] = (data['Density1_Near'] + data['Density2_Near']) / 2
     data['DensityMidAverage'] = (data['Density1_Mid'] + data['Density2_Mid']) / 2
     data['DensityFarAverage'] = (data['Density1_Far'] + data['Density2_Far']) / 2
 
     # Train the model
-    features = ['DensityNearAverage', 'DensityMidAverage', 'DensityFarAverage', 'CoulombPotential']
+    features = ['Distance', 'DensityMidAverage', 'DensityFarAverage', 'CoulombPotential']
     title = "Local Density"
     fit_rf(features, data, title)
     logging.info(f"Model trained by {title}.")
 
 
     plt.show()
+
+    # compare RMSE
+    # R = (6, 15): RMSE*1000 = 2.279, 2.810, 2.776, 2.422, 2.369 --- 2.53 +- 0.22
+    # R = (6, 12): RMSE*1000 = 2.451, 2.569, 3.070, 2.472, 2.596 --- 2.63 +- 0.22
+    # R = (5, 10): RMSE*1000 = 2.425, 2.405, 3.288, 3.052, 2.446 --- 2.72 +- 0.37
+    

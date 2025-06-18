@@ -55,6 +55,18 @@ def predict_rf(features, data, model, title):
     # Plot the results
     plt.figure(figsize=(10, 6))
     sns.scatterplot(x=y, y=y_pred)
+
+    # Draw two lines: one is y = 1.1 *x and the other is y = 0.9 * x, fill light green between the two lines
+    # x_vals = np.linspace(y.min(), y.max(), 100)
+    # y_upper_1 = 1.1 * x_vals
+    # y_lower_1 = 0.9 * x_vals
+    # y_upper_2 = 1.2 * x_vals
+    # y_lower_2 = 0.8 * x_vals
+    # plt.fill_between(x_vals, y_lower_1, y_upper_1, color='lightgreen', alpha=0.4, label='90% Confidence Interval')
+    # plt.fill_between(x_vals, y_lower_2, y_upper_2, color='lightyellow', alpha=0.6, label='80% Confidence Interval')
+    # plt.legend()
+
+
     plt.xlabel("True PBPotential")
     plt.ylabel("Predicted PBPotential")
     plt.title(f"Prediction Results: {title}")
@@ -82,6 +94,7 @@ if __name__ == "__main__":
     # Parse command line arguments
     parser = argparse.ArgumentParser(description="Predict electrostatic energy using Random Forest.")
     parser.add_argument("input_csv", help="Input CSV file")
+    parser.add_argument("--model", default="local_density_with_scaler.pkl", help="Path to the saved model and scaler in pkl format")
     args = parser.parse_args()
 
 
@@ -89,19 +102,18 @@ if __name__ == "__main__":
     logging.info(f"Loading data from {args.input_csv} ...")
     data = pd.read_csv(args.input_csv)
     # Prepare features and target variable
-    data['DensityNearAverage'] = (data['Density1_Near'] + data['Density2_Near']) / 2
     data['DensityMidAverage'] = (data['Density1_Mid'] + data['Density2_Mid']) / 2
     data['DensityFarAverage'] = (data['Density1_Far'] + data['Density2_Far']) / 2
 
     # predict using the saved model
-    features = ['DensityNearAverage', 'DensityMidAverage', 'DensityFarAverage', 'CoulombPotential']
-    fname = "local_density_with_scaler.pkl"
-    title = "Predicted"    # Load model and scaler from without_local_density
+    features = ['Distance', 'DensityMidAverage', 'DensityFarAverage', 'CoulombPotential']
+    fname = args.model   # Load model and scaler from args.model
+    title = "Pre-trained Model"
     logging.info("Loading model %s" % fname)
     try:
         model = joblib.load(fname)
     except FileNotFoundError as e:
-        logging.error(f"Error loading model or scaler: {e}")
+        logging.error(f"Model not found: {e}")
         exit(1)
     predict_rf(features, data, model, title)
 
