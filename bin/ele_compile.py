@@ -33,21 +33,20 @@ from mcce.geom import *
 
 
 class AtomProperties:
-    __slots__ = ("confid", "xyz", "radius", "charge", "density_near", "density_mid", "density_far")
+    __slots__ = ("confid", "xyz", "radius", "charge", "density_mid", "density_far")
 
     def __init__(self):
         self.confid = ""
         self.xyz = Vector()
         self.radius = 0.0
         self.charge = 0.0
-        self.density_near = 0
         self.density_mid = 0
         self.density_far = 0
 
     def __repr__(self):
         return (f"{self.confid} {self.xyz.x:8.3f} {self.xyz.y:8.3f} {self.xyz.z:8.3f} "
-                f"{self.radius:8.3f} {self.charge:8.3f} {self.density_near:8d} "
-                f"{self.density_mid:8d} {self.density_far:8d}")
+                f"{self.radius:8.3f} {self.charge:8.3f} {self.density_mid:8d} "
+                f"{self.density_far:8d}")
 
 
 def update_density_score(atoms, fname):
@@ -68,10 +67,8 @@ def update_density_score(atoms, fname):
                 if atom_id in atoms:
                     # Expecting three density values at the end of the line
                     densities = line[62:].split()
-                    if len(densities) >= 3:
-                        atoms[atom_id].density_near = int(densities[0])
-                        atoms[atom_id].density_mid = int(densities[1])
-                        atoms[atom_id].density_far = int(densities[2])
+                    atoms[atom_id].density_mid = int(densities[0])
+                    atoms[atom_id].density_far = int(densities[1])
 
 
 def load_atoms():
@@ -181,13 +178,13 @@ The output CSV contains columns such as distances, embedding scores, internal/ex
     logging.info("Compiling results into CSV file ...")
     output_file = f"{args.statename}_compiled.csv"
     with open(output_file, 'w') as f:
-        f.write("Conf1,Conf2,Distance,Radius1,Radius2,Density1_Near,Density2_Near,Density1_Mid,Density2_Mid,Density1_Far,Density2_Far,CoulombPotential,PBPotential\n")
+        f.write("Conf1,Conf2,Distance,Radius1,Radius2,Density1_Mid,Density2_Mid,Density1_Far,Density2_Far,CoulombPotential,PBPotential\n")
         for (atom_id1, atom_id2), ele in pairwise_ele.items():
             atom1, atom2 = atoms[atom_id1], atoms[atom_id2]
             distance = atom1.xyz.distance(atom2.xyz)
             coulomb_potential = atom1.charge * atom2.charge / distance if distance > 0 else 0.0
             # write the row to the CSV file
             f.write(f"{atom1.confid},{atom2.confid},{distance:.3f},{atom1.radius:.3f},{atom2.radius:.3f},"
-                    f"{atom1.density_near:.3f},{atom2.density_near:.3f},{atom1.density_mid:.3f},{atom2.density_mid:.3f},{atom1.density_far:.3f},{atom2.density_far:.3f},{coulomb_potential:.3f},{ele:.3f}\n")
+                    f"{atom1.density_mid:.3f},{atom2.density_mid:.3f},{atom1.density_far:.3f},{atom2.density_far:.3f},{coulomb_potential:.3f},{ele:.3f}\n")
 
     logging.info(f"Results compiled into {output_file}. Energy unit is kcal/mol.")
