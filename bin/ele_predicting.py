@@ -101,12 +101,9 @@ if __name__ == "__main__":
     # Load the data
     logging.info(f"Loading data from {args.input_csv} ...")
     data = pd.read_csv(args.input_csv)
-    # Prepare features and target variable
-    data['DensityMidAverage'] = (data['Density1_Mid'] + data['Density2_Mid']) / 2
-    data['DensityFarAverage'] = (data['Density1_Far'] + data['Density2_Far']) / 2
 
     # predict using the saved model
-    features = ['Distance', 'DensityMidAverage', 'DensityFarAverage', 'CoulombPotential']
+    features = ['Distance', 'DensityAverage_Mid', 'DensityAverage_Far']
     fname = args.model   # Load model and scaler from args.model
     title = "Pre-trained Model"
     logging.info("Loading model %s" % fname)
