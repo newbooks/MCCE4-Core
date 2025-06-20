@@ -96,21 +96,21 @@ if __name__ == "__main__":
     logging.info(f"Loading data from {args.input_csv} ...")
     data = pd.read_csv(args.input_csv)
 
-    # Prepare features and target variable
-    data['DensityMidAverage'] = (data['Density1_Mid'] + data['Density2_Mid']) / 2
-    data['DensityFarAverage'] = (data['Density1_Far'] + data['Density2_Far']) / 2
 
     # Train the model
-    features = ['Distance', 'DensityMidAverage', 'DensityFarAverage', 'CoulombPotential']
+    #features = ['Distance', 'DensityAverage_Near', 'DensityAverage_Mid', 'DensityAverage_Far']
+    features = ['Distance', 'DensityAverage_Mid', 'DensityAverage_Far']
     title = "Local Density"
     fit_rf(features, data, title)
     logging.info(f"Model trained by {title}.")
 
 
     plt.show()
+    plt.close('all')
 
-    # compare RMSE
-    # R = (6, 15): RMSE*1000 = 2.279, 2.810, 2.776, 2.422, 2.369 --- 2.53 +- 0.22
-    # R = (6, 12): RMSE*1000 = 2.451, 2.569, 3.070, 2.472, 2.596 --- 2.63 +- 0.22
-    # R = (5, 10): RMSE*1000 = 2.425, 2.405, 3.288, 3.052, 2.446 --- 2.72 +- 0.37
-    
+    # compare 
+    # R = (3, 6, 15): RMSE*1000 = 2.195, 2.989, 2.112, 2.341, 2.695 --- 2.46 +- 0.30
+    # R = (6, 15):    RMSE*1000 = 2.315, 2.165, 2.861, 2.536, 2.342 --- 2.44 +- 0.26
+    # R = (6, 15):    RMSE*1000 = 2.279, 2.810, 2.776, 2.422, 2.369 --- 2.53 +- 0.22
+    # R = (6, 12):    RMSE*1000 = 2.451, 2.569, 3.070, 2.472, 2.596 --- 2.63 +- 0.22
+    # R = (5, 10):    RMSE*1000 = 2.425, 2.405, 3.288, 3.052, 2.446 --- 2.72 +- 0.37

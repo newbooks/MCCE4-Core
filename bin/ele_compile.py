@@ -33,13 +33,14 @@ from mcce.geom import *
 
 
 class AtomProperties:
-    __slots__ = ("confid", "xyz", "radius", "charge", "density_mid", "density_far")
+    __slots__ = ("confid", "xyz", "radius", "charge", "density_near", "density_mid", "density_far")
 
     def __init__(self):
         self.confid = ""
         self.xyz = Vector()
         self.radius = 0.0
         self.charge = 0.0
+        self.density_near = 0
         self.density_mid = 0
         self.density_far = 0
 
@@ -64,11 +65,12 @@ def update_density_score(atoms, fname):
         for line in f:
             if line.startswith(("ATOM  ", "HETATM")):
                 atom_id = (line[12:16], line[17:20], line[21], line[22:26])
+                local_density = [int(x) for x in line[54:].strip().split()]
                 if atom_id in atoms:
                     # Expecting three density values at the end of the line
-                    densities = line[62:].split()
-                    atoms[atom_id].density_mid = int(densities[0])
-                    atoms[atom_id].density_far = int(densities[1])
+                    atoms[atom_id].density_near = local_density[0]
+                    atoms[atom_id].density_mid = local_density[1]
+                    atoms[atom_id].density_far = local_density[2]
 
 
 def load_atoms():
@@ -130,7 +132,11 @@ def get_electrostatic_energy(atoms):
                 if atom_id2 is not None:
                     try:
                         ele = float(fields[5])
-                        pairwise_ele[(atom_id1, atom_id2)] = ele
+                        reverse_key = (atom_id2, atom_id1)
+                        if pairwise_ele.get(reverse_key) is None:  # the other direction is not recorded
+                            pairwise_ele[(atom_id1, atom_id2)] = ele
+                        else:
+                            pairwise_ele[reverse_key] = (pairwise_ele[reverse_key] + ele) / 2  # Average the energy if both directions are recorded
                     except ValueError:
                         continue
     return pairwise_ele
@@ -178,13 +184,15 @@ The output CSV contains columns such as distances, embedding scores, internal/ex
     logging.info("Compiling results into CSV file ...")
     output_file = f"{args.statename}_compiled.csv"
     with open(output_file, 'w') as f:
-        f.write("Conf1,Conf2,Distance,Radius1,Radius2,Density1_Mid,Density2_Mid,Density1_Far,Density2_Far,CoulombPotential,PBPotential\n")
+        # We only need to write these features to the CSV file
+        # Distance, DensityAverage_Near, DensityAverage_Mid, DensityAverage_Far, PBPotential
+        f.write("Distance,DensityAverage_Near,DensityAverage_Mid,DensityAverage_Far,PBPotential\n")
         for (atom_id1, atom_id2), ele in pairwise_ele.items():
             atom1, atom2 = atoms[atom_id1], atoms[atom_id2]
             distance = atom1.xyz.distance(atom2.xyz)
-            coulomb_potential = atom1.charge * atom2.charge / distance if distance > 0 else 0.0
+            densityaverage_near = (atom1.density_near + atom2.density_near) / 2
+            densityaverage_mid = (atom1.density_mid + atom2.density_mid) / 2
+            densityaverage_far = (atom1.density_far + atom2.density_far) / 2
             # write the row to the CSV file
-            f.write(f"{atom1.confid},{atom2.confid},{distance:.3f},{atom1.radius:.3f},{atom2.radius:.3f},"
-                    f"{atom1.density_mid:.3f},{atom2.density_mid:.3f},{atom1.density_far:.3f},{atom2.density_far:.3f},{coulomb_potential:.3f},{ele:.3f}\n")
-
+            f.write(f"{distance:.3f},{densityaverage_near:.3f},{densityaverage_mid:.3f},{densityaverage_far:.3f},{ele:.3f}\n")
     logging.info(f"Results compiled into {output_file}. Energy unit is kcal/mol.")
