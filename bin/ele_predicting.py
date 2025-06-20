@@ -28,8 +28,8 @@ import argparse
 import logging
 import time
 
-def predict_rf(features, data, model, title):
-    X = data[features]
+def predict_rf(data, model, title):
+    X = data[model['features']]
     y = data['PBPotential']
     rf = model['model']
     scaler = model['scaler']
@@ -37,7 +37,9 @@ def predict_rf(features, data, model, title):
     X_scaled = scaler.transform(X)
     # Predict using the model
     logging.info(f"Predicting with {title}...")
+    start_time = time.time()
     y_pred = rf.predict(X_scaled)
+    logging.info(f"Prediction completed in {time.time() - start_time:.2f} seconds.")
 
     # Evaluate the model
     logging.info(f"Evaluating with {title} on validation set...")
@@ -56,21 +58,10 @@ def predict_rf(features, data, model, title):
     plt.figure(figsize=(10, 6))
     sns.scatterplot(x=y, y=y_pred)
 
-    # Draw two lines: one is y = 1.1 *x and the other is y = 0.9 * x, fill light green between the two lines
-    # x_vals = np.linspace(y.min(), y.max(), 100)
-    # y_upper_1 = 1.1 * x_vals
-    # y_lower_1 = 0.9 * x_vals
-    # y_upper_2 = 1.2 * x_vals
-    # y_lower_2 = 0.8 * x_vals
-    # plt.fill_between(x_vals, y_lower_1, y_upper_1, color='lightgreen', alpha=0.4, label='90% Confidence Interval')
-    # plt.fill_between(x_vals, y_lower_2, y_upper_2, color='lightyellow', alpha=0.6, label='80% Confidence Interval')
-    # plt.legend()
-
-
     plt.xlabel("True PBPotential")
     plt.ylabel("Predicted PBPotential")
     plt.title(f"Prediction Results: {title}")
-    plt.plot([y.min(), y.max()], [y.min(), y.max()], 'r--', lw=2)
+    plt.plot([y.min(), y.max()], [y.min(), y.max()], 'g--', lw=2)
     plt.grid(True)
     plt.xlim(y.min(), y.max())
     plt.ylim(y.min(), y.max())
@@ -103,7 +94,6 @@ if __name__ == "__main__":
     data = pd.read_csv(args.input_csv)
 
     # predict using the saved model
-    features = ['Distance', 'DensityAverage_Mid', 'DensityAverage_Far']
     fname = args.model   # Load model and scaler from args.model
     title = "Pre-trained Model"
     logging.info("Loading model %s" % fname)
@@ -112,7 +102,7 @@ if __name__ == "__main__":
     except FileNotFoundError as e:
         logging.error(f"Model not found: {e}")
         exit(1)
-    predict_rf(features, data, model, title)
+    predict_rf(data, model, title)
 
 
     plt.show()  # Show the plot interactively

@@ -47,6 +47,7 @@ To predict PB_Potential:
 - Train the model: `ele_training.py pairwise_data.csv`
 
 **Validation:**
+- Does PB_Potential scale with the charge? This model relies on the linear replationship between Coulomb Potential and PB Potential.
 - Internal validation should show good performance.
 - Apply the trained model (pkl file) to new proteins using compiled CSV files from these proteins.
 
