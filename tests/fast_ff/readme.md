@@ -73,4 +73,4 @@ RXN(q1, q2) = [RXN(q1) + RXN(q2) + PB_Potential(q1, q2)] - [Coulomb_potential(q1
 - Estimate the maximum mutual polarization effect on RXN. Theoretical maximum is 0 and 4 RXN when two charges are superimposed, while summing individual RXN gives 2 RXN.
 
 ### Limitations of This Modeling Approach
-- Reaction field induced by point charges only applies to that charge; mutual polarization is considered in cases of multiple charges.
+- Reaction field induced by a point charge only applies to that charge; mutual polarization is ignored.
