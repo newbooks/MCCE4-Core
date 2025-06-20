@@ -62,7 +62,7 @@ def fit_rf(features, data, title):
     plt.figure(figsize=(10, 6))
     sns.scatterplot(x=y_val, y=y_pred_adjusted, alpha=0.5)
     plt.grid(True)  # add grid lines
-    plt.plot([y.min(), y.max()], [y.min(), y.max()], 'r--', lw=2)  # Diagonal line
+    plt.plot([y.min(), y.max()], [y.min(), y.max()], 'g--', lw=2)  # Diagonal line
     plt.xlabel("True PB Potential")
     plt.ylabel("Predicted PB Potential")
     plt.title(f"{title}")
@@ -78,7 +78,8 @@ def fit_rf(features, data, title):
     # Save the trained model
     logging.info(f"Saving the trained model and scaler for {title} ...")
     model_filename = f"{title.replace(' ', '_').lower()}_with_scaler.pkl"
-    joblib.dump({'model': rf, 'scaler': scaler}, model_filename)
+    feature_names = [f.replace(' ', '_') for f in features]  # Replace spaces with underscores in feature names
+    joblib.dump({'model': rf, 'scaler': scaler, 'features': feature_names}, model_filename)
     logging.info(f"Saved the trained model and scaler to {model_filename}.")
 
 if __name__ == "__main__":
@@ -98,8 +99,7 @@ if __name__ == "__main__":
 
 
     # Train the model
-    #features = ['Distance', 'DensityAverage_Near', 'DensityAverage_Mid', 'DensityAverage_Far']
-    features = ['Distance', 'DensityAverage_Mid', 'DensityAverage_Far']
+    features = ['Distance', 'DensityAverage_Near', 'DensityAverage_Mid', 'DensityAverage_Far']
     title = "Local Density"
     fit_rf(features, data, title)
     logging.info(f"Model trained by {title}.")
