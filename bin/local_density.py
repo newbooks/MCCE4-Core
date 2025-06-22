@@ -82,7 +82,7 @@ class Protein:
             neighbor_count_near = len(indices_near[i]) - 1
             atom.local_density= [neighbor_count_near,
                                  neighbor_count_mid - neighbor_count_near,
-                                 neighbor_count_far - neighbor_count_mid - neighbor_count_near]
+                                 neighbor_count_far - neighbor_count_mid]  # Net counts for Near, Mid, and Far
 
     def write_local_density(self):
         """
