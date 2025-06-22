@@ -124,7 +124,7 @@ def setup_residue():
     # Write the reaction field energy training data to amino_acid.csv
     output_file = "amino_acid_rxn.csv"
     with open(output_file, "w") as f:
-        f.write("DensityAverage_Near, DensityAverage_Mid, DensityAverage_Far, PBRXN\n")
+        f.write("DensityAverage_Near,DensityAverage_Mid,DensityAverage_Far,PBRXN\n")
         f.writelines(rxn_lines)
 
 
