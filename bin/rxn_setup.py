@@ -128,6 +128,14 @@ def setup_residue():
         f.writelines(rxn_lines)
 
 
+def setup_protein():
+    """
+    Set up protein level reaction field energy training data.
+    This function takes a microstate PDB file and place a charge on a single atom of every side chain atom.
+    To sample all atoms, we will place the charge on each side chain atom, by looping from 0 to max_side_chain_atoms.
+    The output is saved to a csv file.
+    """
+
 
 
 if __name__ == "__main__":
@@ -145,4 +153,11 @@ if __name__ == "__main__":
     setup_residue()
     logging.info("Residue level reaction field energy training data setup complete.")
 
-
+    # Protein level reaction field energy
+    logging.info("Processing protein level reaction field energy...")
+    for pdb_file in TEMPLATE_PDBS[1:]:  # Skip the amino acid PDB file
+        output_file = pdb_file.replace(".pdb", "_rxn.csv")
+        logging.info(f"Setting up reaction field energy for {pdb_file}...")
+        # Call the setup_protein function with the PDB file and output file
+        setup_protein(pdb_file=pdb_file, output_file=output_file)
+    logging.info("Protein level reaction field energy training data setup complete.")
