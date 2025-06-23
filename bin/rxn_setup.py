@@ -29,7 +29,8 @@ import os
 import pandas as pd
 import subprocess
 
-TEMPLATE_PDBS = ["amino_acid.pdb", "small_protein.pdb", "medium_protein.pdb", "large_protein.pdb"]
+AMINO_ACID_PDBS = ["ala.pdb", "arg.pdb", "asp.pdb", "cys.pdb", "glu.pdb", "his.pdb", "ile.pdb", "leu.pdb", "lys.pdb", "met.pdb", "phe.pdb", "pro.pdb", "ser.pdb", "thr.pdb", "trp.pdb", "tyr.pdb", "val.pdb"]
+PROTEIN_PDBS = ["small_protein.pdb", "medium_protein.pdb", "large_protein.pdb"]
 
 def parse_arguments():
     helpmsg = "Setup reaction field energy training data."
@@ -143,10 +144,13 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     logging.info("Setting up reaction field energy training data...")
     # Check if the required PDB files exist
-    for pdb_file in TEMPLATE_PDBS:
+    missing_files = []
+    for pdb_file in AMINO_ACID_PDBS+PROTEIN_PDBS:
         if not os.path.isfile(pdb_file):
-            logging.error(f"Required PDB file {pdb_file} does not exist. Please provide the file.")
-            exit(1)
+            missing_files.append(pdb_file)
+    if missing_files:
+        logging.error(f"Required PDB files are missing:\n{', '.join(missing_files)}")
+        exit(1)
 
     # Residue level reaction field energy
     logging.info("Processing residue level reaction field energy...")

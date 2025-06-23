@@ -1,0 +1,46 @@
+CONFLIST, 2NY: 2NYBK, 2NY01
+CONNECT, " CAA", 2NY01: ion
+CONNECT, " CAH", 2NY01: ion
+CONNECT, " NAP", 2NY01: ion
+CONNECT, " CAI", 2NY01: ion
+CONNECT, " CAB", 2NY01: ion
+CONNECT, " C2 ", 2NY01: ion
+CONNECT, " N1 ", 2NY01: ion
+CONNECT, " N3 ", 2NY01: ion
+CONNECT, " C4 ", 2NY01: ion
+CONNECT, " CAF", 2NY01: ion
+CONNECT, " CAD", 2NY01: ion
+CONNECT, " CAE", 2NY01: ion
+CONNECT, " CAG", 2NY01: ion
+CONNECT, " C5 ", 2NY01: ion
+CONNECT, " C6 ", 2NY01: ion
+CONNECT, " NAC", 2NY01: ion
+RADIUS, 2NY01, " CAA": 1.7, 2.0, 0.15
+RADIUS, 2NY01, " CAH": 1.7, 2.0, 0.15
+RADIUS, 2NY01, " NAP": 1.55, 1.75, 0.15
+RADIUS, 2NY01, " CAI": 1.7, 2.0, 0.15
+RADIUS, 2NY01, " CAB": 1.7, 2.0, 0.15
+RADIUS, 2NY01, " C2 ": 1.7, 2.0, 0.15
+RADIUS, 2NY01, " N1 ": 1.55, 1.75, 0.15
+RADIUS, 2NY01, " N3 ": 1.55, 1.75, 0.15
+RADIUS, 2NY01, " C4 ": 1.7, 2.0, 0.15
+RADIUS, 2NY01, " CAF": 1.7, 2.0, 0.15
+RADIUS, 2NY01, " CAD": 1.7, 2.0, 0.15
+RADIUS, 2NY01, " CAE": 1.7, 2.0, 0.15
+RADIUS, 2NY01, " CAG": 1.7, 2.0, 0.15
+RADIUS, 2NY01, " C5 ": 1.7, 2.0, 0.15
+RADIUS, 2NY01, " C6 ": 1.7, 2.0, 0.15
+RADIUS, 2NY01, " NAC": 1.55, 1.75, 0.15
+#-----------------------------------------------------------------------------------------
+CONFLIST, PO4: PO4BK, PO401
+CONNECT, " P  ", PO401: ion
+CONNECT, " O1 ", PO401: ion
+CONNECT, " O2 ", PO401: ion
+CONNECT, " O3 ", PO401: ion
+CONNECT, " O4 ", PO401: ion
+RADIUS, PO401, " P  ": 1.8, 2.1, 0.2
+RADIUS, PO401, " O1 ": 1.52, 1.6, 0.15
+RADIUS, PO401, " O2 ": 1.52, 1.6, 0.15
+RADIUS, PO401, " O3 ": 1.52, 1.6, 0.15
+RADIUS, PO401, " O4 ": 1.52, 1.6, 0.15
+#-----------------------------------------------------------------------------------------
