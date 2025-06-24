@@ -37,7 +37,7 @@ def parse_arguments():
     parser = argparse.ArgumentParser(description=helpmsg, formatter_class=argparse.RawTextHelpFormatter)
     return parser.parse_args()
 
-def setup_residue():
+def setup_residue(pdb_file):
     """
     Set up residue level reaction field energy training data.
     This function reads the amino acid PDB file and prepares the training data.
@@ -47,8 +47,8 @@ def setup_residue():
     rxn_lines = []  # List of lines to write out
 
     # Calculate local density scores for the amino acid PDB file
-    logging.info("Calculating local density scores for amino acid PDB file...")
-    result = subprocess.run(["local_density.py", "amino_acid.pdb"], capture_output=True, text=True)
+    logging.info(f"Calculating local density scores for {pdb_file}...")
+    result = subprocess.run(["local_density.py", pdb_file], capture_output=True, text=True)
     if result.returncode != 0:
         logging.error(f"local_density.py failed with exit code {result.returncode}")
         logging.error(f"stderr: {result.stderr.strip()}")
@@ -56,7 +56,7 @@ def setup_residue():
     
     # Read the local density scores from the output file
     density_data = {}  # Dictionary to store local density scores, keyed by atom ID, value is a list of [Near, Mid, Far] scores
-    density_file = "amino_acid.density"
+    density_file = pdb_file.replace(".pdb", ".density")
     density_lines = open(density_file, 'r').readlines()  # Read the local density scores
     for line in density_lines:
         atomname = line[12:16]
@@ -72,7 +72,7 @@ def setup_residue():
             density_data[atom_id] = [near, mid, far]
 
     # For amino acid level reaction field energy,
-    atom_lines = [line.strip() for line in open("amino_acid.pdb").readlines() if line.startswith("ATOM  ") or line.startswith("HETATM")]
+    atom_lines = [line.strip() for line in open(pdb_file).readlines() if line.startswith("ATOM  ") or line.startswith("HETATM")]
     # set all atoms to 0.0 charge
     for i, line in enumerate(atom_lines):
         atom_lines[i] = line[:62] + "%12.3f" % (0.0) + line[74:]  # Set charge to 0.0
@@ -123,7 +123,7 @@ def setup_residue():
             out_line = f"{density[0]:.3f}, {density[1]:.3f}, {density[2]:.3f}, {pbrxn:.3f}\n"
             rxn_lines.append(out_line)
     # Write the reaction field energy training data to amino_acid.csv
-    output_file = "amino_acid_rxn.csv"
+    output_file = f"{pdb_file.replace('.pdb', '')}_rxn.csv"
     with open(output_file, "w") as f:
         f.write("DensityAverage_Near,DensityAverage_Mid,DensityAverage_Far,PBRXN\n")
         f.writelines(rxn_lines)
@@ -154,14 +154,15 @@ if __name__ == "__main__":
 
     # Residue level reaction field energy
     logging.info("Processing residue level reaction field energy...")
-    setup_residue()
+    for pdb_file in AMINO_ACID_PDBS:
+        logging.info(f"Setting up reaction field energy for {pdb_file}...")
+        setup_residue(pdb_file)
     logging.info("Residue level reaction field energy training data setup complete.")
 
     # Protein level reaction field energy
     logging.info("Processing protein level reaction field energy...")
-    for pdb_file in TEMPLATE_PDBS[1:]:  # Skip the amino acid PDB file
-        output_file = pdb_file.replace(".pdb", "_rxn.csv")
+    for pdb_file in PROTEIN_PDBS:
         logging.info(f"Setting up reaction field energy for {pdb_file}...")
         # Call the setup_protein function with the PDB file and output file
-        setup_protein(pdb_file=pdb_file, output_file=output_file)
+        setup_protein(pdb_file)
     logging.info("Protein level reaction field energy training data setup complete.")
