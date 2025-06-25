@@ -29,6 +29,7 @@ import os
 import pandas as pd
 import subprocess
 
+N_THREADS = 3  # Number of threads to use for MCCE calculations, set to 1 for now
 AMINO_ACID_PDBS = ["ala.pdb", "arg.pdb", "asp.pdb", "cys.pdb", "glu.pdb", "his.pdb", "ile.pdb", "leu.pdb", "lys.pdb", "met.pdb", "phe.pdb", "pro.pdb", "ser.pdb", "thr.pdb", "trp.pdb", "tyr.pdb", "val.pdb"]
 PROTEIN_PDBS = ["small_protein.pdb", "medium_protein.pdb", "large_protein.pdb"]
 
@@ -136,7 +137,7 @@ def setup_residue(pdb_file):
 
         # Run MCCE step3 to calculate the reaction field energy
         logging.info(f"Running MCCE step3 with charge on atom \"{sidechain_atoms[i_chargedatom][12:16]}\"...")
-        result = subprocess.run(["step3.py", "-s", "delphi"], capture_output=True, text=True)
+        result = subprocess.run(["step3.py", "-s", "delphi", "-p", f"{N_THREADS}"], capture_output=True, text=True)
         if result.returncode != 0:
             logging.error(f"step3.py failed with exit code {result.returncode}")
             logging.error(f"stderr: {result.stderr.strip()}")
@@ -159,7 +160,7 @@ def setup_residue(pdb_file):
     # Write the reaction field energy training data to amino_acid.csv
     output_file = f"{pdb_file.replace('.pdb', '')}_rxn.csv"
     with open(output_file, "w") as f:
-        f.write("DensityAverage_Near,DensityAverage_Mid,DensityAverage_Far,PBRXN\n")
+        f.write("Density_Near,Density_Mid,Density_Far,PBRXN\n")
         f.writelines(rxn_lines)
 
 
@@ -208,7 +209,7 @@ def setup_protein(pdb_file):
     assigned_charges = 1  # initially set to 1 to enter the loop
     while assigned_charges > 0:  # Continue until no charges are assigned
         assigned_charges = 0  # Count of assigned charges
-        map_charge_to_conformer = {}  # Dictionary to map atom ID to conformer name
+        map_conformer_to_atom = {}  # Dictionary to map conformer name to atom ID, one conformer has one charged atom
         new_pdb_lines = []  # List to store new PDB lines
         for residue in all_residues:
             # group atoms into backbone and sidechain in the residue
@@ -225,13 +226,15 @@ def setup_protein(pdb_file):
             # Get the conformer name from the first atom of the side chain, this is used to identify the conformer in energies folder
             sidechain_atom = sidechain_atoms[0]
             conf_name = sidechain_atom[17:20] + sidechain_atom[80:82] + sidechain_atom[21:30]  # Conformer name
-            # We need know which atom is placed with charge on which conformer, so we will make a dictionary to map atom ID to conformer name
-            atom_id = (sidechain_atom[12:16], sidechain_atom[17:20], sidechain_atom[21], sidechain_atom[22:26])  # Atom ID
-            map_charge_to_conformer[atom_id] = conf_name  # Map atom ID to conformer name
             # Assign the charge to the i-th side chain atom
             new_lines = backbone_atoms.copy() + sidechain_atoms.copy()  # Create a new list to modify and make sure backbone atoms are on top
             if i_charge < len(sidechain_atoms):
                 new_lines[len(backbone_atoms) + i_charge] = sidechain_atoms[i_charge][:62] + "%12.3f" % (1.0) + sidechain_atoms[i_charge][74:]  # Set charge to 1.0 on the i-th side chain atom
+                # We need know which atom is placed with charge on which conformer, so we will make a dictionary to map conformer name to atom ID
+                charged_atom = new_lines[len(backbone_atoms) + i_charge]  # Get the charged atom line
+                atom_id = (charged_atom[12:16], charged_atom[17:20], charged_atom[21], charged_atom[22:26])  # Atom ID
+                map_conformer_to_atom[conf_name] = atom_id  # Map conformer name to atom ID
+
                 assigned_charges += 1  # Increment the count of assigned charges
             new_pdb_lines.extend(new_lines)  # Add the new lines to the new PDB lines
         # Write the new PDB file to step2_out.pdb
@@ -239,10 +242,39 @@ def setup_protein(pdb_file):
         if assigned_charges > 0:
             with open("step2_out.pdb", "w") as f:
                 f.write("\n".join(new_pdb_lines) + "\n")
-
             # Run MCCE step3 to calculate the reaction field energy
-
+            result = subprocess.run(["step3.py", "-s", "delphi", "-p", f"{N_THREADS}"], capture_output=True, text=True)
+            if result.returncode != 0:
+                logging.error(f"step3.py failed with exit code {result.returncode}")
+                logging.error(f"stderr: {result.stderr.strip()}")
+                return
+        # Read the output reaction field energies from energies/*.raw. Valid conformers are in the map_conformer_to_atom dictionary
+        for conformer, atom_id in map_conformer_to_atom.items():
+            # Read the raw file for this conformer
+            raw_file = f"energies/{conformer}.raw"
+            if not os.path.isfile(raw_file):
+                logging.error(f"Required raw file is missing: {raw_file}")
+                continue
+            raw_lines = open(raw_file, 'r').readlines()
+            pbrxn = None
+            for line in raw_lines:
+                if line.startswith("[RXN"):
+                    fields = line.strip().split()
+                    if len(fields) >= 2:
+                        pbrxn = float(fields[-1])
+                        break
+            if pbrxn is not None:
+                # Get the local density scores for the charged atom
+                density = density_data.get(atom_id, [0.0, 0.0, 0.0])
+                out_line = f"{density[0]:.3f}, {density[1]:.3f}, {density[2]:.3f}, {pbrxn:.3f}\n"
+                rxn_lines.append(out_line)  # Append the line to the reaction field energy training data
         i_charge += 1  # Increment the index for the next charged atom
+
+    # Write the reaction field energy training data to a csv file
+    output_file = f"{pdb_file.replace('.pdb', '')}_rxn.csv"
+    with open(output_file, "w") as f:
+        f.write("Density_Near,Density_Mid,Density_Far,PBRXN\n")
+        f.writelines(rxn_lines)
 
 
 if __name__ == "__main__":

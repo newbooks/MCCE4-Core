@@ -99,7 +99,7 @@ if __name__ == "__main__":
 
 
     # Train the model
-    features = ['DensityAverage_Near', 'DensityAverage_Mid', 'DensityAverage_Far']
+    features = ['Density_Near', 'Density_Mid', 'Density_Far']
     title = "rxn"
     fit_rf(features, data, title)
     logging.info(f"Model trained by {title}.")
