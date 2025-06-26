@@ -53,7 +53,6 @@ ATOM    604 HD22 ASN A0039_001   9.805  -6.603  -6.814   1.200       0.000      
 
 CHARGE_SOURCE = "ATOM    577  CB  PHE A0038_001   5.299  -0.663  -9.277   1.700       0.000      01G000_000"      # The source of charge for the potential calculation, will change in range [-1, 1]
 POTENTIAL_SITE = "ATOM    598  CG  ASN A0039_001   7.796  -6.898  -7.132   1.700       0.000      01G000_000"     # The site of potential to be reported, maintain constant charge 1
-STEP3_EXE = "/home/jmao/projects/MCCE4/bin/step3.py"
 
 def parse_arguments():
     helpmsg = "Validate scaling electrostatic potential from the source charge."
@@ -103,7 +102,7 @@ if __name__ == "__main__":
 
         # Call mcce step3 to calculate the potential
         logging.info(f"Running MCCE step3 with charge {charge_value:.2f}...")
-        result = subprocess.run([STEP3_EXE, "-s", "delphi"], capture_output=True, text=True)
+        result = subprocess.run(["step3.py", "-s", "delphi"], capture_output=True, text=True)
         if result.returncode != 0:
             logging.error(f"step3.py failed with exit code {result.returncode}")
             logging.error(f"stderr: {result.stderr.strip()}")

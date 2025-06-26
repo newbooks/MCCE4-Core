@@ -1,0 +1,10 @@
+[Method] delphi
+
+[PAIRWISE confID single multi flag, kcal/mol]
+ARG+1A0001_001    0.041    0.041 *
+
+[BACKBONE total including self, kcal/mol]    0.000
+
+[BACKBONE breakdown, kcal/mol]
+
+[RXN, kcal/mol]  -28.614

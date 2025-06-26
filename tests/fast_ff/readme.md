@@ -56,7 +56,8 @@ To predict PB_Potential:
 **Training:**
 - Amino acid set: Prepare side chains, place +1 charge on each atom, and calculate reaction field energy with Delphi.
 - Small, medium, and large protein sets: For each, place a charge on one atom at a time and calculate reaction field energy with PB solver.
-- These datasets are used to train the RXN modifier based on local density. The actual RXN value should be quadratically scaled by the charge.
+- These datasets are compiled into one file and used to train the RXN modifier. 
+- The training and prediction takes out charge, and the actual RXN value should be quadratically scaled by the charge.
 
 Approximation (excluding mutual polarization) for multi-charge systems:
 
