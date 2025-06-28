@@ -1,24 +1,10 @@
 #!/usr/bin/env python
-"""
-Use Random Forest to predict electrostatic energy based on embedding scores and distances.
-The input is a CSV file with the following columns:
-- Conf1: Conformer ID for atom 1
-- Conf2: Conformer ID for atom 2
-- Distance: Distance between two atoms in Angstroms
-- Radius1: Radius for atom 1
-- Radius2: Radius for atom 2
-- Embedding1: Embedding score for atom 1
-- Embedding2: Embedding score for atom 2
-- Density1: Density score for atom 1
-- Density2: Density score for atom 2
-- CoulombPotential: Coulomb potential between two atoms
-- AdjustedCoulombPotential: Adjusted Coulomb potential based on embedding scores
-- PBPotential: Electrostatic energy from Poisson-Boltzmann calculation
-"""
 
+# import the modules
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import mean_squared_error, r2_score
 import numpy as np
@@ -30,13 +16,13 @@ import time
 
 def predict_rf(data, model, title):
     X = data[model['features']]
-    y = data['PBPotential']
+    y = data['PBRXN']
     rf = model['model']
     scaler = model['scaler']
     # Standardize the features
     X_scaled = scaler.transform(X)
     # Predict using the model
-    logging.info(f"Predicting with {title}...")
+    logging.info(f"{title}...")
     start_time = time.time()
     y_pred = rf.predict(X_scaled)
     logging.info(f"Prediction completed in {time.time() - start_time:.2f} seconds.")
@@ -58,8 +44,8 @@ def predict_rf(data, model, title):
     plt.figure(figsize=(10, 6))
     sns.scatterplot(x=y, y=y_pred)
 
-    plt.xlabel("True PBPotential")
-    plt.ylabel("Predicted PBPotential")
+    plt.xlabel("True PBRXN")
+    plt.ylabel("Predicted PBRXN")
     plt.title(f"Prediction Results: {title}")
     plt.plot([y.min(), y.max()], [y.min(), y.max()], 'g--', lw=2)
     plt.grid(True)
@@ -75,30 +61,25 @@ def predict_rf(data, model, title):
     plt.tight_layout()
     # replace the space with underscore in title for saving the figure
     title = title.replace(" ", "_")
-    plt.savefig(f"{title}_prediction_results.png")
+    plt.savefig(f"{title}.png")
 
 
 if __name__ == "__main__":
     # Set up logging
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s", datefmt='%Y-%m-%d %H:%M:%S')
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
     # Parse command line arguments
-    parser = argparse.ArgumentParser(description="Predict electrostatic energy using Random Forest.")
-    parser.add_argument("input_csv", help="Input CSV file")
-    parser.add_argument("--model", default="local_density_with_scaler.pkl", help="Path to the saved model and scaler in pkl format")
+    parser = argparse.ArgumentParser(description="Train a model to predict reaction field energy based on embedding scores.")
+    parser.add_argument('input_file', type=str, help='Input CSV file with training data')
+    parser.add_argument("--model", default="rxn_with_scaler.pkl", help="Path to the saved rxn model and scaler in pkl format, default: rxn_with_scaler.pkl")
     args = parser.parse_args()
 
     # Load the data
-    logging.info(f"Loading data from {args.input_csv} ...")
-    data = pd.read_csv(args.input_csv)
+    data = pd.read_csv(args.input_file)
 
-
-    # predict using the saved model
-    fname = args.model   # Load model and scaler from args.model
-    title = "Pre-trained Model"
-    logging.info("Loading model %s" % fname)
+    title = f"Predict using Model {args.model}"
     try:
-        model = joblib.load(fname)
+        model = joblib.load(args.model)
     except FileNotFoundError as e:
         logging.error(f"Model not found: {e}")
         exit(1)
