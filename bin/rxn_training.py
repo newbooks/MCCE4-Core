@@ -42,7 +42,7 @@ def fit_rf(features, data, title):
     X_val = scaler.transform(X_val)
     # Train a Random Forest model
     logging.info(f"Training with {title}...")
-    rf = RandomForestRegressor(n_estimators=100, random_state=int(time.time()))
+    rf = RandomForestRegressor(n_estimators=1000, random_state=int(time.time()))
     rf.fit(X_train, y_train)
     # Evaluate the model
     logging.info(f"Evaluating with {title} on validation set...")
