@@ -133,7 +133,7 @@ def fit_xgb(features, data, title):
     plt.text(0.05, 0.85, "\n".join([f"{row['Feature']}: {row['Importance']:.4f}" for _, row in feature_importance_adjusted_df.iterrows()]), transform=plt.gca().transAxes, fontsize=10, verticalalignment='top')
     plt.xlim(y.min(), y.max())
     plt.ylim(y.min(), y.max())
-    plt.savefig(f"{title}.png")
+    plt.savefig(f"{title.replace(' ', '_')}.png")
     # Save the trained model
     logging.info(f"Saving the trained model and scaler for {title} ...")
     model_filename = f"{title.replace(' ', '_').lower()}_with_scaler.pkl"
@@ -177,7 +177,7 @@ def fit_ann(features, data, title):
     
     plt.xlim(y.min(), y.max())
     plt.ylim(y.min(), y.max())
-    plt.savefig(f"{title}.png")
+    plt.savefig(f"{title.replace(' ', '_')}.png")
     # Save the trained model
     logging.info(f"Saving the trained model and scaler for {title} ...")
     model_filename = f"{title.replace(' ', '_').lower()}_with_scaler.pkl"
