@@ -59,7 +59,8 @@ def get_local_density_scores(pdb_file):
     This fuction also returns a dictionary with atom IDs as keys and their local density scores as values.
     """
     # Calculate local density scores for the amino acid PDB file
-    result = subprocess.run(["local_density.py", pdb_file], capture_output=True, text=True)
+    # result = subprocess.run(["local_density.py", pdb_file], capture_output=True, text=True)
+    result = subprocess.run(["local_embedding.py", pdb_file], capture_output=True, text=True)
     if result.returncode != 0:
         logging.error(f"local_density.py failed with exit code {result.returncode}")
         logging.error(f"stderr: {result.stderr.strip()}")
@@ -67,7 +68,8 @@ def get_local_density_scores(pdb_file):
     
     # Read the local density scores from the output file
     density_data = {}  # Dictionary to store local density scores, keyed by atom ID, value is a list of [Near, Mid, Far] scores
-    density_file = pdb_file.replace(".pdb", ".density")
+    # density_file = pdb_file.replace(".pdb", ".density")
+    density_file = pdb_file.replace(".pdb", ".embedding")  # Use the same naming convention as local_embedding.py
     density_lines = open(density_file, 'r').readlines()  # Read the local density scores
     for line in density_lines:
         atomname = line[12:16]
@@ -291,23 +293,23 @@ if __name__ == "__main__":
         exit(1)
 
     # Residue level reaction field energy
-    # logging.info("Processing residue level reaction field energy...")
-    # for pdb_file in AMINO_ACID_PDBS:
-    #     logging.info(f"Setting up reaction field energy for {pdb_file}...")
-    #     setup_residue(pdb_file)
-    # logging.info("Residue level reaction field energy training data setup complete.")
+    logging.info("Processing residue level reaction field energy...")
+    for pdb_file in AMINO_ACID_PDBS:
+        logging.info(f"Setting up reaction field energy for {pdb_file}...")
+        setup_residue(pdb_file)
+    logging.info("Residue level reaction field energy training data setup complete.")
 
     # Combine amino residue csv files into a single file
-    # logging.info("Combining amino acid level reaction field energy training data...")
-    # amino_acid_files = [f"{pdb_file.replace('.pdb', '')}_rxn.csv" for pdb_file in AMINO_ACID_PDBS]
-    # combined_amino_acid_file = "amino_acid_rxn.csv"
-    # with open(combined_amino_acid_file, "w") as outfile:
-    #     outfile.write("DensityAverage_Near,DensityAverage_Mid,DensityAverage_Far,PBRXN\n")  # Write header
-    #     for amino_file in amino_acid_files:
-    #         with open(amino_file, "r") as infile:
-    #             next(infile)  # Skip header
-    #             outfile.writelines(infile.readlines())  # Write the rest of the lines
-    # logging.info(f"Combined amino acid level reaction field energy training data saved to {combined_amino_acid_file}.")
+    logging.info("Combining amino acid level reaction field energy training data...")
+    amino_acid_files = [f"{pdb_file.replace('.pdb', '')}_rxn.csv" for pdb_file in AMINO_ACID_PDBS]
+    combined_amino_acid_file = "amino_acid_rxn.csv"
+    with open(combined_amino_acid_file, "w") as outfile:
+        outfile.write("Density_Near,Density_Mid,Density_Far,PBRXN\n")  # Write header
+        for amino_file in amino_acid_files:
+            with open(amino_file, "r") as infile:
+                next(infile)  # Skip header
+                outfile.writelines(infile.readlines())  # Write the rest of the lines
+    logging.info(f"Combined amino acid level reaction field energy training data saved to {combined_amino_acid_file}.")
 
     # Protein level reaction field energy
     logging.info("Processing protein level reaction field energy...")
