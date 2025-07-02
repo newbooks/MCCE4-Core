@@ -59,8 +59,8 @@ def get_local_density_scores(pdb_file):
     This fuction also returns a dictionary with atom IDs as keys and their local density scores as values.
     """
     # Calculate local density scores for the amino acid PDB file
-    # result = subprocess.run(["local_density.py", pdb_file], capture_output=True, text=True)
-    result = subprocess.run(["local_embedding.py", pdb_file], capture_output=True, text=True)
+    result = subprocess.run(["local_density.py", pdb_file], capture_output=True, text=True)
+    # result = subprocess.run(["local_embedding.py", pdb_file], capture_output=True, text=True)
     if result.returncode != 0:
         logging.error(f"local_density.py failed with exit code {result.returncode}")
         logging.error(f"stderr: {result.stderr.strip()}")
@@ -68,8 +68,8 @@ def get_local_density_scores(pdb_file):
     
     # Read the local density scores from the output file
     density_data = {}  # Dictionary to store local density scores, keyed by atom ID, value is a list of [Near, Mid, Far] scores
-    # density_file = pdb_file.replace(".pdb", ".density")
-    density_file = pdb_file.replace(".pdb", ".embedding")  # Use the same naming convention as local_embedding.py
+    density_file = pdb_file.replace(".pdb", ".density")
+    # density_file = pdb_file.replace(".pdb", ".embedding")  # Use the same naming convention as local_embedding.py
     density_lines = open(density_file, 'r').readlines()  # Read the local density scores
     for line in density_lines:
         atomname = line[12:16]
