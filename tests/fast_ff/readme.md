@@ -36,15 +36,15 @@ To predict PB_Potential:
 - Input features:
     - LocalDensity with Near, Mid and Far scores
 - Target:
-    - PB_Potential (from PB solver)
+    - PB_Potential (from PB solver) scaled down by distance
 
 **Training Steps:**
 - Select a microstate from `ga_output`
-- Run `ele_setup.py microstate.pdb` to generate `step2_out.pdb`
-- Run `step3.py` to create the `energies` directory
-- Run `ele_compile.py state_name` to export pairwise interactions to a CSV file
+- Prepare microstate pdb files small_protein.pdb, medium_protein.pdb, large_protein.pdb
+- Run `ele_setup.py microstate.pdb` to assign charge, calculate local density, run delphi to get PBPotential, and compile to a csv file
 - Combine CSV files from multiple proteins for a comprehensive training set
 - Train the model: `ele_training.py pairwise_data.csv`
+- Some feature engineering might be necessary. For example, by the nature of the PB potential, the closer the atoms are, the stronger the interaction scalable by the inverse of distance. So using inversed Distance make KNN model better but won't affect decision tree based models much. KNN model is based on the the average of the nearest neighbors, and serves as a good reference of feature selection.
 
 **Validation:**
 - Does PB_Potential scale with the charge? This model relies on the linear replationship between Coulomb Potential and PB Potential.

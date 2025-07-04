@@ -30,6 +30,7 @@ from sklearn.neural_network import MLPRegressor
 from sklearn.linear_model import LinearRegression, Lasso, Ridge
 import numpy as np
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.neighbors import KNeighborsRegressor
 import joblib
 import argparse
 import logging
@@ -318,6 +319,49 @@ def fit_ridge(features, data, title):
     joblib.dump({'model': ridge_model, 'scaler': scaler, 'features': feature_names}, model_filename)
     logging.info(f"Saved the trained model and scaler to {model_filename}.")
         
+def fit_knn(features, data, title):
+    X = data[features]
+    y = data['PBRXN']
+    X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=int(time.time()))
+    # Standardize the features
+    scaler = StandardScaler()
+    X_train = scaler.fit_transform(X_train)
+    X_val = scaler.transform(X_val)
+    # Train a KNN model
+    logging.info(f"Training with {title}...")
+    knn_model = KNeighborsRegressor(n_neighbors=5)  # Adjust n_neighbors as needed
+    knn_model.fit(X_train, y_train)
+    # Evaluate the model
+    logging.info(f"Evaluating with {title} on validation set...")
+    y_pred_adjusted = knn_model.predict(X_val)
+    rmse_adjusted = np.sqrt(mean_squared_error(y_val, y_pred_adjusted))
+    y_range_adjusted = np.ptp(y_val)  # Range of true values
+    normalized_rmse_adjusted = rmse_adjusted / y_range_adjusted if y_range_adjusted != 0 else 0
+    r2 = r2_score(y_val, y_pred_adjusted)
+    logging.info(f"R2: {r2:.3f}, RMSE: {normalized_rmse_adjusted:.3f}")
+    
+    # get feature importances (not directly available for KNN, so we skip this part)
+    
+    # Plot the results
+    plt.figure(figsize=(10, 6))
+    sns.scatterplot(x=y_val, y=y_pred_adjusted, alpha=0.5)
+    plt.grid(True)  # add grid lines
+    plt.plot([y.min(), y.max()], [y.min(), y.max()], 'g--', lw=2)  # Diagonal line
+    plt.xlabel("True PB RXN")
+    plt.ylabel("Predicted PB RXN")
+    plt.title(f"{title}")
+    # print R^2 and RMSE on the plot
+    plt.text(0.05, 0.95, f"R^2: {r2:.3f} Good if > 0.9\nRMSE: {normalized_rmse_adjusted:.3E} Good if <0.05", transform=plt.gca().transAxes, fontsize=12, verticalalignment='top')
+    
+    plt.xlim(y.min(), y.max())
+    plt.ylim(y.min(), y.max())
+    plt.savefig(f"{title.replace(' ', '_')}.png")
+    # Save the trained model
+    logging.info(f"Saving the trained model and scaler for {title} ...")
+    model_filename = f"{title.replace(' ', '_').lower()}_with_scaler.pkl"
+    feature_names = [f.replace(' ', '_') for f in features]  # Replace spaces with underscores in feature names
+    joblib.dump({'model': knn_model, 'scaler': scaler, 'features': feature_names}, model_filename)
+    logging.info(f"Saved the trained model and scaler to {model_filename}.")
 
 if __name__ == "__main__":
     # Set up logging    
@@ -327,7 +371,7 @@ if __name__ == "__main__":
 
     # Parse command line arguments
     parser = argparse.ArgumentParser(description="Train a model to predict electrostatic energy based on embedding scores and distances.")
-    parser.add_argument("-m", "--model", default="rf", help="Model type to use (default: rf), options: xgb, ann, linear, lasso, ridge.")
+    parser.add_argument("-m", "--model", default="rf", help="Model type to use (default: rf), options: xgb, ann, linear, lasso, ridge, knn.")
     parser.add_argument("input_csv", help="Input CSV file")
     args = parser.parse_args()
 
@@ -357,6 +401,9 @@ if __name__ == "__main__":
     elif args.model == "lasso":
         title = f"Lasso Regression {title}"
         fit_lasso(features, data, title)
+    elif args.model == "knn":
+        title = f"KNN {title}"
+        fit_knn(features, data, title)
     else:
         logging.error(f"Unknown model type: {args.model}. Supported models are: rf, xgb, ann.")
         exit(1)
