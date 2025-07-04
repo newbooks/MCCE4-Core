@@ -44,6 +44,7 @@ To predict PB_Potential:
 - Run `ele_setup.py microstate.pdb` to assign charge, calculate local density, run delphi to get PBPotential, and compile to a csv file
 - Combine CSV files from multiple proteins for a comprehensive training set
 - Train the model: `ele_training.py pairwise_data.csv`
+- Some feature engineering might be necessary. For example, by the nature of the PB potential, the closer the atoms are, the stronger the interaction scalable by the inverse of distance. So using inversed Distance make KNN model better but won't affect decision tree based models much. KNN model is based on the the average of the nearest neighbors, and serves as a good reference of feature selection.
 
 **Validation:**
 - Does PB_Potential scale with the charge? This model relies on the linear replationship between Coulomb Potential and PB Potential.
