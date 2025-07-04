@@ -19,10 +19,8 @@ The input is a CSV file with the following columns:
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import mean_squared_error, r2_score
 import numpy as np
-from sklearn.ensemble import RandomForestRegressor
 import joblib
 import argparse
 import logging

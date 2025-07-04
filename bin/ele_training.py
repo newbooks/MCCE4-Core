@@ -25,6 +25,8 @@ from sklearn.neural_network import MLPRegressor
 from sklearn.linear_model import LinearRegression, Ridge, Lasso
 from sklearn.svm import SVR
 from sklearn.neighbors import KNeighborsRegressor
+from sklearn.gaussian_process import GaussianProcessRegressor
+from sklearn.gaussian_process.kernels import RBF, ConstantKernel as C
 
 import joblib
 import argparse
@@ -437,9 +439,9 @@ if __name__ == "__main__":
     fit_rf(features, target, data, title)
     logging.info(f"Model trained by {title}.")
 
-    title = "XGBoost"
-    fit_xgb(features, target, data, title)
-    logging.info(f"Model trained by {title}.")
+    # title = "XGBoost"
+    # fit_xgb(features, target, data, title)
+    # logging.info(f"Model trained by {title}.")
 
     title = "ANN"
     fit_ann(features, target, data, title)
