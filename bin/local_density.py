@@ -21,6 +21,20 @@ logging_format = "%(asctime)s %(levelname)s: %(message)s"
 logging_format_debug = "%(asctime)s %(levelname)s [%(module)s]: %(message)s"
 logging_datefmt='%Y-%m-%d %H:%M:%S'
 
+class LocalDensity:
+    """
+    Class to hold local density scores for an atom.
+    The scores are stored as a list of integers:
+    [Near_Count, Mid_Count, Far_Count, Quadrant_Counts...]
+    where Quadrant_Counts is a list of 8 integers representing counts in each octant.
+    """
+    def __init__(self):
+        self.near_count = 0
+        self.mid_count = 0
+        self.far_count = 0
+        self.variation = 0.0
+
+
 def parse_arguments():
     helpmsg = "Calculate atom local density scores for a given protein structure (microstate)"
     parser = argparse.ArgumentParser(description=helpmsg)
@@ -34,10 +48,10 @@ class Atom:
         self.line = ""  # Original line from PDB file
         self.element = ""
         self.xyz = Vector()
-        self.local_density = [0, 0, 0]  # Local density score, integer, count of atoms within Near, Mid and Far radius
+        self.local_density = LocalDensity()  # Local density scores
 
     def __repr__(self):
-        return f"{self.line[:30]}{self.xyz.x:8.3f}{self.xyz.y:8.3f}{self.xyz.z:8.3f}{self.local_density[0]:8d}{self.local_density[1]:8d}{self.local_density[2]:8d}"
+        return f"{self.line[:30]}{self.xyz.x:8.3f}{self.xyz.y:8.3f}{self.xyz.z:8.3f}{self.local_density.near_count:6d}{self.local_density.mid_count:6d}{self.local_density.far_count:6d}{self.local_density.variation:8.3f}"
 
 class Protein:
     def __init__(self):
@@ -71,18 +85,52 @@ class Protein:
         # Create a cKDTree for fast nearest neighbor search
         tree = cKDTree(coords)
         # Query the tree for neighbors
-        indices_far = tree.query_ball_tree(tree, r=Far_Radius)  # Get all neighbors within Far_Radius
-        indices_mid = tree.query_ball_tree(tree, r=Mid_Radius)  # Get all neighbors within Mid_Radius
-        indices_near = tree.query_ball_tree(tree, r=Near_Radius)  # Get all neighbors within Near_Radius
+        indices_far = tree.query_ball_point(coords, r=Far_Radius)  # Get all neighbors within Far_Radius
+        indices_mid = tree.query_ball_point(coords, r=Mid_Radius)  # Get all neighbors within Mid_Radius
+        indices_near = tree.query_ball_point(coords, r=Near_Radius)  # Get all neighbors within Near_Radius
         # Calculate local density for each atom
         for i, atom in enumerate(self.atoms):
             # Get the indices of neighbors for this atom and exclude itself
             neighbor_count_far = len(indices_far[i]) - 1
             neighbor_count_mid = len(indices_mid[i]) - 1
             neighbor_count_near = len(indices_near[i]) - 1
-            atom.local_density= [neighbor_count_near,
-                                 neighbor_count_mid - neighbor_count_near,
-                                 neighbor_count_far - neighbor_count_mid]  # Net counts for Near, Mid, and Far
+            # count the number of atoms in quadrants at Far_Radius
+            variation = 0.0
+            if neighbor_count_far > 0:
+                # the center atom coordinates
+                center = atom.xyz.to_np()
+                # indices in the far shell
+                far_indices = list(set(indices_far[i]) - set(indices_mid[i]))
+                # Initialize local density quadrants
+                quadrants_atom_counts = [0, 0, 0, 0, 0, 0, 0, 0]  # [(x+, y+, z+), (x+, y+, z-), (x+, y-, z+), (x+, y-, z-), (x-, y+, z+), (x-, y+, z-), (x-, y-, z+), (x-, y-, z-)]
+                # Loop through the far neighbors and count their relative positions
+                for j in far_indices:
+                    neighbor = self.atoms[j]
+                    dx = neighbor.xyz.x - center[0]
+                    dy = neighbor.xyz.y - center[1]
+                    dz = neighbor.xyz.z - center[2]
+                    if dx > 0 and dy > 0 and dz > 0:
+                        quadrants_atom_counts[0] += 1  # (x+, y+, z+)
+                    elif dx > 0 and dy > 0 and dz < 0:
+                        quadrants_atom_counts[1] += 1  # (x+, y+, z-)
+                    elif dx > 0 and dy < 0 and dz > 0:
+                        quadrants_atom_counts[2] += 1  # (x+, y-, z+)
+                    elif dx > 0 and dy < 0 and dz < 0:
+                        quadrants_atom_counts[3] += 1  # (x+, y-, z-)
+                    elif dx < 0 and dy > 0 and dz > 0:
+                        quadrants_atom_counts[4] += 1  # (x-, y+, z+)
+                    elif dx < 0 and dy > 0 and dz < 0:
+                        quadrants_atom_counts[5] += 1  # (x-, y+, z-)
+                    elif dx < 0 and dy < 0 and dz > 0:
+                        quadrants_atom_counts[6] += 1  # (x-, y-, z+)
+                    elif dx < 0 and dy < 0 and dz < 0:
+                        quadrants_atom_counts[7] += 1  # (x-, y-, z-)
+                print(f"Quadrant counts: {quadrants_atom_counts}; average: {np.average(quadrants_atom_counts):.2f}, std: {np.std(quadrants_atom_counts):.2f}")
+                variation = np.std(quadrants_atom_counts)/np.average(quadrants_atom_counts) if len(quadrants_atom_counts) > 0 else 0.0
+            atom.local_density.near_count = neighbor_count_near
+            atom.local_density.mid_count = neighbor_count_mid - neighbor_count_near
+            atom.local_density.far_count = neighbor_count_far - neighbor_count_mid
+            atom.local_density.variation = variation
 
     def write_local_density(self):
         """
