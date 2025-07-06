@@ -432,7 +432,7 @@ if __name__ == "__main__":
     # Inverse distance, by the nature of the PB potential, the closer the atoms are, the stronger the interaction scalable by the inverse of distance. 
     # So using iDistance make KNN model better but won't affect decision tree based models much.
 
-    features = ['iDistance', 'DensityAverage_Near', 'DensityAverage_Mid', 'DensityAverage_Far']
+    features = ['iDistance', 'Density1_Near', 'Density1_Mid', 'Density1_Far', 'Variance1', 'Density2_Near', 'Density2_Mid', 'Density2_Far', 'Variance2']
     target = 'PBPotential'
 
     title = "Random Forest"

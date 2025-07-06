@@ -32,7 +32,7 @@ class LocalDensity:
         self.near_count = 0
         self.mid_count = 0
         self.far_count = 0
-        self.variation = 0.0
+        self.variance = 0.0
 
 
 def parse_arguments():
@@ -51,7 +51,7 @@ class Atom:
         self.local_density = LocalDensity()  # Local density scores
 
     def __repr__(self):
-        return f"{self.line[:30]}{self.xyz.x:8.3f}{self.xyz.y:8.3f}{self.xyz.z:8.3f}{self.local_density.near_count:6d}{self.local_density.mid_count:6d}{self.local_density.far_count:6d}{self.local_density.variation:8.3f}"
+        return f"{self.line[:30]}{self.xyz.x:8.3f}{self.xyz.y:8.3f}{self.xyz.z:8.3f}{self.local_density.near_count:6d}{self.local_density.mid_count:6d}{self.local_density.far_count:6d}{self.local_density.variance:8.3f}"
 
 class Protein:
     def __init__(self):
@@ -95,7 +95,7 @@ class Protein:
             neighbor_count_mid = len(indices_mid[i]) - 1
             neighbor_count_near = len(indices_near[i]) - 1
             # count the number of atoms in quadrants at Far_Radius
-            variation = 0.0
+            variance = 0.0
             if neighbor_count_far > 0:
                 # the center atom coordinates
                 center = atom.xyz.to_np()
@@ -126,11 +126,11 @@ class Protein:
                     elif dx < 0 and dy < 0 and dz < 0:
                         quadrants_atom_counts[7] += 1  # (x-, y-, z-)
                 print(f"Quadrant counts: {quadrants_atom_counts}; average: {np.average(quadrants_atom_counts):.2f}, std: {np.std(quadrants_atom_counts):.2f}")
-                variation = np.std(quadrants_atom_counts)/np.average(quadrants_atom_counts) if len(quadrants_atom_counts) > 0 else 0.0
+                variance = np.std(quadrants_atom_counts)/np.average(quadrants_atom_counts) if len(quadrants_atom_counts) > 0 else 0.0
             atom.local_density.near_count = neighbor_count_near
             atom.local_density.mid_count = neighbor_count_mid - neighbor_count_near
             atom.local_density.far_count = neighbor_count_far - neighbor_count_mid
-            atom.local_density.variation = variation
+            atom.local_density.variance = variance
 
     def write_local_density(self):
         """

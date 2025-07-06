@@ -4,7 +4,7 @@
 
 ### What is Local Density?
 Local density measures how deeply an atom is buried by counting the number of surrounding atoms.
-Local density also includes "density variation" which is defined as the standard deviation of atom counts in 8 quadrants.
+Local density also includes "density variance" which is defined as the standard deviation of atom counts in 8 quadrants.
 
 ### How is Local Density Calculated?
 A bounding sphere is defined with Near, Mid, and Far radii. Atoms within each sphere are counted, resulting in a tuple:

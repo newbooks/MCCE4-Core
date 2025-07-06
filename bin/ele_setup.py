@@ -102,7 +102,7 @@ def write_pdb(atoms, output_file):
 
 
 class AtomProperties:
-    __slots__ = ("confid", "xyz", "radius", "charge", "density_near", "density_mid", "density_far")
+    __slots__ = ("confid", "xyz", "radius", "charge", "density_near", "density_mid", "density_far", "density_variance")
 
     def __init__(self):
         self.confid = ""
@@ -112,11 +112,12 @@ class AtomProperties:
         self.density_near = 0
         self.density_mid = 0
         self.density_far = 0
+        self.density_variance = 0.0  # variance of local density in 8 quadrants
 
     def __repr__(self):
         return (f"{self.confid} {self.xyz.x:8.3f} {self.xyz.y:8.3f} {self.xyz.z:8.3f} "
-                f"{self.radius:8.3f} {self.charge:8.3f} {self.density_mid:8d} "
-                f"{self.density_far:8d}")
+                f"{self.radius:8.3f} {self.charge:8.3f} {self.density_near:6d} {self.density_mid:6d} "
+                f"{self.density_far:6d} {self.density_variance:6.3f}")
 
 
 def update_density_score(atoms, fname):
@@ -134,12 +135,13 @@ def update_density_score(atoms, fname):
         for line in f:
             if line.startswith(("ATOM  ", "HETATM")):
                 atom_id = (line[12:16], line[17:20], line[21], line[22:26])
-                local_density = [int(x) for x in line[54:].strip().split()]
+                local_density = [x for x in line[54:].strip().split()]
                 if atom_id in atoms:
                     # Expecting three density values at the end of the line
-                    atoms[atom_id].density_near = local_density[0]
-                    atoms[atom_id].density_mid = local_density[1]
-                    atoms[atom_id].density_far = local_density[2]
+                    atoms[atom_id].density_near = int(local_density[0])
+                    atoms[atom_id].density_mid = int(local_density[1])
+                    atoms[atom_id].density_far = int(local_density[2])
+                    atoms[atom_id].density_variance = float(local_density[3])
 
 
 def load_atoms():
@@ -199,14 +201,20 @@ def get_electrostatic_energy(atoms):
                 conf2 = fields[1]
                 atom_id2 = conformers.get(conf2)
                 if atom_id2 is not None:
-                    try:
+                    # try:  # This version averages the energy if both directions are recorded
+                    #     ele = float(fields[5])
+                    #     reverse_key = (atom_id2, atom_id1)
+                    #     if pairwise_ele.get(reverse_key) is None:  # the other direction is not recorded
+                    #         pairwise_ele[(atom_id1, atom_id2)] = ele
+                    #     else:
+                    #         pairwise_ele[reverse_key] = (pairwise_ele[reverse_key] + ele) / 2  # Average the energy if both directions are recorded
+                    # except ValueError:
+                    #     continue
+                    try: # This version only records the energy in one direction
                         ele = float(fields[5])
-                        reverse_key = (atom_id2, atom_id1)
-                        if pairwise_ele.get(reverse_key) is None:  # the other direction is not recorded
-                            pairwise_ele[(atom_id1, atom_id2)] = ele
-                        else:
-                            pairwise_ele[reverse_key] = (pairwise_ele[reverse_key] + ele) / 2  # Average the energy if both directions are recorded
+                        pairwise_ele[(atom_id1, atom_id2)] = ele
                     except ValueError:
+                        logging.error(f"Invalid energy value in {fname} for {conf1} and {conf2}: {fields[5]}")
                         continue
     return pairwise_ele
 
@@ -263,13 +271,18 @@ if __name__ == "__main__":
     with open(output_file, 'w') as f:
         # We only need to write these features to the CSV file
         # Distance, DensityAverage_Near, DensityAverage_Mid, DensityAverage_Far, PBPotential
-        f.write("Distance,DensityAverage_Near,DensityAverage_Mid,DensityAverage_Far,PBPotential\n")
+        f.write("Distance,Density1_Near,Density1_Mid,Density1_Far,Variance1,Density2_Near,Density2_Mid,Density2_Far,Variance2,PBPotential\n")
         for (atom_id1, atom_id2), ele in pairwise_ele.items():
             atom1, atom2 = atoms[atom_id1], atoms[atom_id2]
             distance = atom1.xyz.distance(atom2.xyz)
-            densityaverage_near = (atom1.density_near + atom2.density_near) / 2
-            densityaverage_mid = (atom1.density_mid + atom2.density_mid) / 2
-            densityaverage_far = (atom1.density_far + atom2.density_far) / 2
+            density1_near = atom1.density_near
+            density1_mid = atom1.density_mid
+            density1_far = atom1.density_far
+            variance1 = atom1.density_variance
+            density2_near = atom2.density_near
+            density2_mid = atom2.density_mid
+            density2_far = atom2.density_far
+            variance2 = atom2.density_variance
             # write the row to the CSV file
-            f.write(f"{distance:.3f},{densityaverage_near:.3f},{densityaverage_mid:.3f},{densityaverage_far:.3f},{ele:.3f}\n")
+            f.write(f"{distance:.3f},{density1_near:.3f},{density1_mid:.3f},{density1_far:.3f},{variance1:.3f},{density2_near:.3f},{density2_mid:.3f},{density2_far:.3f},{variance2:.3f},{ele:.3f}\n")
     logging.info(f"Results compiled into {output_file}. Energy unit is kcal/mol.")
