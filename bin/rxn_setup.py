@@ -78,11 +78,12 @@ def get_local_density_scores(pdb_file):
         resseq = line[22:26]
         atom_id = (atomname, resname, chainid, resseq)
         fields = line[54:].strip().split()
-        if len(fields) == 3:  # Expecting three fields: near, mid, far
+        if len(fields) == 4:  # Expecting four fields: near, mid, far, variance
             near = float(fields[0])
             mid = float(fields[1])
             far = float(fields[2])
-            density_data[atom_id] = [near, mid, far]
+            variance = float(fields[3])
+            density_data[atom_id] = [near, mid, far, variance]
 
     return density_data
 
@@ -146,7 +147,7 @@ def setup_residue(pdb_file):
 
         # Read the output reaction field energies from energies/*.raw
         atom_id = (sidechain_atoms[i_chargedatom][12:16], sidechain_atoms[i_chargedatom][17:20], sidechain_atoms[i_chargedatom][21], sidechain_atoms[i_chargedatom][22:26])
-        density = density_data.get(atom_id, [0.0, 0.0, 0.0])  # Get the local density scores for this atom
+        density = density_data.get(atom_id, [0.0, 0.0, 0.0, 0.0])  # Get the local density scores for this atom
         raw_lines = open(raw_file, 'r').readlines()
         pbrxn = None
         for line in raw_lines:
@@ -157,12 +158,12 @@ def setup_residue(pdb_file):
                     break
 
         if pbrxn is not None:
-            out_line = f"{density[0]:.3f}, {density[1]:.3f}, {density[2]:.3f}, {pbrxn:.3f}\n"
+            out_line = f"{density[0]:.3f}, {density[1]:.3f}, {density[2]:.3f}, {density[3]:.3f}, {pbrxn:.3f}\n"
             rxn_lines.append(out_line)
     # Write the reaction field energy training data to amino_acid.csv
     output_file = f"{pdb_file.replace('.pdb', '')}_rxn.csv"
     with open(output_file, "w") as f:
-        f.write("Density_Near,Density_Mid,Density_Far,PBRXN\n")
+        f.write("Density_Near,Density_Mid,Density_Far,Density_Variance,PBRXN\n")
         f.writelines(rxn_lines)
 
 
@@ -267,15 +268,15 @@ def setup_protein(pdb_file):
                         break
             if pbrxn is not None:
                 # Get the local density scores for the charged atom
-                density = density_data.get(atom_id, [0.0, 0.0, 0.0])
-                out_line = f"{density[0]:.3f}, {density[1]:.3f}, {density[2]:.3f}, {pbrxn:.3f}\n"
+                density = density_data.get(atom_id, [0.0, 0.0, 0.0, 0.0])
+                out_line = f"{density[0]:.3f}, {density[1]:.3f}, {density[2]:.3f}, {density[3]:.3f}, {pbrxn:.3f}\n"
                 rxn_lines.append(out_line)  # Append the line to the reaction field energy training data
         i_charge += 1  # Increment the index for the next charged atom
 
     # Write the reaction field energy training data to a csv file
     output_file = f"{pdb_file.replace('.pdb', '')}_rxn.csv"
     with open(output_file, "w") as f:
-        f.write("Density_Near,Density_Mid,Density_Far,PBRXN\n")
+        f.write("Density_Near,Density_Mid,Density_Far,Density_Variance,PBRXN\n")
         f.writelines(rxn_lines)
 
 
@@ -304,7 +305,7 @@ if __name__ == "__main__":
     amino_acid_files = [f"{pdb_file.replace('.pdb', '')}_rxn.csv" for pdb_file in AMINO_ACID_PDBS]
     combined_amino_acid_file = "amino_acid_rxn.csv"
     with open(combined_amino_acid_file, "w") as outfile:
-        outfile.write("Density_Near,Density_Mid,Density_Far,PBRXN\n")  # Write header
+        outfile.write("Density_Near,Density_Mid,Density_Far,Density_Variance,PBRXN\n")  # Write header
         for amino_file in amino_acid_files:
             with open(amino_file, "r") as infile:
                 next(infile)  # Skip header
@@ -312,9 +313,9 @@ if __name__ == "__main__":
     logging.info(f"Combined amino acid level reaction field energy training data saved to {combined_amino_acid_file}.")
 
     # Protein level reaction field energy
-    logging.info("Processing protein level reaction field energy...")
-    for pdb_file in PROTEIN_PDBS:
-        logging.info(f"Setting up reaction field energy for {pdb_file}...")
-        # Call the setup_protein function with the PDB file and output file
-        setup_protein(pdb_file)
-    logging.info("Protein level reaction field energy training data setup complete.")
+    # logging.info("Processing protein level reaction field energy...")
+    # for pdb_file in PROTEIN_PDBS:
+    #     logging.info(f"Setting up reaction field energy for {pdb_file}...")
+    #     # Call the setup_protein function with the PDB file and output file
+    #     setup_protein(pdb_file)
+    # logging.info("Protein level reaction field energy training data setup complete.")

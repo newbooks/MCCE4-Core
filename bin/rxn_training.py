@@ -381,7 +381,7 @@ if __name__ == "__main__":
 
 
     # Train the model
-    features = ['Density_Near', 'Density_Mid', 'Density_Far']
+    features = ['Density_Near', 'Density_Mid', 'Density_Far', 'Density_Variance']
     title = "rxn"
     if args.model == "rf":
         title = f"Random Forest {title}"
