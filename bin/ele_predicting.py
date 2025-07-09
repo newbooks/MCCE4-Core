@@ -1,19 +1,6 @@
 #!/usr/bin/env python
 """
-Use Random Forest to predict electrostatic energy based on embedding scores and distances.
-The input is a CSV file with the following columns:
-- Conf1: Conformer ID for atom 1
-- Conf2: Conformer ID for atom 2
-- Distance: Distance between two atoms in Angstroms
-- Radius1: Radius for atom 1
-- Radius2: Radius for atom 2
-- Embedding1: Embedding score for atom 1
-- Embedding2: Embedding score for atom 2
-- Density1: Density score for atom 1
-- Density2: Density score for atom 2
-- CoulombPotential: Coulomb potential between two atoms
-- AdjustedCoulombPotential: Adjusted Coulomb potential based on embedding scores
-- PBPotential: Electrostatic energy from Poisson-Boltzmann calculation
+Use  a selected ML model to predict on another set of data in CSV format.
 """
 
 import pandas as pd

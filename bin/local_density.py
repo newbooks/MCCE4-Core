@@ -126,7 +126,7 @@ class Protein:
                     elif dx < 0 and dy < 0 and dz < 0:
                         quadrants_atom_counts[7] += 1  # (x-, y-, z-)
                 print(f"Quadrant counts: {quadrants_atom_counts}; average: {np.average(quadrants_atom_counts):.2f}, std: {np.std(quadrants_atom_counts):.2f}")
-                variance = np.std(quadrants_atom_counts)/np.average(quadrants_atom_counts) if len(quadrants_atom_counts) > 0 else 0.0
+                variance = np.std(quadrants_atom_counts)/np.average(quadrants_atom_counts) if sum(quadrants_atom_counts) > 0 else 0.0
             atom.local_density.near_count = neighbor_count_near
             atom.local_density.mid_count = neighbor_count_mid - neighbor_count_near
             atom.local_density.far_count = neighbor_count_far - neighbor_count_mid

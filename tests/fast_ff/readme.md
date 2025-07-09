@@ -77,3 +77,4 @@ RXN(q1, q2) = [RXN(q1) + RXN(q2) + PB_Potential(q1, q2)] - [Coulomb_potential(q1
 
 ### Limitations of This Modeling Approach
 - Reaction field induced by a point charge only applies to that charge; mutual polarization is ignored.
+- Test linear models and use native structure as the base, model as delta.
