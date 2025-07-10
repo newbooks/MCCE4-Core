@@ -102,7 +102,7 @@ def write_pdb(atoms, output_file):
 
 
 class AtomProperties:
-    __slots__ = ("confid", "xyz", "radius", "charge", "density_near", "density_mid", "density_far", "density_variance")
+    __slots__ = ("confid", "xyz", "radius", "charge", "density_near", "density_mid", "density_far", "d2surface")
 
     def __init__(self):
         self.confid = ""
@@ -112,12 +112,12 @@ class AtomProperties:
         self.density_near = 0
         self.density_mid = 0
         self.density_far = 0
-        self.density_variance = 0.0  # variance of local density in 8 quadrants
+        self.d2surface = 0.0 
 
     def __repr__(self):
         return (f"{self.confid} {self.xyz.x:8.3f} {self.xyz.y:8.3f} {self.xyz.z:8.3f} "
                 f"{self.radius:8.3f} {self.charge:8.3f} {self.density_near:6d} {self.density_mid:6d} "
-                f"{self.density_far:6d} {self.density_variance:6.3f}")
+                f"{self.density_far:6d} {self.d2surface:6.3f}")
 
 
 def update_density_score(atoms, fname):
@@ -137,11 +137,10 @@ def update_density_score(atoms, fname):
                 atom_id = (line[12:16], line[17:20], line[21], line[22:26])
                 local_density = [x for x in line[54:].strip().split()]
                 if atom_id in atoms:
-                    # Expecting three density values at the end of the line
                     atoms[atom_id].density_near = int(local_density[0])
                     atoms[atom_id].density_mid = int(local_density[1])
                     atoms[atom_id].density_far = int(local_density[2])
-                    atoms[atom_id].density_variance = float(local_density[3])
+                    atoms[atom_id].d2surface = float(local_density[3])
 
 
 def load_atoms():
@@ -271,18 +270,18 @@ if __name__ == "__main__":
     with open(output_file, 'w') as f:
         # We only need to write these features to the CSV file
         # Distance, DensityAverage_Near, DensityAverage_Mid, DensityAverage_Far, PBPotential
-        f.write("Distance,Density1_Near,Density1_Mid,Density1_Far,Variance1,Density2_Near,Density2_Mid,Density2_Far,Variance2,PBPotential\n")
+        f.write("Distance,Density1_Near,Density1_Mid,Density1_Far,D2surface1,Density2_Near,Density2_Mid,Density2_Far,D2surface2,PBPotential\n")
         for (atom_id1, atom_id2), ele in pairwise_ele.items():
             atom1, atom2 = atoms[atom_id1], atoms[atom_id2]
             distance = atom1.xyz.distance(atom2.xyz)
             density1_near = atom1.density_near
             density1_mid = atom1.density_mid
             density1_far = atom1.density_far
-            variance1 = atom1.density_variance
+            d2surface1 = atom1.d2surface
             density2_near = atom2.density_near
             density2_mid = atom2.density_mid
             density2_far = atom2.density_far
-            variance2 = atom2.density_variance
+            d2surface2 = atom2.d2surface
             # write the row to the CSV file
-            f.write(f"{distance:.3f},{density1_near:.3f},{density1_mid:.3f},{density1_far:.3f},{variance1:.3f},{density2_near:.3f},{density2_mid:.3f},{density2_far:.3f},{variance2:.3f},{ele:.3f}\n")
+            f.write(f"{distance:.3f},{density1_near:.3f},{density1_mid:.3f},{density1_far:.3f},{d2surface1:.3f},{density2_near:.3f},{density2_mid:.3f},{density2_far:.3f},{d2surface2:.3f},{ele:.3f}\n")
     logging.info(f"Results compiled into {output_file}. Energy unit is kcal/mol.")

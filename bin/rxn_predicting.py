@@ -34,12 +34,6 @@ def predict_rf(data, model, title):
     normalized_rmse = rmse / y_range if y_range != 0 else 0
     r2 = r2_score(y, y_pred)
     logging.info(f"{title} - R2: {r2:.3f}, RMSE: {normalized_rmse:.3f}")
-    # get feature importances
-    feature_importances = rf.feature_importances_
-    feature_names = X.columns
-    # Log the feature importances
-    for name, importance in zip(feature_names, feature_importances):
-        logging.info(f"Feature: {name}, Importance: {importance:.4f}")
     # Plot the results
     plt.figure(figsize=(10, 6))
     sns.scatterplot(x=y, y=y_pred)
@@ -54,10 +48,6 @@ def predict_rf(data, model, title):
     # print the RMSE and R2 score on the plot
     plt.text(0.05, 0.95, f"R2: {r2:.3f}\nRMSE: {normalized_rmse:.3f}", transform=plt.gca().transAxes, fontsize=12,
              verticalalignment='top', bbox=dict(facecolor='white', alpha=0.5, edgecolor='black'))
-    # print the feature importances on the plot
-    feature_importance_text = "\n".join([f"{name}: {importance:.4f}" for name, importance in zip(feature_names, feature_importances)])
-    plt.text(0.05, 0.85, "Feature Importances:\n" + feature_importance_text, transform=plt.gca().transAxes,
-             fontsize=12, verticalalignment='top', bbox=dict(facecolor='white', alpha=0.5, edgecolor='black'))
     plt.tight_layout()
     # replace the space with underscore in title for saving the figure
     title = title.replace(" ", "_")
@@ -71,9 +61,9 @@ if __name__ == "__main__":
     # Parse command line arguments
     parser = argparse.ArgumentParser(description="Train a model to predict reaction field energy based on embedding scores.")
     parser.add_argument('input_file', type=str, help='Input CSV file with training data')
-    parser.add_argument("--model", default="rxn_with_scaler.pkl", help="Path to the saved rxn model and scaler in pkl format, default: rxn_with_scaler.pkl")
+    parser.add_argument('-m', '--model', type=str, help='Path to the trained model file (pkl format)', default="rxn_with_scaler.pkl")
     args = parser.parse_args()
-
+    
     # Load the data
     data = pd.read_csv(args.input_file)
 

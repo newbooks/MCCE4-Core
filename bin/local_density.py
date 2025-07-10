@@ -10,6 +10,7 @@ import argparse
 import time
 import numpy as np
 from scipy.spatial import cKDTree
+from scipy.spatial import ConvexHull
 from mcce.geom import *
 
 # Constants
@@ -49,9 +50,10 @@ class Atom:
         self.element = ""
         self.xyz = Vector()
         self.local_density = LocalDensity()  # Local density scores
+        self.d2surface = 0.0  # Distance to the nearest surface
 
     def __repr__(self):
-        return f"{self.line[:30]}{self.xyz.x:8.3f}{self.xyz.y:8.3f}{self.xyz.z:8.3f}{self.local_density.near_count:6d}{self.local_density.mid_count:6d}{self.local_density.far_count:6d}{self.local_density.variance:8.3f}"
+        return f"{self.line[:30]}{self.xyz.x:8.3f}{self.xyz.y:8.3f}{self.xyz.z:8.3f}{self.local_density.near_count:6d}{self.local_density.mid_count:6d}{self.local_density.far_count:6d}{self.d2surface:8.3f}"
 
 class Protein:
     def __init__(self):
@@ -94,43 +96,28 @@ class Protein:
             neighbor_count_far = len(indices_far[i]) - 1
             neighbor_count_mid = len(indices_mid[i]) - 1
             neighbor_count_near = len(indices_near[i]) - 1
-            # count the number of atoms in quadrants at Far_Radius
-            variance = 0.0
-            if neighbor_count_far > 0:
-                # the center atom coordinates
-                center = atom.xyz.to_np()
-                # indices in the far shell
-                far_indices = list(set(indices_far[i]) - set(indices_mid[i]))
-                # Initialize local density quadrants
-                quadrants_atom_counts = [0, 0, 0, 0, 0, 0, 0, 0]  # [(x+, y+, z+), (x+, y+, z-), (x+, y-, z+), (x+, y-, z-), (x-, y+, z+), (x-, y+, z-), (x-, y-, z+), (x-, y-, z-)]
-                # Loop through the far neighbors and count their relative positions
-                for j in far_indices:
-                    neighbor = self.atoms[j]
-                    dx = neighbor.xyz.x - center[0]
-                    dy = neighbor.xyz.y - center[1]
-                    dz = neighbor.xyz.z - center[2]
-                    if dx > 0 and dy > 0 and dz > 0:
-                        quadrants_atom_counts[0] += 1  # (x+, y+, z+)
-                    elif dx > 0 and dy > 0 and dz < 0:
-                        quadrants_atom_counts[1] += 1  # (x+, y+, z-)
-                    elif dx > 0 and dy < 0 and dz > 0:
-                        quadrants_atom_counts[2] += 1  # (x+, y-, z+)
-                    elif dx > 0 and dy < 0 and dz < 0:
-                        quadrants_atom_counts[3] += 1  # (x+, y-, z-)
-                    elif dx < 0 and dy > 0 and dz > 0:
-                        quadrants_atom_counts[4] += 1  # (x-, y+, z+)
-                    elif dx < 0 and dy > 0 and dz < 0:
-                        quadrants_atom_counts[5] += 1  # (x-, y+, z-)
-                    elif dx < 0 and dy < 0 and dz > 0:
-                        quadrants_atom_counts[6] += 1  # (x-, y-, z+)
-                    elif dx < 0 and dy < 0 and dz < 0:
-                        quadrants_atom_counts[7] += 1  # (x-, y-, z-)
-                print(f"Quadrant counts: {quadrants_atom_counts}; average: {np.average(quadrants_atom_counts):.2f}, std: {np.std(quadrants_atom_counts):.2f}")
-                variance = np.std(quadrants_atom_counts)/np.average(quadrants_atom_counts) if sum(quadrants_atom_counts) > 0 else 0.0
             atom.local_density.near_count = neighbor_count_near
             atom.local_density.mid_count = neighbor_count_mid - neighbor_count_near
             atom.local_density.far_count = neighbor_count_far - neighbor_count_mid
-            atom.local_density.variance = variance
+
+
+    def calculate_distance_to_surface(self):
+        """
+        Calculate distance to the nearest surface for each atom.
+        Step 1: Create a set pf mesh points from the atoms by using ConvexHull.
+        Step 2: For each atom, find the nearest point on the surface mesh using cKDTree.
+        """
+        # Step 1: Create a set of mesh points from the atoms
+        atom_coords = np.array([atom.xyz.to_np() for atom in self.atoms])
+        hull = ConvexHull(atom_coords)
+        surface_points = atom_coords[hull.vertices]
+
+        # Step 2: For each atom, find the nearest point on the surface mesh
+        tree = cKDTree(surface_points)
+        for atom in self.atoms:
+            dist, _ = tree.query(atom.xyz.to_np())
+            atom.d2surface = dist
+
 
     def write_local_density(self):
         """
@@ -174,6 +161,7 @@ if __name__ == "__main__":
             protein.load_pdb(pdb_file)
             logging.info(f"Loaded {len(protein.atoms)} atoms from {pdb_file}")
             protein.calculate_local_density()
+            protein.calculate_distance_to_surface()
             protein.write_local_density()
             logging.info(f"Local density scores written to {pdb_file.rsplit('.', 1)[0]}.density")
 

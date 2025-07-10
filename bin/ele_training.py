@@ -23,7 +23,6 @@ from sklearn.ensemble import RandomForestRegressor
 from xgboost import XGBRegressor
 from sklearn.neural_network import MLPRegressor
 from sklearn.linear_model import LinearRegression, Ridge, Lasso
-from sklearn.svm import SVR
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF, ConstantKernel as C
@@ -328,46 +327,6 @@ def fit_lasso(features, target, data, title):
     logging.info(f"Saved the trained model and scaler to {model_filename}.")
 
 
-def fit_svr(features, target, data, title):
-    X = data[features]
-    y = data[target]
-    X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=int(time.time()))
-    # Standardize the features
-    scaler = StandardScaler()
-    X_train = scaler.fit_transform(X_train)
-    X_val = scaler.transform(X_val)
-    # Train a Support Vector Regression model
-    logging.info(f"Training with {title}...")
-    svr_model = SVR(kernel='rbf', C=1.0, epsilon=0.1)
-    svr_model.fit(X_train, y_train)
-    # Evaluate the model
-    logging.info(f"Evaluating with {title} on validation set...")
-    y_pred_adjusted = svr_model.predict(X_val)
-    rmse_adjusted = np.sqrt(mean_squared_error(y_val, y_pred_adjusted))
-    y_range_adjusted = np.ptp(y_val)  # Range of true values
-    normalized_rmse_adjusted = rmse_adjusted / y_range_adjusted if y_range_adjusted != 0 else 0
-    r2 = r2_score(y_val, y_pred_adjusted)
-    logging.info(f"Adjusted Coulomb Potential - R2: {r2:.3f}, RMSE: {normalized_rmse_adjusted:.3f}")
-    # Plot the results
-    plt.figure(figsize=(10, 6))
-    sns.scatterplot(x=y_val, y=y_pred_adjusted, alpha=0.5)
-    plt.grid(True)  # add grid lines
-    plt.plot([y.min(), y.max()], [y.min(), y.max()], 'g--', lw=2)  # Diagonal line
-    plt.xlabel("True PB Potential")
-    plt.ylabel("Predicted PB Potential")
-    plt.title(f"{title}")
-    # print R^2 and RMSE on the plot
-    plt.text(0.05, 0.95, f"R^2: {r2:.3f} Good if > 0.9\nRMSE: {normalized_rmse_adjusted:.3E} Good if <0.05", transform=plt.gca().transAxes, fontsize=12, verticalalignment='top')
-    plt.xlim(y.min(), y.max())
-    plt.ylim(y.min(), y.max())
-    plt.savefig(f"{title}.png")
-    # Save the trained model
-    logging.info(f"Saving the trained model and scaler for {title} ...")
-    model_filename = f"{title.replace(' ', '_').lower()}_with_scaler.pkl"
-    feature_names = [f.replace(' ', '_') for f in features]  # Replace spaces with underscores in feature names
-    joblib.dump({'model': svr_model, 'scaler': scaler, 'features': feature_names}, model_filename)
-    logging.info(f"Saved the trained model and scaler to {model_filename}.")
-
 def fit_knn(features, target, data, title):
     X = data[features]
     y = data[target]
@@ -432,16 +391,16 @@ if __name__ == "__main__":
     # Inverse distance, by the nature of the PB potential, the closer the atoms are, the stronger the interaction scalable by the inverse of distance. 
     # So using iDistance make KNN model better but won't affect decision tree based models much.
 
-    features = ['iDistance', 'Density1_Near', 'Density1_Mid', 'Density1_Far', 'Variance1', 'Density2_Near', 'Density2_Mid', 'Density2_Far', 'Variance2']
+    features = ['iDistance', 'Density1_Near', 'Density1_Mid', 'Density1_Far', 'D2surface1', 'Density2_Near', 'Density2_Mid', 'Density2_Far', 'D2surface2']
     target = 'PBPotential'
 
     title = "Random Forest"
     fit_rf(features, target, data, title)
     logging.info(f"Model trained by {title}.")
 
-    # title = "XGBoost"
-    # fit_xgb(features, target, data, title)
-    # logging.info(f"Model trained by {title}.")
+    title = "XGBoost"
+    fit_xgb(features, target, data, title)
+    logging.info(f"Model trained by {title}.")
 
     title = "ANN"
     fit_ann(features, target, data, title)
@@ -451,21 +410,17 @@ if __name__ == "__main__":
     fit_knn(features, target, data, title)
     logging.info(f"Model trained by {title}.")
 
-    # title = "SVR"
-    # fit_svr(features, target, data, title)
-    # logging.info(f"Model trained by {title}.")
+    title = "Linear Regression"
+    fit_linear(features, target, data, title)
+    logging.info(f"Model trained by {title}.")
 
-    # title = "Linear Regression"
-    # fit_linear(features, target, data, title)
-    # logging.info(f"Model trained by {title}.")
+    title = "Ridge Regression"
+    fit_ridge(features, target, data, title)
+    logging.info(f"Model trained by {title}.")
 
-    # title = "Ridge Regression"
-    # fit_ridge(features, target, data, title)
-    # logging.info(f"Model trained by {title}.")
-
-    # title = "Lasso Regression"
-    # fit_lasso(features, target, data, title)
-    # logging.info(f"Model trained by {title}.")
+    title = "Lasso Regression"
+    fit_lasso(features, target, data, title)
+    logging.info(f"Model trained by {title}.")
 
     plt.show()
     plt.close('all')

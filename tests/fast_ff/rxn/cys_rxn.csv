@@ -1,5 +1,5 @@
-Density_Near,Density_Mid,Density_Far,Density_Variance,PBRXN
-10.000, 0.000, 0.000, 0.000, -17.961
+Density_Near,Density_Mid,Density_Far,D2surface,PBRXN
+10.000, 0.000, 0.000, 1.089, -17.961
 6.000, 4.000, 0.000, 0.000, -20.023
 7.000, 3.000, 0.000, 0.000, -26.068
 7.000, 3.000, 0.000, 0.000, -26.283

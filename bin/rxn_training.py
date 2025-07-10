@@ -154,7 +154,7 @@ def fit_ann(features, data, title):
     X_val = scaler.transform(X_val)
     # Train an ANN model
     logging.info(f"Training with {title}...")
-    ann_model = MLPRegressor(hidden_layer_sizes=(10, 5), max_iter=1000, random_state=int(time.time()))
+    ann_model = MLPRegressor(hidden_layer_sizes=(20, 10), max_iter=1000, random_state=int(time.time()))
     ann_model.fit(X_train, y_train)
     # Evaluate the model
     logging.info(f"Evaluating with {title} on validation set...")
@@ -381,7 +381,7 @@ if __name__ == "__main__":
 
 
     # Train the model
-    features = ['Density_Near', 'Density_Mid', 'Density_Far', 'Density_Variance']
+    features = ['Density_Near', 'Density_Mid', 'Density_Far', 'D2surface'] 
     title = "rxn"
     if args.model == "rf":
         title = f"Random Forest {title}"
