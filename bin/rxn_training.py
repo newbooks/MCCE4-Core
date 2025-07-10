@@ -96,14 +96,9 @@ def fit_xgb(features, data, title):
     X_val = scaler.transform(X_val)
     # Train an XGBoost model
     logging.info(f"Training with {title}...")
-    xgb_model = XGBRegressor(
-        n_estimators=1000,         # Number of trees (will use early stopping)
-        learning_rate=0.01,        # Low LR for smoother learning
-        max_depth=3,               # Shallow trees are enough for small feature sets
-        subsample=0.8,             # Random sampling of rows
-        colsample_bytree=1.0,      # Use all features (since you only have 3)
-        random_state=int(time.time())
-    )
+    xgb_model = XGBRegressor(n_estimators=1000, colsample_bytree=1.0, gamma=0.2, learning_rate=0.1, max_depth=3, min_child_weight=9, subsample=1.0, random_state=int(time.time()))
+
+
     xgb_model.fit(X_train, y_train)
     # Evaluate the model
     logging.info(f"Evaluating with {title} on validation set...")
@@ -154,7 +149,7 @@ def fit_ann(features, data, title):
     X_val = scaler.transform(X_val)
     # Train an ANN model
     logging.info(f"Training with {title}...")
-    ann_model = MLPRegressor(hidden_layer_sizes=(20, 10), max_iter=1000, random_state=int(time.time()))
+    ann_model = MLPRegressor(hidden_layer_sizes=(50, 20), alpha=0.01, learning_rate_init=0.001, learning_rate='adaptive', max_iter=500, random_state=int(time.time()))
     ann_model.fit(X_train, y_train)
     # Evaluate the model
     logging.info(f"Evaluating with {title} on validation set...")
