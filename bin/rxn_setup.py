@@ -78,12 +78,12 @@ def get_local_density_scores(pdb_file):
         resseq = line[22:26]
         atom_id = (atomname, resname, chainid, resseq)
         fields = line[54:].strip().split()
-        if len(fields) == 4:  # Expecting four fields: near, mid, far, variance
+        if len(fields) == 4:  # Expecting four fields: near, mid, far, d2surface
             near = float(fields[0])
             mid = float(fields[1])
             far = float(fields[2])
-            variance = float(fields[3])
-            density_data[atom_id] = [near, mid, far, variance]
+            d2surface = float(fields[3])
+            density_data[atom_id] = [near, mid, far, d2surface]
 
     return density_data
 
@@ -163,7 +163,7 @@ def setup_residue(pdb_file):
     # Write the reaction field energy training data to amino_acid.csv
     output_file = f"{pdb_file.replace('.pdb', '')}_rxn.csv"
     with open(output_file, "w") as f:
-        f.write("Density_Near,Density_Mid,Density_Far,Density_Variance,PBRXN\n")
+        f.write("Density_Near,Density_Mid,Density_Far,D2surface,PBRXN\n")
         f.writelines(rxn_lines)
 
 
@@ -276,7 +276,7 @@ def setup_protein(pdb_file):
     # Write the reaction field energy training data to a csv file
     output_file = f"{pdb_file.replace('.pdb', '')}_rxn.csv"
     with open(output_file, "w") as f:
-        f.write("Density_Near,Density_Mid,Density_Far,Density_Variance,PBRXN\n")
+        f.write("Density_Near,Density_Mid,Density_Far,D2surface,PBRXN\n")
         f.writelines(rxn_lines)
 
 
@@ -305,7 +305,7 @@ if __name__ == "__main__":
     amino_acid_files = [f"{pdb_file.replace('.pdb', '')}_rxn.csv" for pdb_file in AMINO_ACID_PDBS]
     combined_amino_acid_file = "amino_acid_rxn.csv"
     with open(combined_amino_acid_file, "w") as outfile:
-        outfile.write("Density_Near,Density_Mid,Density_Far,Density_Variance,PBRXN\n")  # Write header
+        outfile.write("Density_Near,Density_Mid,Density_Far,D2surface,PBRXN\n")  # Write header
         for amino_file in amino_acid_files:
             with open(amino_file, "r") as infile:
                 next(infile)  # Skip header
@@ -313,9 +313,9 @@ if __name__ == "__main__":
     logging.info(f"Combined amino acid level reaction field energy training data saved to {combined_amino_acid_file}.")
 
     # Protein level reaction field energy
-    # logging.info("Processing protein level reaction field energy...")
-    # for pdb_file in PROTEIN_PDBS:
-    #     logging.info(f"Setting up reaction field energy for {pdb_file}...")
-    #     # Call the setup_protein function with the PDB file and output file
-    #     setup_protein(pdb_file)
-    # logging.info("Protein level reaction field energy training data setup complete.")
+    logging.info("Processing protein level reaction field energy...")
+    for pdb_file in PROTEIN_PDBS:
+        logging.info(f"Setting up reaction field energy for {pdb_file}...")
+        # Call the setup_protein function with the PDB file and output file
+        setup_protein(pdb_file)
+    logging.info("Protein level reaction field energy training data setup complete.")
