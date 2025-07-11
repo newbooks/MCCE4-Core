@@ -13,6 +13,7 @@ import joblib
 import argparse
 import logging
 import time
+import sys
 
 def predict_rf(data, model, title):
     X = data[model['features']]
@@ -61,7 +62,7 @@ if __name__ == "__main__":
     # Parse command line arguments
     parser = argparse.ArgumentParser(description="Train a model to predict reaction field energy based on embedding scores.")
     parser.add_argument('input_file', type=str, help='Input CSV file with training data')
-    parser.add_argument('-m', '--model', type=str, help='Path to the trained model file (pkl format)', default="rxn_with_scaler.pkl")
+    parser.add_argument('-m', '--model', type=str, help='Path to the trained model file (pkl format)', default='random_forest_rxn_with_scaler.pkl')
     args = parser.parse_args()
     
     # Load the data
@@ -70,9 +71,11 @@ if __name__ == "__main__":
     title = f"Predict using Model {args.model}"
     try:
         model = joblib.load(args.model)
-    except FileNotFoundError as e:
-        logging.error(f"Model not found: {e}")
-        exit(1)
+    except FileNotFoundError:
+        logging.error(f"Model file {args.model} not found. Please provide a valid model file.")
+        sys.exit(1)
+
+        
     predict_rf(data, model, title)
 
 
