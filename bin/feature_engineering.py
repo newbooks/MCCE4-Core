@@ -99,14 +99,35 @@ if __name__ == "__main__":
     # target = 'PBPotential'
     # fit_ann(df[features], df[target], "Lower Density and D2surface") 
 
-    # Use Average Density and D2surface
+    # Use Average Density and D2surface. Since these numbers are averaged, the opposite side should be removed.
     df['AverageDensity_Near'] = df[['Density1_Near', 'Density2_Near']].mean(axis=1)
     df['AverageDensity_Mid'] = df[['Density1_Mid', 'Density2_Mid']].mean(axis=1)
     df['AverageDensity_Far'] = df[['Density1_Far', 'Density2_Far']].mean(axis=1)
     df['AverageD2surface'] = df[['D2surface1', 'D2surface2']].mean(axis=1)
+    # show number of rows before and after removing the opposite side
+    logger.info(f"Number of rows before removing opposite side: {df.shape[0]}")
+
+    # Make a copy of DF, for the following selected features, average the target if features are within the torlerance.
+    tolerance = 0.1
     features = ['iDistance', 'AverageDensity_Near', 'AverageDensity_Mid', 'AverageDensity_Far', 'AverageD2surface']
+ 
+    # Make a copy to avoid changing original
+    df_copy = df.copy()
+
+    # Bin features by tolerance (group values that are within ±tolerance/2)
+    for f in features:
+        df_copy[f + '_bin'] = (df_copy[f] / tolerance).round().astype(int)
+
+    # Group by the binned features and average both features and PBPotential
+    grouped = df_copy.groupby([f + '_bin' for f in features]).agg({
+        **{f: 'mean' for f in features},    # average original feature values
+        'PBPotential': 'mean'              # average target
+    }).reset_index(drop=True)
+ 
+    logger.info(f"Number of rows after removing opposite side: {grouped.shape[0]}")
+
     target = 'PBPotential'
-    fit_ann(df[features], df[target], "Average Density and D2surface")
+    fit_ann(grouped[features], grouped[target], "Average Density and D2surface")
 
     # Use Upper Density and D2surface
     # df['UpperDensity_Near'] = df[['Density1_Near', 'Density2_Near']].max(axis=1)
@@ -118,12 +139,12 @@ if __name__ == "__main__":
     # fit_ann(df[features], df[target], "Upper Density and D2surface")
 
     # Use Inversed D2surface.
-    df['iD2surface'] = 1 / df['AverageD2surface']
-    df['iD2surface'] = df['iD2surface'].replace([np.inf, -np.inf], np.nan)  # Replace inf with NaN
-    df['iD2surface'] = df['iD2surface'].fillna(0)
+    grouped['iD2surface'] = 1 / grouped['AverageD2surface']
+    grouped['iD2surface'] = grouped['iD2surface'].replace([np.inf, -np.inf], np.nan)  # Replace inf with NaN
+    grouped['iD2surface'] = grouped['iD2surface'].fillna(0)
     features = ['iDistance', 'AverageDensity_Near', 'AverageDensity_Mid', 'AverageDensity_Far', 'iD2surface']
     target = 'PBPotential'
-    fit_ann(df[features], df[target], "Average Density and Inversed D2surface")
+    fit_ann(grouped[features], grouped[target], "Average Density and Inversed D2surface")
 
 
     plt.show()

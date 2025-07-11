@@ -39,3 +39,31 @@ MCCE4-Core
 
 ### Core Functions and Tools
 Work in progress
+
+### Fast Force Field
+Machine Learning based fast force field to calculate electristatic pairwise interaction and reaction field energy.
+
+#### Input
+PDB files that cover a variaty of proteins in size and shape.
+
+#### Output
+**Scripts:**
+
+- AIO_training.py folder_of_pdb_files
+
+**Trained models:**
+
+- **ele.pkl:** pairwise interaction
+- **rxn.pkl:** reaction field energy
+
+**Library:**
+
+- fff.py: Fast Force Field module
+
+**Inner Work**
+
+- **Model:** ANN
+- **Features for ele:** AverageDensity_Near, AverageDensity_Mid, AverageDensity_Far, AverageD2surface
+- **Target for ele:** PBPotential modifier 
+- **Features for rxn:** Density_Near, Density_Mid, Density_Far, D2surface
+- **Target for rxn:** PBRXN modifier 
