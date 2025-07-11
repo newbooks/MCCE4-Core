@@ -4,11 +4,10 @@
 
 ### What is Local Density?
 - Local density measures how deeply an atom is buried by counting the number of surrounding atoms.
-- (The experiment on density variance didn't produce good results.) Local density also includes "density variance" which is defined as the standard deviation of atom counts in 8 quadrants.
-- Distance to surface. This measures the shortest distance to the protein surface.
+- In addition to the local density, Distance to surface measures the shortest distance to the protein surface.
 
 ### How is Local Density Calculated?
-A bounding sphere is defined with Near, Mid, and Far radii. Atoms within each sphere are counted, resulting in a tuple:
+A bounding sphere is defined with Near, Mid, and Far radii (3, 6, 15 Angstroms). Atoms within each sphere layer are counted:
 
 LocalDensity = (near_score, mid_score, far_score)
 
@@ -19,7 +18,7 @@ The calculation does not account for atom radii. If artificial atoms are used to
 
 ## Modeling Electrostatic Potential
 
-In a medium with two dielectric constants, electrostatic potential is typically determined by solving the Poisson-Boltzmann (PB) equation, which is computationally intensive.
+In an dielectric environment with two dielectric constants, electrostatic potential is typically determined by solving the Poisson-Boltzmann (PB) equation, which is computationally intensive.
 
 This project aims to use machine learning to fit PB-calculated potentials using features derived from local density, providing a faster method with acceptable accuracy.
 
@@ -34,9 +33,9 @@ The resulting structures are saved in the `ga_output` folder as `state_????.pdb`
 
 To predict PB_Potential:
 - Assume a point charge of +1; the model predicts a scaling factor. For other charges, multiply by q1 and q2.
-- Random Forest Regressor is used.
+- Neural Network Regressor is used.
 - Input features:
-    - LocalDensity with Near, Mid and Far scores
+    - LocalDensity with Near, Mid and Far scores, Distance to surface
 - Target:
     - PB_Potential (from PB solver) scaled down by distance
 
@@ -46,20 +45,16 @@ To predict PB_Potential:
 - Run `ele_setup.py microstate.pdb` to assign charge, calculate local density, run delphi to get PBPotential, and compile to a csv file
 - Combine CSV files from multiple proteins for a comprehensive training set
 - Train the model: `ele_training.py pairwise_data.csv`
-- Some feature engineering might be necessary. For example, by the nature of the PB potential, the closer the atoms are, the stronger the interaction scalable by the inverse of distance. So using inversed Distance make KNN model better but won't affect decision tree based models much. KNN model is based on the the average of the nearest neighbors, and serves as a good reference of feature selection.
+- Some feature engineering might be necessary. For example, by the nature of the PB potential, the closer the atoms are, the stronger the interaction scalable by the inverse of distance. So using inversed Distance make KNN model better but won't affect decision tree based models as much. KNN model is based on the the average of the nearest neighbors, and serves as a good reference of feature selection.
 
-**Validation:**
-- Does PB_Potential scale with the charge? This model relies on the linear replationship between Coulomb Potential and PB Potential.
-- Internal validation should show good performance.
-- Apply the trained model (pkl file) to new proteins using compiled CSV files from these proteins.
 
 ### Modeling RXN
 
 **Training:**
 - Amino acid set: Prepare side chains, place +1 charge on each atom, and calculate reaction field energy with Delphi.
 - Small, medium, and large protein sets: For each, place a charge on one atom at a time and calculate reaction field energy with PB solver.
-- These datasets are compiled into one file and used to train the RXN modifier. 
-- The training and prediction takes out charge, and the actual RXN value should be quadratically scaled by the charge.
+- These data sets are compiled into one file and used to train the RXN modifier. 
+- The training and prediction assumes +1 charge, and the actual RXN value should be quadratically scaled by the charge.
 
 Approximation (excluding mutual polarization) for multi-charge systems:
 
