@@ -11,6 +11,7 @@ import subprocess
 import tempfile
 import random
 import time
+from mcce.geometry import Vector
 
 
 # Atom radii are for step2_out.pdb
@@ -78,6 +79,53 @@ def write_pdb(atoms, output_file):
             line = atom.line[:54] + f"{atom.radius:8.3f}" + f"{atom.charge:12.3f}" + atom.line[74:]
             f.write(line + '\n')
 
+class AtomProperties:
+    __slots__ = ("confid", "xyz", "radius", "charge", "density_near", "density_mid", "density_far", "d2surface")
+
+    def __init__(self):
+        self.confid = ""
+        self.xyz = Vector()
+        self.radius = 0.0
+        self.charge = 0.0
+        self.density_near = 0
+        self.density_mid = 0
+        self.density_far = 0
+        self.d2surface = 0.0 
+
+    def __repr__(self):
+        return (f"{self.confid} {self.xyz.x:8.3f} {self.xyz.y:8.3f} {self.xyz.z:8.3f} "
+                f"{self.radius:8.3f} {self.charge:8.3f} {self.density_near:6d} {self.density_mid:6d} "
+                f"{self.density_far:6d} {self.d2surface:6.3f}")
+
+def load_atoms():
+    """
+    Load atom properties from step2_out.pdb.
+    Only charged atoms are considered.
+    """
+    pdb_file = "step2_out.pdb"
+    if not os.path.isfile(pdb_file):
+        logging.error(f"PDB file {pdb_file} not found")
+        exit(1)
+    atoms = {}
+    with open(pdb_file) as f:
+        for line in f:
+            if line.startswith(("ATOM  ", "HETATM")):
+                atom = AtomProperties()
+                atomname = line[12:16]
+                resname = line[17:20]
+                chainid = line[21]
+                resseq = line[22:26]
+                atom_id = (atomname, resname, chainid, resseq)
+                confid = resname + line[80:82] + line[21:30]
+                atom.xyz = Vector((float(line[30:38]), float(line[38:46]), float(line[46:54])))
+                atom.radius = float(line[54:62])
+                atom.charge = float(line[62:74])
+                if abs(atom.charge) > 0.001:  # Only consider charged atoms
+                    atom.confid = confid
+                    atoms[atom_id] = atom
+    return atoms
+
+
 
 if __name__ == "__main__":
     # Set up command line arguments
@@ -144,3 +192,5 @@ if __name__ == "__main__":
                 logging.error(f"step3.py failed with exit code {result.returncode}")
                 exit(result.returncode)
 
+            logging.info("Compile density and electrostatics energy to a csv file.")
+            atoms = load_atoms()
