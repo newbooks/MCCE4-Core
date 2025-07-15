@@ -251,6 +251,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=helpmsg)
     parser.add_argument('--fit_pdbs', metavar="pdbfolder", default=None, help='Fit by pdb files. The folder should contain proteins at different size and shape.')
     parser.add_argument('--fit_csv', metavar="csvfile", default=None, help='Fit by csv file. The file should contain features and target values.')
+    parser.add_argument('--debug', default=False, action='store_true', help='If set, create and preserve temporary directory in current directory.')
     args = parser.parse_args()
 
     # Set up logging
@@ -285,74 +286,90 @@ if __name__ == "__main__":
 
         # Work under a temporary directory
         logging.info(f"Using temporary directory for training: {args.pdb_folder}")
-        with tempfile.TemporaryDirectory(prefix="aiofff_training_") as temp_dir:
+        # Use TemporaryDirectory only if not debugging, otherwise use a persistent directory
+        if args.debug:
+            temp_dir = "aiofff_training_debug"
+            os.makedirs(temp_dir, exist_ok=True)
+            logging.info(f"Using persistent debug directory at {temp_dir}")
+            cleanup_temp_dir = False
+        else:
+            temp_dir_obj = tempfile.TemporaryDirectory(prefix="aiofff_training_")
+            temp_dir = temp_dir_obj.name
             logging.info(f"Created temporary directory at {temp_dir}")
-            # go to the temporary directory
-            os.chdir(temp_dir)
-            feature_lines = ["Distance,AverageDensity_Near,AverageDensity_Mid,AverageDensity_Far,AverageD2surface,PBPotential"]
-            for pdb in pdbs[:1]: # limit to the first pdb file for testing
-                base_name = os.path.basename(pdb)
-                logging.info(f"Processing PDB file: {base_name}")
-                
-                logging.info(f"Running step1.py")
-                shutil.copy(pdb, temp_dir)
-                result = subprocess.run([f"step1.py", f"{base_name}"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                if result.returncode != 0:
-                    logging.error(f"step1.py failed on {base_name} with exit code {result.returncode}")
-                    exit(result.returncode)
+            cleanup_temp_dir = True
 
-                logging.info(f"Running step2.py")
-                result = subprocess.run([f"step2.py", "--writepdb"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                if result.returncode != 0:
-                    logging.error(f"step2.py failed on {base_name} with exit code {result.returncode}")
-                    exit(result.returncode)
-                shutil.copy("ga_output/state_0001.pdb", "microstate.pdb")
-                
-                logging.info(f"Running local_density.py")
-                result = subprocess.run([f"local_density.py", "microstate.pdb"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                if result.returncode != 0:
-                    logging.error(f"local_density.py failed on microstate.pdb with exit code {result.returncode}")
-                    exit(result.returncode)
+        # go to the temporary directory
+        os.chdir(temp_dir)
+        # print current working directory
+        logging.info(f"Current working directory: {os.getcwd()}")
 
-                logging.info(f"Setting charge and radius and write step2_out.pdb")
-                atoms = read_pdb("microstate.pdb")
-                assign_charges(atoms)
-                write_pdb(atoms, "step2_out.pdb")
+        feature_lines = ["Distance,AverageDensity_Near,AverageDensity_Mid,AverageDensity_Far,AverageD2surface,PBPotential"]
+        for pdb in pdbs:
+            base_name = os.path.basename(pdb)
+            logging.info(f"Processing PDB file: {base_name}")
+            
+            logging.info(f"Running step1.py")
+            shutil.copy(pdb, base_name)
+            result = subprocess.run([f"step1.py", f"{base_name}"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            if result.returncode != 0:
+                logging.error(f"step1.py failed on {base_name} with exit code {result.returncode}")
+                exit(result.returncode)
 
-                logging.info(f"Running step3.py")
-                result = subprocess.run([f"step3.py", "-s", "delphi", "-p", "3"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                if result.returncode != 0:
-                    logging.error(f"step3.py failed with exit code {result.returncode}")
-                    exit(result.returncode)
-                else:
-                    logging.info(f"step3.py completed successfully.")
+            logging.info(f"Running step2.py")
+            result = subprocess.run([f"step2.py", "--writepdb"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            if result.returncode != 0:
+                logging.error(f"step2.py failed on {base_name} with exit code {result.returncode}")
+                exit(result.returncode)
+            shutil.copy("ga_output/state_0001.pdb", "microstate.pdb")
+            
+            logging.info(f"Running local_density.py")
+            result = subprocess.run([f"local_density.py", "microstate.pdb"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            if result.returncode != 0:
+                logging.error(f"local_density.py failed on microstate.pdb with exit code {result.returncode}")
+                exit(result.returncode)
 
-                logging.info("Compile density and electrostatics energy to a csv file.")
-                atoms = load_atoms()
-                update_density_score(atoms, "microstate.density")
-                pairwise_ele = get_electrostatic_energy(atoms)
+            logging.info(f"Setting charge and radius and write step2_out.pdb")
+            atoms = read_pdb("microstate.pdb")
+            assign_charges(atoms)
+            write_pdb(atoms, "step2_out.pdb")
 
-                # Append to the output lines
-                for (atom_id1, atom_id2), ele in pairwise_ele.items():
-                    atom1, atom2 = atoms[atom_id1], atoms[atom_id2]
-                    distance = atom1.xyz.distance(atom2.xyz)
-                    density1_near = atom1.density_near
-                    density1_mid = atom1.density_mid
-                    density1_far = atom1.density_far
-                    d2surface1 = atom1.d2surface
-                    density2_near = atom2.density_near
-                    density2_mid = atom2.density_mid
-                    density2_far = atom2.density_far
-                    d2surface2 = atom2.d2surface
+            logging.info(f"Running step3.py")
+            result = subprocess.run([f"step3.py", "-s", "delphi", "-p", "3"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            if result.returncode != 0:
+                logging.error(f"step3.py failed with exit code {result.returncode}")
+                exit(result.returncode)
+            else:
+                logging.info(f"step3.py completed successfully.")
 
-                    average_density_near = (density1_near + density2_near) / 2
-                    average_density_mid = (density1_mid + density2_mid) / 2
-                    average_density_far = (density1_far + density2_far) / 2
-                    average_d2surface = (d2surface1 + d2surface2) / 2
+            logging.info("Compile density and electrostatics energy to a csv file.")
+            atoms = load_atoms()
+            update_density_score(atoms, "microstate.density")
+            pairwise_ele = get_electrostatic_energy(atoms)
 
-                    feature_lines.append(f"{distance:.3f},{average_density_near:.1f},{average_density_mid:.1f},{average_density_far:.1f},{average_d2surface:.3f},{ele:.3f}")
+            # Append to the output lines
+            for (atom_id1, atom_id2), ele in pairwise_ele.items():
+                atom1, atom2 = atoms[atom_id1], atoms[atom_id2]
+                distance = atom1.xyz.distance(atom2.xyz)
+                density1_near = atom1.density_near
+                density1_mid = atom1.density_mid
+                density1_far = atom1.density_far
+                d2surface1 = atom1.d2surface
+                density2_near = atom2.density_near
+                density2_mid = atom2.density_mid
+                density2_far = atom2.density_far
+                d2surface2 = atom2.d2surface
 
-                logging.info(f"Processed pdb {base_name} with {len(pairwise_ele)} pairs of atoms.")
+                average_density_near = (density1_near + density2_near) / 2
+                average_density_mid = (density1_mid + density2_mid) / 2
+                average_density_far = (density1_far + density2_far) / 2
+                average_d2surface = (d2surface1 + d2surface2) / 2
+
+                feature_lines.append(f"{distance:.3f},{average_density_near:.1f},{average_density_mid:.1f},{average_density_far:.1f},{average_d2surface:.3f},{ele:.3f}")
+
+            logging.info(f"Processed pdb {base_name} with {len(pairwise_ele)} pairs of atoms.")
+        # Only cleanup if not debugging
+        if cleanup_temp_dir:
+            temp_dir_obj.cleanup()
 
         # Change back to the original directory
         os.chdir(current_dir)
