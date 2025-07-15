@@ -385,12 +385,11 @@ if __name__ == "__main__":
     data = pd.read_csv(args.input_csv)
 
     # Feature Engineering: Add a new column AdjustedPotential that is PBPotential / Distance
-    # data['AdjustedPotential'] = data['PBPotential'] / data['Distance']
-    # features = ['DensityAverage_Near', 'DensityAverage_Mid', 'DensityAverage_Far']
-    # target = 'AdjustedPotential'
-    data['iDistance'] = 1 / data['Distance'] 
-    # Inverse distance, by the nature of the PB potential, the closer the atoms are, the stronger the interaction scalable by the inverse of distance. 
-    # So using iDistance make KNN model better but won't affect decision tree based models much.
+    data['iDistance'] = 1 / data['Distance'] # Inverse distance, by the nature of the PB potential, the closer the atoms are, the stronger the interaction scalable by the inverse of distance. 
+    data['AverageDensity_Near'] = (data['Density1_Near'] + data['Density2_Near']) / 2
+    data['AverageDensity_Mid'] = (data['Density1_Mid'] + data['Density2_Mid']) / 2
+    data['AverageDensity_Far'] = (data['Density1_Far'] + data['Density2_Far']) / 2
+    data['AverageD2surface'] = (data['D2surface1'] + data['D2surface2']) / 2
 
     features = ['iDistance', 'Density1_Near', 'Density1_Mid', 'Density1_Far', 'D2surface1', 'Density2_Near', 'Density2_Mid', 'Density2_Far', 'D2surface2']
     target = 'PBPotential'
