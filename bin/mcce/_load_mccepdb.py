@@ -6,9 +6,9 @@ from .constants import *
 from .pdbio import *
 
 
-def load_mccepdb(self):  # self is an instance of MCCE
+def load_mccepdb(self, mccepdb):  # self is an instance of MCCE
     atoms = []
-    with open(STEP1_OUT, "r") as f:
+    with open(mccepdb, "r") as f:
         # read line by line from f
         for line in f:
             if line.startswith("ATOM") or line.startswith("HETATM"):

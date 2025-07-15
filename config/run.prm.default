@@ -60,6 +60,7 @@ t      Step2. Do pruning?                                           (PRUNE)
 0.05   Step2. GA mutation rate                                      (GA_MUTATION)
 
 step 3:
+FastFF/ANN_Model.pkl Step3: Pretrained Fast Force Field model    (FASTFF_MODEL)
 80.0   Step3. Solvent dielectric constant for DelPhi             (EPSILON_SOLV)
 65     Step3. Number of grids in each DelPhi                     (GRIDS_DELPHI)
 2.0    Step3. The target grids per angstrom for DelPhi           (GRIDS_PER_ANG)

@@ -54,7 +54,7 @@ if __name__ == "__main__":
 
     # Get protein from mccepdb step1_out.pdb
     mcce = MCCE(prm=prm, tpl=tpl)
-    mcce.load_mccepdb()    # load mccepdb within mcce object as tpl is required to load the mccepdb
+    mcce.load_mccepdb(STEP1_OUT)    # load mccepdb within mcce object as tpl is required to load the mccepdb
     logging.info(f"   Protein loaded from {STEP1_OUT}")
     rot_stat = RotStat(mcce.protein)
 
