@@ -203,12 +203,15 @@ def get_electrostatic_energy(atoms):
     return pairwise_ele
 
 
-def fit_ann(X_scaled, y, title):
+def fit_ann(df, features, target, title):
     """
     Fit an ANN model to the scaled features and target variable.
     This function is a placeholder for the actual ANN fitting logic.
     """
-    X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=int(time.time()) % 1000)
+    X = df[features]
+    y = df[target]
+
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=int(time.time()) % 1000)
 
     # Standardize the features
     scaler = StandardScaler()
@@ -240,8 +243,10 @@ def fit_ann(X_scaled, y, title):
     plt.text(0.05, 0.95, f"R^2: {r2:.3f}\nRMSE: {rmse:.3f}", transform=plt.gca().transAxes)
     plt.tight_layout()
     plt.savefig(f"{title.replace(' ', '_')}_predictions.png")
-    joblib.dump(model, f"{title.replace(' ', '_')}.pkl")
-    logging.info(f"Model saved as {title.replace(' ', '_')}.pkl")
+    model_filename = f"{title.replace(' ', '_')}.pkl"
+    # Save the model and scaler
+    joblib.dump({'model': model, 'scaler': scaler, 'features': features}, model_filename)
+    logging.info(f"Model saved as {model_filename}")
 
 
 
@@ -391,6 +396,4 @@ if __name__ == "__main__":
     df["iDistance"] = 1 / df["Distance"] # Inverse distance
     features = ['iDistance', 'AverageDensity_Near', 'AverageDensity_Mid', 'AverageDensity_Far', 'AverageD2surface']
     target = 'PBPotential'
-    X = df[features]
-    y = df[target]
-    fit_ann(X, y, "ANN Model")
+    fit_ann(df, features, target, "ANN Model")

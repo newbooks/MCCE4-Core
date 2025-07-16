@@ -10,7 +10,7 @@ FTPL_DUMP = "ftpl.record"                   # path from the working directory
 
 # Special entries in run.prm that should be converted to absolute paths if seen as relative paths
 # The absolute path will be added with a leading underscore.
-RUNPRM_SPECIAL_ENTRIES = ["FTPL_FOLDER", "EXTRA", "RENAME_RULES", "DELPHI_EXE", "APBS_EXE"]
+RUNPRM_SPECIAL_ENTRIES = ["FTPL_FOLDER", "EXTRA", "RENAME_RULES", "DELPHI_EXE", "APBS_EXE", "FASTFF_MODEL"]
 
 # Unit conversion factors
 ROOMT = 298.15
@@ -30,6 +30,8 @@ STEP2_OUT = "step2_out.pdb"
 ROT_STAT = "rot_stat"
 
 
+STEP3_HEAD = "head3.lst"
+STEP3_LOOKUP = "energies"
 
 # This is for split_altloc()
 # A backbone atom should have residue name AND name match the following to be considered as backbone
