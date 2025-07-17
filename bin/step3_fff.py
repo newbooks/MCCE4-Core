@@ -46,16 +46,15 @@ def ann_predict(model, df):
 def compose_opp(protein, model_file):
     """
     Compose the output files for the given protein using the specified model file.
+    Optimized: Only consider atom pairs within 20A, and batch ann_predict calls.
     """
-    # This function will use the model_file to generate the necessary output files
-    # for the protein. The details of this process will depend on the specific
-    # requirements of the Fast Force Field implementation.
     output_folder = STEP3_LOOKUP
     native_pdb = "native.pdb"
-    
+    DIST_CUTOFF = 20.0  # Only consider atom pairs within 20A
+
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
-    else: # Clear the folder if it exists
+    else:  # Clear the folder if it exists
         for f in os.listdir(output_folder):
             os.remove(os.path.join(output_folder, f))
 
@@ -65,7 +64,7 @@ def compose_opp(protein, model_file):
         for conf in res.conformers[:2]:  # Use only the first two conformers
             for atom in conf.atoms:
                 reference_points.append(atom.xyz.to_np())
- 
+
     # make a cKDTree using the reference points
     reference_points = np.array(reference_points)
     density_tree = cKDTree(reference_points)
@@ -102,40 +101,62 @@ def compose_opp(protein, model_file):
                 raw_lines = []
                 raw_file = f"{conf.confid}.raw"
                 source_atoms = conf.atoms
-                # Loop over target conformers
+                source_coords = np.array([atom.xyz.to_np() for atom in source_atoms])
+
+                # Precompute source atom features for efficiency
+                source_features = [
+                    (atom.density_near, atom.density_mid, atom.density_far, atom.d2surface, atom.charge)
+                    for atom in source_atoms
+                ]
+
                 for target_res in protein.residues:
                     if target_res == res or len(target_res.conformers) < 2:
                         continue
                     for target_conf in target_res.conformers[1:]:  # Skip bkb
                         target_atoms = target_conf.atoms
-                        # Prepare the feature vector for the model
-                        df = pd.DataFrame(columns=['iDistance', 'AverageDensity_Near', 'AverageDensity_Mid', 'AverageDensity_Far', 'AverageD2surface'])
-                        for atom in source_atoms:
-                            for target_atom in target_atoms:
-                                Distance = np.linalg.norm(atom.xyz.to_np() - target_atom.xyz.to_np())
-                                iDistance = 1 / Distance if Distance != 0 else 0
-                                AverageDensity_Near = (atom.density_near + target_atom.density_near)/2
-                                AverageDensity_Mid = (atom.density_mid + target_atom.density_mid)/2
-                                AverageDensity_Far = (atom.density_far + target_atom.density_far)/2
-                                AverageD2surface = (atom.d2surface + target_atom.d2surface)/2
-                                df.loc[len(df)] = [iDistance, AverageDensity_Near, AverageDensity_Mid, AverageDensity_Far, AverageD2surface]
-                        
-                        # Predict the electrostatic energy using the model                        
-                        ele_modifiers = ann_predict(model, df)
+                        target_coords = np.array([atom.xyz.to_np() for atom in target_atoms])
+                        target_features = [
+                            (atom.density_near, atom.density_mid, atom.density_far, atom.d2surface, atom.charge)
+                            for atom in target_atoms
+                        ]
 
-                        # with emodifiers, we can now calculate the energy
-                        ele = 0.0
-                        icounter = 0
-                        for atom in source_atoms:
-                            for target_atom in target_atoms:
-                                ele += atom.charge * target_atom.charge * ele_modifiers[icounter]
-                                icounter += 1
-                        # Save the energy to the target conformer
+                        # Use broadcasting to compute all pairwise distances
+                        dists = np.linalg.norm(
+                            source_coords[:, None, :] - target_coords[None, :, :], axis=2
+                        )
+                        mask = dists <= DIST_CUTOFF
+
+                        # Prepare feature vectors for all pairs within cutoff
+                        pairs = np.argwhere(mask)
+                        if pairs.shape[0] == 0:
+                            continue
+
+                        # Build DataFrame in batch
+                        data = []
+                        for i, j in pairs:
+                            Distance = dists[i, j]
+                            iDistance = 1 / Distance if Distance != 0 else 0
+                            s_dn, s_dm, s_df, s_d2s, s_q = source_features[i]
+                            t_dn, t_dm, t_df, t_d2s, t_q = target_features[j]
+                            AverageDensity_Near = (s_dn + t_dn) / 2
+                            AverageDensity_Mid = (s_dm + t_dm) / 2
+                            AverageDensity_Far = (s_df + t_df) / 2
+                            AverageD2surface = (s_d2s + t_d2s) / 2
+                            data.append([i, j, iDistance, AverageDensity_Near, AverageDensity_Mid, AverageDensity_Far, AverageD2surface, s_q, t_q])
+
+                        df = pd.DataFrame(data, columns=['i', 'j', 'iDistance', 'AverageDensity_Near', 'AverageDensity_Mid', 'AverageDensity_Far', 'AverageD2surface', 's_q', 't_q'])
+
+                        # Only pass the feature columns to ann_predict
+                        features_df = df[['iDistance', 'AverageDensity_Near', 'AverageDensity_Mid', 'AverageDensity_Far', 'AverageD2surface']]
+                        ele_modifiers = ann_predict(model, features_df)
+
+                        # Calculate the energy in batch
+                        ele = np.sum(df['s_q'].values * df['t_q'].values * ele_modifiers)
                         if abs(ele) > 0.001:  # Only write if the energy is significant
                             raw_lines.append(f"{target_conf.confid} {ele:8.3f}\n")
                 # Write the raw file
                 with open(os.path.join(output_folder, raw_file), 'w') as f:
-                    f.writelines(raw_lines)        
+                    f.writelines(raw_lines)
 
 if __name__ == "__main__":
     # set up multiline help message
