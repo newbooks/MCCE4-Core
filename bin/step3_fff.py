@@ -203,7 +203,7 @@ if __name__ == "__main__":
     # Decide if we have a model file, if not, construct one from precaculated data
     if args.m:
         if args.m.upper() == "DEFAULT":
-            model_file = prm._FASTFF_MODEL.value
+            model_file = prm._FASTFF_ELE.value
         else:
             model_file = args.m
     else: # Train a new model in place
