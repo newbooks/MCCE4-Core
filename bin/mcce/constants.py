@@ -10,7 +10,7 @@ FTPL_DUMP = "ftpl.record"                   # path from the working directory
 
 # Special entries in run.prm that should be converted to absolute paths if seen as relative paths
 # The absolute path will be added with a leading underscore.
-RUNPRM_SPECIAL_ENTRIES = ["FTPL_FOLDER", "EXTRA", "RENAME_RULES", "DELPHI_EXE", "APBS_EXE", "FASTFF_MODEL"]
+RUNPRM_SPECIAL_ENTRIES = ["FTPL_FOLDER", "EXTRA", "RENAME_RULES", "DELPHI_EXE", "APBS_EXE", "FASTFF_ELE", "FASTFF_RXN"]
 
 # Unit conversion factors
 ROOMT = 298.15

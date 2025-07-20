@@ -22,16 +22,6 @@ Far_Radius = 15.0   # Far limit to count far local density
 Mid_Radius = 6.0    # Mid limit to count mid local density
 Near_Radius = 3.0   # Near limit to count near local density
 
-def train_inplace(protein):
-    """
-    Train a Fast Force Field model using the pre-calculated opp files.
-    For now, this function mocks training and returns a placeholder model file path.
-    """
-    # Given a step2_out.pdb, we will run PB solver for one picked atom on the first side chain only.
-    # This gives us an idea of the protein shape and how it affects the electrostatic energy.
-    # For now, we just use the pre-calculated opp files.
-    # In 4lzt, we have 389 opp files, but we only need 140 PB runs at most for 140 residues.
-    pass
 
 def ann_predict(model, df):
     # Standardize the features
@@ -43,20 +33,56 @@ def ann_predict(model, df):
     return ele_modifiers
 
 
-def compose_opp(protein, model_file):
+def write_raw_file(protein, pairwise, rxn):
+    """
+    Write the pairwise interaction and reaction energies to a raw file.
+    """
+    output_folder = STEP3_LOOKUP
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
+    else: # clear the folder
+        for f in os.listdir(output_folder):
+            os.remove(os.path.join(output_folder, f))
+    
+    # Loop through the conformers (excluding backbone conformers) and write raw files
+    for res in protein.residues:
+        for conf in res.conformers[1:]:
+            fname = os.path.join(output_folder, f"{conf.confID}.raw")
+            with open(fname, 'w') as f:
+                f.write(f"[Method] ann\n\n")
+                f.write(f"[PAIRWISE confID ele, kcal/mol]\n")
+                for res_target in protein.residues:
+                    if res_target == res or len(res_target.conformers) < 2:
+                        continue
+                    for target_conf in res_target.conformers[1:]:
+                        ele = pairwise.get((conf.confID, target_conf.confID), 0.0)
+                        if abs(ele) > 0.001:  # Only write if the energy is significant
+                            f.write(f"{target_conf.confID} {ele:6.3f}\n")
+                
+                # write backbone interaction energies
+                total_bkb = 0.0
+                breakdown_lines = []
+                f.write(f"\n[BACKBONE total including self, kcal/mol]\n")
+
+
+def get_rxn(protein, model_file):
+    """
+    Get the reaction energies for the given protein using the specified model file.
+    """
+    rxn = {}
+    return rxn
+
+
+
+
+def get_pairwise(protein, model_file):
     """
     Compose the output files for the given protein using the specified model file.
     Optimized: Only consider atom pairs within 20A, and batch ann_predict calls.
     """
-    output_folder = STEP3_LOOKUP
-    native_pdb = "native.pdb"
+    pairwise = {}
+    rxn = {}
     DIST_CUTOFF = 20.0  # Only consider atom pairs within 20A
-
-    if not os.path.exists(output_folder):
-        os.makedirs(output_folder)
-    else:  # Clear the folder if it exists
-        for f in os.listdir(output_folder):
-            os.remove(os.path.join(output_folder, f))
 
     # native protein to get local density reference
     reference_points = []
@@ -97,9 +123,7 @@ def compose_opp(protein, model_file):
     for res in protein.residues:
         if len(res.conformers) > 1:
             for conf in res.conformers[1:]:
-                logging.info(f"Calculating energies for {conf.confid} ...")
-                raw_lines = []
-                raw_file = f"{conf.confid}.raw"
+                logging.info(f"Calculating energies for {conf.confID} ...")
                 source_atoms = conf.atoms
                 source_coords = np.array([atom.xyz.to_np() for atom in source_atoms])
 
@@ -112,7 +136,7 @@ def compose_opp(protein, model_file):
                 for target_res in protein.residues:
                     if target_res == res or len(target_res.conformers) < 2:
                         continue
-                    for target_conf in target_res.conformers[1:]:  # Skip bkb
+                    for target_conf in target_res.conformers:  # Skip the first conformer
                         target_atoms = target_conf.atoms
                         target_coords = np.array([atom.xyz.to_np() for atom in target_atoms])
                         target_features = [
@@ -121,6 +145,8 @@ def compose_opp(protein, model_file):
                         ]
 
                         # Use broadcasting to compute all pairwise distances
+                        if target_coords.size == 0 or source_coords.size == 0:  # Empty conformer
+                            continue
                         dists = np.linalg.norm(
                             source_coords[:, None, :] - target_coords[None, :, :], axis=2
                         )
@@ -153,17 +179,16 @@ def compose_opp(protein, model_file):
                         # Calculate the energy in batch
                         ele = np.sum(df['s_q'].values * df['t_q'].values * ele_modifiers)
                         if abs(ele) > 0.001:  # Only write if the energy is significant
-                            raw_lines.append(f"{target_conf.confid} {ele:8.3f}\n")
-                # Write the raw file
-                with open(os.path.join(output_folder, raw_file), 'w') as f:
-                    f.writelines(raw_lines)
+                            pairwise[(conf.confID, target_conf.confID)] = ele
+
+    return pairwise
 
 if __name__ == "__main__":
     # set up multiline help message
     helpmsg = "MCCE4 Step 3: Calculate Energy Lookup Table using Fast Force Field."
     parser = argparse.ArgumentParser(description=helpmsg, formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument("-f", metavar="ftpl_folder", default="", help="Load from this ftpl folder instead of the default one")
-    parser.add_argument("-m", metavar="model_file", default="", help="Load a force field model, DEFAULT for premade model or a user trained pkl file.")
+    parser.add_argument("-m", metavar="model_file", default="", help="Load a force field model, or use the default if none is given.")
     parser.add_argument("--debug", default=False, action="store_true", help="Print debug information")
     args = parser.parse_args()
 
@@ -198,19 +223,22 @@ if __name__ == "__main__":
     # Get protein from mccepdb step1_out.pdb
     mcce = MCCE(prm=prm, tpl=tpl)
     mcce.load_mccepdb(STEP2_OUT)    # load mccepdb within mcce object as tpl is required to load the mccepdb
+    mcce.protein.serialize()  # Serialize the protein 
     logging.info(f"   Protein loaded from {STEP2_OUT}")
 
     # Decide if we have a model file, if not, construct one from precaculated data
     if args.m:
-        if args.m.upper() == "DEFAULT":
-            model_file = prm._FASTFF_ELE.value
-        else:
-            model_file = args.m
+        model_file = args.m
     else: # Train a new model in place
-        model_file = train_inplace(mcce.protein)
-
+        model_file = prm._FASTFF_ELE.value
     logging.info(f"   Using Fast Force Field model: {model_file}")
 
 
     # Calculate energy lookup table using the Fast Force Field model
-    compose_opp(mcce.protein, model_file)
+    pairwise = get_pairwise(mcce.protein, model_file)
+
+    # Get reaction energies
+    rxn = get_rxn(mcce.protein, model_file)
+  
+    # Write raw files for each conformer
+    write_raw_file(mcce.protein, pairwise, rxn)

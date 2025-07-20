@@ -437,6 +437,7 @@ class Protein:
             for conf_counter, conf in enumerate(res.conformers):
                 conf.confnum = conf_counter
                 conf.confid = f"{res.resname}{res.chain}{res.sequence:04d}{res.insertion}{conf.confnum:03d}"
+                conf.confID = f"{conf.conftype}{res.chain}{res.sequence:04d}{res.insertion}{conf.confnum:03d}"
                 for atom in conf.atoms:
                     atom.serial = atom_counter
                     atom_counter += 1
