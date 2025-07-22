@@ -202,6 +202,34 @@ def get_electrostatic_energy(atoms):
                     #     continue
     return pairwise_ele
 
+def get_rxn_energy(atoms):
+    """
+    Get reaction energy from energies/*.raw files and assign to charged atoms.
+    Returns a dictionary mapping atom_id to reaction energy.
+    """
+    energy_folder = "energies"
+    rxn_energy = {}
+    for atom_id, atom in atoms.items():
+        fname = os.path.join(energy_folder, f"{atom.confid}.raw")
+        if not os.path.isfile(fname):
+            logging.error(f"Raw energy file {fname} not found")
+            exit(1)
+        with open(fname) as f:
+            # Find the line that starts with "[RXN" and use the last field as the reaction energy
+            for line in f:
+                if line.startswith("[RXN"):
+                    fields = line.strip().split()
+                    if len(fields) < 2:
+                        logging.error(f"Invalid RXN line in {fname}: {line.strip()}")
+                        continue
+                    try:
+                        rxn_energy[atom_id] = float(fields[-1])  # Last field is the reaction energy
+                    except ValueError:
+                        logging.error(f"Invalid reaction energy value in {fname} for {atom.confid}: {fields[-1]}")
+                        continue
+                    break
+    return rxn_energy
+
 
 def fit_ann(df, features, target, title):
     """
@@ -255,7 +283,7 @@ if __name__ == "__main__":
     helpmsg = "Train a fast force field model from a pdb folder. This script attempts to reproduce PB solver delphi potential using machine learning techniques."
     parser = argparse.ArgumentParser(description=helpmsg)
     parser.add_argument('--fit_pdbs', metavar="pdbfolder", default=None, help='Fit by pdb files. The folder should contain proteins at different size and shape.')
-    parser.add_argument('--fit_csv', metavar="csvfile", default=None, help='Fit by csv file. The file should contain features and target values.')
+    parser.add_argument('--fit_csv', metavar=("ele_csv", "rxn_csv"), nargs=2, help='Fit by csv files. Provide two files: one for electrostatics, one for reaction energies.')
     parser.add_argument('--debug', default=False, action='store_true', help='If set, create and preserve temporary directory in current directory.')
     args = parser.parse_args()
 
@@ -308,7 +336,8 @@ if __name__ == "__main__":
         # print current working directory
         logging.info(f"Current working directory: {os.getcwd()}")
 
-        feature_lines = ["Distance,AverageDensity_Near,AverageDensity_Mid,AverageDensity_Far,AverageD2surface,PBPotential"]
+        ele_lines = ["Distance,AverageDensity_Near,AverageDensity_Mid,AverageDensity_Far,AverageD2surface,PBPotential"]
+        rxn_lines = ["Density_Near,Density_Mid,Density_Far,D2surface,PBRXN"]
         for pdb in pdbs:
             base_name = os.path.basename(pdb)
             logging.info(f"Processing PDB file: {base_name}")
@@ -345,12 +374,10 @@ if __name__ == "__main__":
                 exit(result.returncode)
             else:
                 logging.info(f"step3.py completed successfully.")
-
-            logging.info("Compile density and electrostatics energy to a csv file.")
+            logging.info("Compile density and electrostatics energy to csv files.")
             atoms = load_atoms()
             update_density_score(atoms, "microstate.density")
             pairwise_ele = get_electrostatic_energy(atoms)
-
             # Append to the output lines
             for (atom_id1, atom_id2), ele in pairwise_ele.items():
                 atom1, atom2 = atoms[atom_id1], atoms[atom_id2]
@@ -363,37 +390,53 @@ if __name__ == "__main__":
                 density2_mid = atom2.density_mid
                 density2_far = atom2.density_far
                 d2surface2 = atom2.d2surface
-
                 average_density_near = (density1_near + density2_near) / 2
                 average_density_mid = (density1_mid + density2_mid) / 2
                 average_density_far = (density1_far + density2_far) / 2
                 average_d2surface = (d2surface1 + d2surface2) / 2
-
-                feature_lines.append(f"{distance:.3f},{average_density_near:.1f},{average_density_mid:.1f},{average_density_far:.1f},{average_d2surface:.3f},{ele:.3f}")
+                ele_lines.append(f"{distance:.3f},{average_density_near:.1f},{average_density_mid:.1f},{average_density_far:.1f},{average_d2surface:.3f},{ele:.3f}")
+            # extract rxn
+            atom_rxn = get_rxn_energy(atoms)
+            for atom_id, rxn in atom_rxn.items():
+                atom = atoms[atom_id]
+                rxn_lines.append(f"{atom.density_near},{atom.density_mid},{atom.density_far},{atom.d2surface},{rxn:.3f}")
 
             logging.info(f"Processed pdb {base_name} with {len(pairwise_ele)} pairs of atoms.")
         # Only cleanup if not debugging
         if cleanup_temp_dir:
             temp_dir_obj.cleanup()
-
         # Change back to the original directory
         os.chdir(current_dir)
-        # Write the feature lines to a CSV file
+        # Write the ele lines to a CSV file
         output_file = f"features_ele.csv"
         logging.info(f"Writing features and electrostatic potential to {output_file}")
         # print current working directory
         with open(output_file, 'w') as f:
-            f.write("\n".join(feature_lines))
-        logging.info(f"Feature writing completed. The energy unit is kcal/mol, distance unit is Angstrom.")
-        csv_file = output_file
+            f.write("\n".join(ele_lines))
+        logging.info(f"Ele writing completed. The energy unit is kcal/mol, distance unit is Angstrom.")
+        ele_file = output_file
+        # Write the rxn lines to a CSV file
+        output_file = f"features_rxn.csv"
+        logging.info(f"Writing features and reaction energy to {output_file}")
+        with open(output_file, 'w') as f:
+            f.write("\n".join(rxn_lines))
+        logging.info(f"Rxn writing completed. The energy unit is kcal/mol.")
+        rxn_file = output_file
+    
+    
     else:  # it has to be fit by CSV file
-        csv_file = args.fit_csv
-
+        ele_file, rxn_file = args.fit_csv
 
     # Move on to training the model
-    logging.info(f"Training the model with Neural Network from feature file {csv_file}")
-    df = pd.read_csv(csv_file)
+    logging.info(f"Training the model with Neural Network from feature file {ele_file}")
+    df = pd.read_csv(ele_file)
     df["iDistance"] = 1 / df["Distance"] # Inverse distance
     features = ['iDistance', 'AverageDensity_Near', 'AverageDensity_Mid', 'AverageDensity_Far', 'AverageD2surface']
     target = 'PBPotential'
-    fit_ann(df, features, target, "ANN Model")
+    fit_ann(df, features, target, "ELE Model")
+
+    logging.info(f"Training the model with Neural Network from reaction energy file {rxn_file}")
+    df = pd.read_csv(rxn_file)
+    features = ['Density_Near', 'Density_Mid', 'Density_Far', 'D2surface']
+    target = 'PBRXN'
+    fit_ann(df, features, target, "RXN Model")

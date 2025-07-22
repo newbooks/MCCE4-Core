@@ -25,9 +25,16 @@ if __name__ == "__main__":
     ml_energies = {}
     for filename in os.listdir(source_ml):
         if filename.endswith(".raw"):
-            conf_id = filename[:12]  # Extract the conformer ID from the filename
+            conf_id = filename[:14]  # Extract the conformer ID from the filename
             lines = open(os.path.join(source_ml, filename), 'r').readlines()
-            for line in lines:
+            # fast-forward to lines after "[PAIRWISE ele, kcal/mol]"
+            for iline in range(len(lines)):
+                if lines[iline].startswith("[PAIRWISE ele, kcal/mol]"):
+                    break
+            for line in lines[iline + 1:]:
+                # break when empty line is found
+                if not line.strip():
+                    break
                 fields = line.split()
                 conf2_id = fields[0]
                 ele = float(fields[1])
@@ -37,11 +44,11 @@ if __name__ == "__main__":
     delphi_energies = {}
     for filename in os.listdir(source_delphi):
         if filename.endswith(".opp"):
-            conf_id = filename[:3]+filename[5:14]
+            conf_id = filename[:14]
             lines = open(os.path.join(source_delphi, filename), 'r').readlines()
             for line in lines:
                 fields = line.split()
-                conf2_id = fields[1][:3]+fields[1][5:14]
+                conf2_id = fields[1][:14]
                 ele_average = float(fields[2])
                 ele_raw = float(fields[5])
                 delphi_energies[(conf_id, conf2_id)] = (ele_average, ele_raw)
