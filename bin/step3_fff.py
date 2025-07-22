@@ -50,7 +50,7 @@ def write_raw_file(protein, pairwise, rxn):
             fname = os.path.join(output_folder, f"{conf.confID}.raw")
             with open(fname, 'w') as f:
                 f.write(f"[Method] ann\n\n")
-                f.write(f"[PAIRWISE confID ele, kcal/mol]\n")
+                f.write(f"[PAIRWISE ele, kcal/mol]\n")
                 for res_target in protein.residues:
                     if res_target == res or len(res_target.conformers) < 2:
                         continue
@@ -62,20 +62,19 @@ def write_raw_file(protein, pairwise, rxn):
                 # write backbone interaction energies
                 total_bkb = 0.0
                 breakdown_lines = []
-                f.write(f"\n[BACKBONE total including self, kcal/mol]\n")
+                for res_target in protein.residues:
+                    target_conf = res_target.conformers[0]  # Use the first conformer for backbone
+                    ele = pairwise.get((conf.confID, target_conf.confID), 0.0)
+                    if abs(ele) > 0.001:
+                        total_bkb += ele
+                        breakdown_lines.append(f"{target_conf.confID} {ele:8.3f}\n")
+                f.write(f"\n[BACKBONE total including self, kcal/mol] {total_bkb:8.3f}\n")
+                f.write(f"\n[BACKBONE breakdown, kcal/mol]\n")
+                f.writelines(breakdown_lines)
 
 
-def get_rxn(protein, model_file):
-    """
-    Get the reaction energies for the given protein using the specified model file.
-    """
-    rxn = {}
-    return rxn
 
-
-
-
-def get_pairwise(protein, model_file):
+def get_eleterms(protein, model_pairwise, model_reaction):
     """
     Compose the output files for the given protein using the specified model file.
     Optimized: Only consider atom pairs within 20A, and batch ann_predict calls.
@@ -117,7 +116,7 @@ def get_pairwise(protein, model_file):
     logging.info("   Local density and distance to surface calculated for each atom.")
 
     # Load the model file and apply it to the protein
-    model = joblib.load(model_file)
+    model = joblib.load(model_pairwise)
 
     # Loop over source conformers and calculate energies
     for res in protein.residues:
@@ -129,7 +128,7 @@ def get_pairwise(protein, model_file):
 
                 # Precompute source atom features for efficiency
                 source_features = [
-                    (atom.density_near, atom.density_mid, atom.density_far, atom.d2surface, atom.charge)
+                    (atom.density_near/2, atom.density_mid/2, atom.density_far/2, atom.d2surface/2, atom.charge)
                     for atom in source_atoms
                 ]
 
@@ -140,7 +139,7 @@ def get_pairwise(protein, model_file):
                         target_atoms = target_conf.atoms
                         target_coords = np.array([atom.xyz.to_np() for atom in target_atoms])
                         target_features = [
-                            (atom.density_near, atom.density_mid, atom.density_far, atom.d2surface, atom.charge)
+                            (atom.density_near/2, atom.density_mid/2, atom.density_far/2, atom.d2surface/2, atom.charge)
                             for atom in target_atoms
                         ]
 
@@ -164,10 +163,10 @@ def get_pairwise(protein, model_file):
                             iDistance = 1 / Distance if Distance != 0 else 0
                             s_dn, s_dm, s_df, s_d2s, s_q = source_features[i]
                             t_dn, t_dm, t_df, t_d2s, t_q = target_features[j]
-                            AverageDensity_Near = (s_dn + t_dn) / 2
-                            AverageDensity_Mid = (s_dm + t_dm) / 2
-                            AverageDensity_Far = (s_df + t_df) / 2
-                            AverageD2surface = (s_d2s + t_d2s) / 2
+                            AverageDensity_Near = (s_dn + t_dn)
+                            AverageDensity_Mid = (s_dm + t_dm)
+                            AverageDensity_Far = (s_df + t_df)
+                            AverageD2surface = (s_d2s + t_d2s)
                             data.append([i, j, iDistance, AverageDensity_Near, AverageDensity_Mid, AverageDensity_Far, AverageD2surface, s_q, t_q])
 
                         df = pd.DataFrame(data, columns=['i', 'j', 'iDistance', 'AverageDensity_Near', 'AverageDensity_Mid', 'AverageDensity_Far', 'AverageD2surface', 's_q', 't_q'])
@@ -181,14 +180,44 @@ def get_pairwise(protein, model_file):
                         if abs(ele) > 0.001:  # Only write if the energy is significant
                             pairwise[(conf.confID, target_conf.confID)] = ele
 
-    return pairwise
+    # Loop over side chain conformers and calculate reaction energies
+    # for res in protein.residues:
+    #     if len(res.conformers) > 1:
+    #         for conf in res.conformers[1:]:
+    #             logging.info(f"Calculating reaction energies for {conf.confID} ...")
+    #             atom_coords = np.array([atom.xyz.to_np() for atom in conf.atoms])
+    #             # Precompute features for the side chain conformers
+    #             features = [
+    #                 (atom.density_near, atom.density_mid, atom.density_far, atom.d2surface, atom.charge)
+    #                 for atom in conf.atoms
+    #             ]
+    #             # Use the model to predict reaction energies
+    #             model = joblib.load(model_reaction)
+    #             data = []
+    #             for i, atom in enumerate(conf.atoms):
+    #                 data.append([
+    #                     atom.density_near, atom.density_mid, atom.density_far, atom.d2surface, atom.charge
+    #                 ])
+    #             df = pd.DataFrame(data, columns=['Density_Near', 'Density_Mid', 'Density_Far', 'D2surface', 'Charge'])
+    #             features_df = df[['Density_Near', 'Density_Mid', 'Density_Far', 'D2surface']]
+    #             reaction_modifiers = ann_predict(model, features_df)
+
+    #             # Calculate the reaction energy base
+    #             rxn_base = np.sum([atom.charge * atom.charge * reaction_modifiers[i] for i, atom in enumerate(conf.atoms)])
+    #             # Calculate the pairwise interaction among side chain atoms
+    #             # 1. calculate pairwise distances
+    #             # 2. exclude pairs that are too close
+    #             # 3. br
+
+    return pairwise, rxn
 
 if __name__ == "__main__":
     # set up multiline help message
     helpmsg = "MCCE4 Step 3: Calculate Energy Lookup Table using Fast Force Field."
     parser = argparse.ArgumentParser(description=helpmsg, formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument("-f", metavar="ftpl_folder", default="", help="Load from this ftpl folder instead of the default one")
-    parser.add_argument("-m", metavar="model_file", default="", help="Load a force field model, or use the default if none is given.")
+    parser.add_argument("-p", metavar="model_pairwise", default="", help="Load a force field model, or use the default if none is given.")
+    parser.add_argument("-r", metavar="model_reaction", default="", help="Load a force field model, or use the default if none is given.")
     parser.add_argument("--debug", default=False, action="store_true", help="Print debug information")
     args = parser.parse_args()
 
@@ -227,18 +256,19 @@ if __name__ == "__main__":
     logging.info(f"   Protein loaded from {STEP2_OUT}")
 
     # Decide if we have a model file, if not, construct one from precaculated data
-    if args.m:
-        model_file = args.m
+    if args.p:
+        model_pairwise = args.p
     else: # Train a new model in place
-        model_file = prm._FASTFF_ELE.value
-    logging.info(f"   Using Fast Force Field model: {model_file}")
+        model_pairwise = prm._FASTFF_ELE.value
+    logging.info(f"   Using Fast Force Field model: {model_pairwise}")
+    if args.r:
+        model_reaction = args.r
+    else: # Train a new model in place
+        model_reaction = prm._FASTFF_RXN.value
+    logging.info(f"   Using Fast Force Field reaction model: {model_reaction}")
 
+    # Calculate energy lookup table using the Fast Force Field models
+    pairwise, rxn = get_eleterms(mcce.protein, model_pairwise, model_reaction)
 
-    # Calculate energy lookup table using the Fast Force Field model
-    pairwise = get_pairwise(mcce.protein, model_file)
-
-    # Get reaction energies
-    rxn = get_rxn(mcce.protein, model_file)
-  
     # Write raw files for each conformer
     write_raw_file(mcce.protein, pairwise, rxn)
