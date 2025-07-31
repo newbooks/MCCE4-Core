@@ -39,6 +39,7 @@ import random
 import time
 import pandas as pd
 import numpy as np
+from scipy.spatial import cKDTree, ConvexHull
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error, r2_score
@@ -50,20 +51,126 @@ from mcce.geom import Vector
 
 DEFAULT_TRAINING = "trainingset"
 
+# Atom radii are for step2_out.pdb
+ATOM_RADII = {
+    " H": 1.20,  # Hydrogen
+    " C": 1.70,  # Carbon
+    " N": 1.55,  # Nitrogen
+    " O": 1.52,  # Oxygen
+    " S": 1.80,  # Sulfur
+    " P": 1.80,  # Phosphorus
+}
+ATOM_RADIUS_UNKNOWN = 1.80  # Default radius for unknown elements
+
+
+# Constants
+Far_Radius = 15.0   # Far limit to count far local density
+Mid_Radius = 6.0    # Mid limit to count mid local density
+Near_Radius = 3.0   # Near limit to count near local density
+
+CSV_OUTPUT_FILE = "local_density.csv"
+
 class Atom:
     def __init__(self, line):
-        self.x = float(line[30:38])
-        self.y = float(line[38:46])
-        self.z = float(line[46:54])
-        self.charge = float(line[54:60]) if len(line) > 60 else 0.0
-        self.radius = float(line[60:66]) if len(line) > 66 else 0.0
+        self.line = line
+        atom_name = line[12:16]
+        if len(atom_name.strip()) == 4 and atom_name[0] == 'H':
+            self.element = " H"
+        else:
+            self.element = atom_name[:2]
+        self.xyz = Vector((float(line[30:38]), float(line[38:46]), float(line[46:54])))
+        self.charge = 0.0 # set all charges to 0
+        self.radius = ATOM_RADII.get(self.element, ATOM_RADIUS_UNKNOWN)  # Get radius from ATOM_RADII to avoid or use default
+
+        self.density_near = 0
+        self.density_mid = 0
+        self.density_far = 0
+        self.d2surface = 0.0  # Distance to the nearest surface
+        self.rxn = 0.0  # Placeholder for reaction field energy
         self.radius_born = 0.0  # Placeholder for Born radius
+
+    def csvline(self):
+        """
+        Return a CSV line for this atom.
+        The fields are:
+        - Density_Near
+        - Density_Mid
+        - Density_Far
+        - D2Surface
+        - RXN
+        - Radius_Born
+        """
+
+        return f"{self.density_near},{self.density_mid},{self.density_far},{self.d2surface:.3f},{self.rxn:.3f},{self.radius_born:.3f}\n"
+
+
+class Protein:
+    def __init__(self):
+        self.pdb_file = ""
+        self.atoms = []  # List of Atom objects
+
+    def load_pdb(self, pdb_file):
+        """
+        Load PDB file and initialize atoms.
+        """
+        self.pdb_file = pdb_file
+        with open(pdb_file, 'r') as f:
+            for line in f:
+                if line.startswith("ATOM") or line.startswith("HETATM"):
+                    atom = Atom(line)
+                    self.atoms.append(atom)
+
+    def calculate_local_density(self):
+        """
+        Calculate local density (number of atoms within Local_Density_Radius) for each atom
+        using cKDTree for efficient nearest neighbor search.
+        """
+        if not self.atoms:
+            logging.warning("No atoms loaded, skipping local density calculation.")
+            return
+        # Create a list of coordinates for cKDTree
+        coords = np.array([atom.xyz.to_np() for atom in self.atoms])
+        # Create a cKDTree for fast nearest neighbor search
+        tree = cKDTree(coords)
+        # Query the tree for neighbors
+        indices_far = tree.query_ball_point(coords, r=Far_Radius)  # Get all neighbors within Far_Radius
+        indices_mid = tree.query_ball_point(coords, r=Mid_Radius)  # Get all neighbors within Mid_Radius
+        indices_near = tree.query_ball_point(coords, r=Near_Radius)  # Get all neighbors within Near_Radius
+        # Calculate local density for each atom
+        for i, atom in enumerate(self.atoms):
+            # Get the indices of neighbors for this atom and exclude itself
+            neighbor_count_far = len(indices_far[i]) - 1
+            neighbor_count_mid = len(indices_mid[i]) - 1
+            neighbor_count_near = len(indices_near[i]) - 1
+            atom.density_near = neighbor_count_near
+            atom.density_mid = neighbor_count_mid - neighbor_count_near
+            atom.density_far = neighbor_count_far - neighbor_count_mid
+
+
+    def calculate_distance_to_surface(self):
+        """
+        Calculate distance to the nearest surface for each atom.
+        Step 1: Create a set pf mesh points from the atoms by using ConvexHull.
+        Step 2: For each atom, find the nearest point on the surface mesh using cKDTree.
+        """
+        # Step 1: Create a set of mesh points from the atoms
+        atom_coords = np.array([atom.xyz.to_np() for atom in self.atoms])
+        hull = ConvexHull(atom_coords)
+        surface_points = atom_coords[hull.vertices]
+
+        # Step 2: For each atom, find the nearest point on the surface mesh
+        tree = cKDTree(surface_points)
+        for atom in self.atoms:
+            dist, _ = tree.query(atom.xyz.to_np())
+            atom.d2surface = dist
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Model atom Born radii from local density. It can train from pdb files, or a precompiled csv file.")
     parser.add_argument("--from_pdb", type=str, default=None, help="The path to the folder with training set as pdb files")
     parser.add_argument("--from_csv", type=str, default=None, help="The path to the precompiled csv file")
     return parser.parse_args()
+
 
 
 def pdb2csv(pdb_file):
@@ -77,25 +184,46 @@ def pdb2csv(pdb_file):
     - RXN
     - BORN_RADIUS
     """
-    pass
+    # Get local density terms
+    logging.info(f"Getting local density terms ...")
+    print(f"Processing {pdb_file} ...")
+    protein = Protein()
+    protein.load_pdb(pdb_file)
+    protein.calculate_local_density()
+    protein.calculate_distance_to_surface()
 
+
+    # Set up delphi calculation and get reaction field energy
+
+    csv_lines = []
+    for atom in protein.atoms:
+        csv_line = atom.csvline()
+        csv_lines.append(csv_line)
+
+    return csv_lines
 
 if __name__ == "__main__":
     args = parse_args()
     logging.basicConfig(format='%(asctime)s %(levelname)s: %(message)s', datefmt='%Y-%m-%d %H:%M:%S', level=logging.INFO)
 
     # Check which input to use, either from PDB files or from a precompiled CSV file
+    csv_header = "Density_Near,Density_Mid,Density_Far,D2Surface,RXN,BORN_RADIUS\n"
+    csv_all_lines = [csv_header]
     if args.from_pdb is None and args.from_csv is None:
         # Use default training set
         logging.info("No input specified, using default training set.")
-        pdb_files = [f for f in os.listdir(DEFAULT_TRAINING) if f.endswith('.pdb')]
+        pdb_files = [os.path.join(DEFAULT_TRAINING, f) for f in os.listdir(DEFAULT_TRAINING) if f.endswith('.pdb')]
         if not pdb_files:
             logging.error("No PDB files found in the specified directory.")
             exit(1)
 
         for pdb_file in pdb_files:
+            logging.info(f"Processing {pdb_file} ...")
             csv_lines = pdb2csv(pdb_file)
             logging.info(f"Processed {pdb_file} to get local density and rxn.")
+            csv_all_lines.extend(csv_lines)
+        # Write the CSV file
+        open(CSV_OUTPUT_FILE, 'w').writelines(csv_all_lines)
 
     elif args.from_pdb and args.from_csv is None:
         logging.info("Training from PDB files.")
@@ -106,8 +234,12 @@ if __name__ == "__main__":
             exit(1)
 
         for pdb_file in pdb_files:
+            logging.info(f"Processing {pdb_file} ...")
             csv_lines = pdb2csv(pdb_file)
             logging.info(f"Processed {pdb_file} to get local density and rxn.")
+            csv_all_lines.extend(csv_lines)
+        # Write the CSV file
+        open(CSV_OUTPUT_FILE, 'w').writelines(csv_all_lines)
 
 
     elif args.from_csv and args.from_pdb is None:
@@ -116,4 +248,3 @@ if __name__ == "__main__":
         logging.error("Please specify either --from_pdb or --from_csv, not both.")
         exit(1)
 
-    
