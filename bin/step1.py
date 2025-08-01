@@ -80,7 +80,10 @@ if __name__ == "__main__":
     if prm.TERMINALS.value.lower() == "t":
         logging.info("   Making terminal residues")
         protein.make_ter_residues()  # Add terminal residues if necessary
-    
+    else:
+        logging.info("   Not making terminal residues, deleting OXT of CTR")
+        protein.delete_oxt()  # Delete terminal residues if necessary
+
     # Now the protein object has the right residue names, we will 
     # 1. scan protein residues to find unknown cofactors, if found, create new_ftpl for them and ammend tpl database
     # 2. move backbone atoms to conformer[0] or create new_ftpl for unknown cofactors

@@ -81,6 +81,7 @@ class Atom:
         self.xyz = Vector((float(line[30:38]), float(line[38:46]), float(line[46:54])))
         self.charge = 0.0 # set all charges to 0
         self.radius = ATOM_RADII.get(self.element, ATOM_RADIUS_UNKNOWN)  # Get radius from ATOM_RADII to avoid or use default
+        self.conf_id = line[17:20] + line[80:82] + line[21:30]
 
         self.density_near = 0
         self.density_mid = 0
@@ -164,11 +165,22 @@ class Protein:
             dist, _ = tree.query(atom.xyz.to_np())
             atom.d2surface = dist
 
+    def write_pqr(self, filename):
+        """
+        Write the protein atoms to a PQR file.
+        The PQR format is similar to PDB but includes charge and radius.
+        """
+        with open(filename, 'w') as f:
+            for atom in self.atoms:
+                line = f"{atom.line[:54]}{atom.radius:8.3f}{atom.charge:12.3f}{atom.line[74:].rstrip()}\n"
+                f.write(line)
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Model atom Born radii from local density. It can train from pdb files, or a precompiled csv file.")
     parser.add_argument("--from_pdb", type=str, default=None, help="The path to the folder with training set as pdb files")
     parser.add_argument("--from_csv", type=str, default=None, help="The path to the precompiled csv file")
+    parser.add_argument("--debug", action='store_true', help="Enable debug mode to reserve temporary folder")
     return parser.parse_args()
 
 
@@ -184,22 +196,90 @@ def pdb2csv(pdb_file):
     - RXN
     - BORN_RADIUS
     """
+    # Set up temporary directory to run step1.py and step2.py
+    temp_dir = tempfile.mkdtemp(prefix="tmp")
+    logging.info(f"Using temporary directory: {temp_dir}")
+    cwd = os.getcwd()
+    shutil.copy(pdb_file, os.path.join(temp_dir, "prot.pdb"))
+
+    # Change to the temporary directory
+    os.chdir(temp_dir)
+
+    # Run step1.py to generate a mcce protein object
+    logging.info(f"Running step1.py to generate mcce protein object for {pdb_file} ...")
+    step1_cmd = ["step1.py", "prot.pdb", "--no_hoh", "--no_ter"]
+    subprocess.run(step1_cmd, check=True)
+    # Run step2.py to get single conormer microstates
+    logging.info(f"Running step2.py to get single conformer microstates for {pdb_file} ...")
+    step2_cmd = ["step2.py", "--writepdb"]
+    subprocess.run(step2_cmd, check=True)
+    # copy ga_output/state_0001.pdb to microstate.pdb
+    shutil.copy("ga_output/state_0001.pdb", "microstate.pdb")
+
     # Get local density terms
     logging.info(f"Getting local density terms ...")
     print(f"Processing {pdb_file} ...")
     protein = Protein()
-    protein.load_pdb(pdb_file)
+    protein.load_pdb("microstate.pdb")
     protein.calculate_local_density()
     protein.calculate_distance_to_surface()
 
-
     # Set up delphi calculation and get reaction field energy
+    logging.info(f"Setting up delphi calculation for {pdb_file} ...")
+    # Make a dictionary to hold side chain atoms, atom is referenced and we will alter its charge
+    sidechain_atoms = {}
+    for atom in protein.atoms:
+        # collect all atoms of the same side chain
+        sidechain_id = atom.line[17:30]
+        if sidechain_id[-3:] != "000":
+            if sidechain_id not in sidechain_atoms:
+                sidechain_atoms[sidechain_id] = []
+            sidechain_atoms[sidechain_id].append(atom)
+
+    i_charge = 0  # Loop through side conformer atoms and set their charge to +1
+    assigned_charges = 1 # counter of assigned charges, initially set to 1 so it enters the loop
+    while assigned_charges > 0:
+        assigned_charges = 0
+        atom_lookup_by_conf_id = {}
+        for sidechain_id, atoms in sidechain_atoms.items():
+            if i_charge < len(atoms):
+                atoms[i_charge].charge = 1.0  # set the charge of the atom to +1
+                assigned_charges += 1
+                atom_lookup_by_conf_id[atoms[i_charge].conf_id] = atoms[i_charge]
+        # Write out protein as a step2_out.pdb file
+        protein.write_pqr("step2_out.pdb")
+
+        # Restore the original charges in protein object after writing out the pdb file
+        for sidechain_id, atoms in sidechain_atoms.items():
+            if i_charge < len(atoms):
+                atoms[i_charge].charge = 0.0  # set the charge of the atom back to 0
+
+        i_charge += 1  # Move to the next atom in the side chain
+
+    # Now that we have step2_out.pdb, call step3.py
+    logging.info(f"Running step3.py on the {i_charge} atom of each side chain ...")
+    result = subprocess.run(["step3.py", "-p", "3"], check=True)
+    if result.returncode != 0:
+        logging.error("step3.py failed to run successfully.")
+        exit(result.returncode)
+    
+    # Now collect rxn from raw files and assign back to atoms
+    logging.info("Collecting reaction field energies from raw files ...")
+    
 
     csv_lines = []
     for atom in protein.atoms:
         csv_line = atom.csvline()
         csv_lines.append(csv_line)
 
+    os.chdir(cwd)  # Change back to the original directory
+    if args.debug:
+        logging.info(f"Debug mode is enabled, keeping the temporary directory: {temp_dir}")
+    else:
+        logging.info(f"Cleaning up the temporary directory: {temp_dir}")
+        shutil.rmtree(temp_dir)  # Clean up the temporary directory
+    
+    logging.info(f"Finished processing {pdb_file} and cleaned the temporary directory.")
     return csv_lines
 
 if __name__ == "__main__":
@@ -209,26 +289,20 @@ if __name__ == "__main__":
     # Check which input to use, either from PDB files or from a precompiled CSV file
     csv_header = "Density_Near,Density_Mid,Density_Far,D2Surface,RXN,BORN_RADIUS\n"
     csv_all_lines = [csv_header]
+    training_from_pdb = False
     if args.from_pdb is None and args.from_csv is None:
         # Use default training set
         logging.info("No input specified, using default training set.")
         pdb_files = [os.path.join(DEFAULT_TRAINING, f) for f in os.listdir(DEFAULT_TRAINING) if f.endswith('.pdb')]
-        if not pdb_files:
-            logging.error("No PDB files found in the specified directory.")
-            exit(1)
-
-        for pdb_file in pdb_files:
-            logging.info(f"Processing {pdb_file} ...")
-            csv_lines = pdb2csv(pdb_file)
-            logging.info(f"Processed {pdb_file} to get local density and rxn.")
-            csv_all_lines.extend(csv_lines)
-        # Write the CSV file
-        open(CSV_OUTPUT_FILE, 'w').writelines(csv_all_lines)
+        training_from_pdb = True
 
     elif args.from_pdb and args.from_csv is None:
         logging.info("Training from PDB files.")
         # get list of pdb files
-        pdb_files = [f for f in os.listdir(args.from_pdb) if f.endswith('.pdb')]
+        pdb_files = [os.path.join(args.from_pdb, f) for f in os.listdir(args.from_pdb) if f.endswith('.pdb')]
+        training_from_pdb = True
+
+    if training_from_pdb:
         if not pdb_files:
             logging.error("No PDB files found in the specified directory.")
             exit(1)
@@ -244,6 +318,7 @@ if __name__ == "__main__":
 
     elif args.from_csv and args.from_pdb is None:
         logging.info("Training from CSV file.")
+
     else:
         logging.error("Please specify either --from_pdb or --from_csv, not both.")
         exit(1)
