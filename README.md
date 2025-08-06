@@ -13,10 +13,10 @@ MCCE can calculate:
 MCCE4-Core project is a streamlined version of the MCCE4 project available at [GunnerLab/MCCE4](https://github.com/GunnerLab/MCCE4) (private repository). The goal is to enhance code simplicity and compatibility by implementing only the core functions and essential tools, while retaining all the original algorithms.
 
 ## How to Install
-Work in progress
+Work in progress.
 
 ## Quick Start: An Example of pKa Calculation
-Work in progress
+Work in progress.
 
 ## Comprehensive Documentation
 Please refer to dedicated documentation pages under the `docs` [directory](docs/).
