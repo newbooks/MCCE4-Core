@@ -21,3 +21,5 @@ Work in progress
 ## Comprehensive Documentation
 Please refer to dedicated documentation pages under the `docs` [directory](docs/).
 
+## See Also
+There will be an even simpler version of MCCE based on fast force field and Machine Learning models.  
