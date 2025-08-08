@@ -48,6 +48,7 @@ import joblib
 from matplotlib import pyplot as plt
 import seaborn as sns
 from mcce.geom import Vector
+import atexit
 
 DEFAULT_TRAINING = "trainingset"
 
@@ -62,6 +63,11 @@ ATOM_RADII = {
 }
 ATOM_RADIUS_UNKNOWN = 1.80  # Default radius for unknown elements
 
+# Conversion factors
+# RXN = 166 * (-0.5 * (1/eps_in - 1/eps_out) * qi * qj / r_Born)
+# where 166 is the conversion factor to calculate RXN in kcal/mol from unit charge and distance in Angstroms.
+K_rxn = 166.0 * (-0.5 * (1/4.0 - 1/80.0))  # eps_in = 4, eps_out = 80 
+# RXN = K_rxn * qi * qj / r_Born
 
 # Constants
 Far_Radius = 15.0   # Far limit to count far local density
@@ -74,6 +80,7 @@ class Atom:
     def __init__(self, line):
         self.line = line
         atom_name = line[12:16]
+        self.name = atom_name
         if len(atom_name.strip()) == 4 and atom_name[0] == 'H':
             self.element = " H"
         else:
@@ -87,7 +94,7 @@ class Atom:
         self.density_mid = 0
         self.density_far = 0
         self.d2surface = 0.0  # Distance to the nearest surface
-        self.rxn = 0.0  # Placeholder for reaction field energy
+        self.rxn = None  # Placeholder for reaction field energy
         self.radius_born = 0.0  # Placeholder for Born radius
 
     def csvline(self):
@@ -101,6 +108,16 @@ class Atom:
         - RXN
         - Radius_Born
         """
+        if self.rxn is None:
+            logging.error(f"RXN of side chain atom {self.name} on conformer {self.conf_id} was not calculated. This is not expected.")
+            exit(1)
+
+        # Calculate the Born radius from the reaction field energy
+        # The formula is derived from the RXN = -0.5 * (1/eps_in - 1/eps_out) * q^2 / r_Born
+        # Rearranging gives us r_Born = -0.5 * (1/eps_in - 1/eps_out) * q^2 / RXN
+        # Assuming eps_in = 4 and eps_out = 80, and q = 1.0
+
+        self.radius_born = K_rxn / self.rxn
 
         return f"{self.density_near},{self.density_mid},{self.density_far},{self.d2surface:.3f},{self.rxn:.3f},{self.radius_born:.3f}\n"
 
@@ -184,7 +201,6 @@ def parse_args():
     return parser.parse_args()
 
 
-
 def pdb2csv(pdb_file):
     """
     Setup delphi calculation to get reaction field energy and local density terms.
@@ -197,7 +213,8 @@ def pdb2csv(pdb_file):
     - BORN_RADIUS
     """
     # Set up temporary directory to run step1.py and step2.py
-    temp_dir = tempfile.mkdtemp(prefix="tmp")
+    temp_dir = tempfile.mkdtemp(prefix="rxn_training_")
+
     logging.info(f"Using temporary directory: {temp_dir}")
     cwd = os.getcwd()
     shutil.copy(pdb_file, os.path.join(temp_dir, "prot.pdb"))
@@ -208,17 +225,16 @@ def pdb2csv(pdb_file):
     # Run step1.py to generate a mcce protein object
     logging.info(f"Running step1.py to generate mcce protein object for {pdb_file} ...")
     step1_cmd = ["step1.py", "prot.pdb", "--no_hoh", "--no_ter"]
-    subprocess.run(step1_cmd, check=True)
+    subprocess.run(step1_cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     # Run step2.py to get single conormer microstates
     logging.info(f"Running step2.py to get single conformer microstates for {pdb_file} ...")
     step2_cmd = ["step2.py", "--writepdb"]
-    subprocess.run(step2_cmd, check=True)
+    subprocess.run(step2_cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     # copy ga_output/state_0001.pdb to microstate.pdb
     shutil.copy("ga_output/state_0001.pdb", "microstate.pdb")
 
     # Get local density terms
     logging.info(f"Getting local density terms ...")
-    print(f"Processing {pdb_file} ...")
     protein = Protein()
     protein.load_pdb("microstate.pdb")
     protein.calculate_local_density()
@@ -254,30 +270,55 @@ def pdb2csv(pdb_file):
             if i_charge < len(atoms):
                 atoms[i_charge].charge = 0.0  # set the charge of the atom back to 0
 
+
+        # Now that we have step2_out.pdb, call step3.py
+        logging.info(f"Running step3.py on the {i_charge}th atom of {assigned_charges} side chains ...")
+        result = subprocess.run(
+            ["step3.py", "-s", "delphi", "-p", "6"],
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+        if result.returncode != 0:
+            logging.error("step3.py failed to run successfully.")
+            exit(result.returncode)
+        
+        # Now collect rxn from raw files and assign back to atoms
+        logging.info("Collecting reaction field energies from raw files ...")
+        for conf_id, atom in atom_lookup_by_conf_id.items():
+            raw_file = f"energies/{conf_id}.raw"
+            if os.path.isfile(raw_file):
+                with open(raw_file, 'r') as f:
+                    pbrxn = None
+                    for line in f:
+                        if line.startswith("[RXN"):
+                            fields = line.strip().split()
+                            if len(fields) >= 2:
+                                pbrxn = float(fields[-1])
+                                break
+                    if pbrxn is not None:
+                        atom.rxn = pbrxn
+                        logging.debug(f"Found RXN {pbrxn:.3f} for charged atom {atom.name} in {conf_id}.")
+                    else:
+                        logging.error(f"RXN value not found in {raw_file} for charged atom {atom.name} in {conf_id}.")
+                        exit(1)
+
+            else:
+                logging.warning(f"Raw file {raw_file} not found for charged atom {atom.name} in {conf_id}.")
+
         i_charge += 1  # Move to the next atom in the side chain
 
-    # Now that we have step2_out.pdb, call step3.py
-    logging.info(f"Running step3.py on the {i_charge} atom of each side chain ...")
-    result = subprocess.run(["step3.py", "-p", "3"], check=True)
-    if result.returncode != 0:
-        logging.error("step3.py failed to run successfully.")
-        exit(result.returncode)
-    
-    # Now collect rxn from raw files and assign back to atoms
-    logging.info("Collecting reaction field energies from raw files ...")
-    
 
     csv_lines = []
     for atom in protein.atoms:
-        csv_line = atom.csvline()
-        csv_lines.append(csv_line)
+        if atom.rxn is not None:
+            csv_line = atom.csvline()
+            csv_lines.append(csv_line)
 
     os.chdir(cwd)  # Change back to the original directory
-    if args.debug:
-        logging.info(f"Debug mode is enabled, keeping the temporary directory: {temp_dir}")
-    else:
-        logging.info(f"Cleaning up the temporary directory: {temp_dir}")
-        shutil.rmtree(temp_dir)  # Clean up the temporary directory
+    if not args.debug:
+        # Clean up the temporary directory
+        shutil.rmtree(temp_dir, ignore_errors=True)
     
     logging.info(f"Finished processing {pdb_file} and cleaned the temporary directory.")
     return csv_lines
