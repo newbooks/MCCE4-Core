@@ -297,6 +297,11 @@ class Protein:
         # assemble the residues in groups back into one array self.residues
         self.residues = [res for chain in chains for res in aminoacids_in_chains[chain] + nonaminoacids_in_chains[chain]]
 
+    def delete_oxt(self):
+        for res in self.residues:
+            for conf in res.conformers:
+                conf.atoms = [atom for atom in conf.atoms if atom.atomname != " OXT"]
+
     def new_ftpl(self, tpl):
         """
         Scan protein residues to find unknown cofactors, if found, create new_ftpl for them and ammend tpl database.
