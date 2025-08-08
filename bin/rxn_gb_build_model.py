@@ -44,6 +44,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error, r2_score
 from sklearn.neural_network import MLPRegressor
+from sklearn.ensemble import RandomForestRegressor
 import joblib
 from matplotlib import pyplot as plt
 import seaborn as sns
@@ -323,6 +324,85 @@ def pdb2csv(pdb_file):
     logging.info(f"Finished processing {pdb_file} and cleaned the temporary directory.")
     return csv_lines
 
+
+def train_model(data):
+    # Placeholder function for training the model
+    logging.info("Training model to predict Born radii from local density...")
+    features = ['Density_Near', 'Density_Mid', 'Density_Far', 'D2Surface']
+    target = 'BORN_RADIUS'
+    X = data[features]
+    y = data[target]
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    # Since local density is atom counts, we will not use scaler to standardize
+
+    # Train the model with Randowm Forest
+    rf_model = RandomForestRegressor(n_estimators=100, random_state=42)
+    rf_model.fit(X_train, y_train)
+    # Test the result and report the error
+    y_pred = rf_model.predict(X_test)
+    logging.info(f"Random Forest model test R^2 score: {r2_score(y_test, y_pred):.3f}")
+    logging.info(f"Random Forest model test RMSE: {np.sqrt(mean_squared_error(y_test, y_pred)):.3f}")
+    # Write out feature name and their importances in descending order
+    feature_importances = rf_model.feature_importances_
+    sorted_indices = np.argsort(feature_importances)[::-1]
+    for i in sorted_indices:
+        logging.info(f"Feature: {features[i]}, Importance: {feature_importances[i]:.3f}")
+    # Plot the predicted vs actual values
+    plt.figure(figsize=(10, 6))
+    sns.scatterplot(x=y_test, y=y_pred, alpha=0.5)
+    plt.grid(True)  # add grid lines
+    plt.plot([y.min(), y.max()], [y.min(), y.max()], 'g--', lw=2)  # Diagonal line
+    plt.xlabel("Actual Born Radius")
+    plt.ylabel("Modeled Born Radius")
+    plt.title(f"Random Forest Model")
+
+    # print the R^2 and RMSE on the plot
+    plt.text(0.05, 0.95, f"R^2: {r2_score(y_test, y_pred):.3f}", ha='left', va='top', transform=plt.gca().transAxes)
+    plt.text(0.05, 0.90, f"RMSE: {np.sqrt(mean_squared_error(y_test, y_pred)):.3f}", ha='left', va='top', transform=plt.gca().transAxes)
+
+    # print feature name and importance on the plot in descending order
+    # Print feature name and importance on the plot in descending order, under RMSE
+    # We'll position the text below the RMSE text, with a small vertical offset for each feature
+    base_y = 0.85  # Start below RMSE (which is at 0.90)
+    for idx, i in enumerate(sorted_indices):
+        plt.text(0.05, base_y - idx * 0.04, f"{features[i]}: {feature_importances[i]:.3f}", ha='left', va='top', transform=plt.gca().transAxes)
+
+    
+    # Train with Neural Network
+    # Standardize features by scaler
+    X_scaler = StandardScaler()
+    X_train_scaled = X_scaler.fit_transform(X_train)
+    X_test_scaled = X_scaler.transform(X_test)
+    # nn_model = MLPRegressor(hidden_layer_sizes=(100,), max_iter=1000, random_state=42)
+    nn_model = MLPRegressor(hidden_layer_sizes=(50, 20), alpha=0.01, learning_rate_init=0.001, learning_rate='adaptive', max_iter=500, random_state=42)
+
+    nn_model.fit(X_train_scaled, y_train)
+    # Test the result and report the error
+    y_pred = nn_model.predict(X_test_scaled)
+    logging.info(f"Neural Network model test R^2 score: {r2_score(y_test, y_pred):.3f}")
+    logging.info(f"Neural Network model test RMSE: {np.sqrt(mean_squared_error(y_test, y_pred)):.3f}")
+    # Plot
+    plt.figure(figsize=(10, 6))
+    sns.scatterplot(x=y_test, y=y_pred, alpha=0.5)
+    plt.grid(True)  # add grid lines
+    plt.plot([y.min(), y.max()], [y.min(), y.max()], 'g--', lw=2)  # Diagonal line
+    plt.xlabel("Actual Born Radius")
+    plt.ylabel("Modeled Born Radius")
+    plt.title(f"Neural Network Model")
+
+    # print the R^2 and RMSE on the plot
+    plt.text(0.05, 0.95, f"R^2: {r2_score(y_test, y_pred):.3f}", ha='left', va='top', transform=plt.gca().transAxes)
+    plt.text(0.05, 0.90, f"RMSE: {np.sqrt(mean_squared_error(y_test, y_pred)):.3f}", ha='left', va='top', transform=plt.gca().transAxes)
+
+    plt.show()
+
+    # Save Neural Network model together with feature names and scaler in the same pkl file
+    model_fname = "nn_model_with_features_and_scaler.pkl"
+    joblib.dump((nn_model, features, X_scaler), model_fname)
+
+    return model_fname
+
+
 if __name__ == "__main__":
     args = parse_args()
     logging.basicConfig(format='%(asctime)s %(levelname)s: %(message)s', datefmt='%Y-%m-%d %H:%M:%S', level=logging.INFO)
@@ -355,12 +435,18 @@ if __name__ == "__main__":
             csv_all_lines.extend(csv_lines)
         # Write the CSV file
         open(CSV_OUTPUT_FILE, 'w').writelines(csv_all_lines)
+        compiled_csv = pd.read_csv(CSV_OUTPUT_FILE)
+        logging.info(f"Compiled CSV file {CSV_OUTPUT_FILE} with {len(compiled_csv)} entries. You can load this file for training in the future.")
 
 
     elif args.from_csv and args.from_pdb is None:
         logging.info("Training from CSV file.")
+        compiled_csv = pd.read_csv(args.from_csv)
 
     else:
         logging.error("Please specify either --from_pdb or --from_csv, not both.")
         exit(1)
 
+    # Up to here we have the data set in compiled_csv, we will now proceed to model training.
+    model_name = train_model(compiled_csv)
+    logging.info(f"Trained model saved as {model_name}")
