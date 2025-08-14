@@ -29,6 +29,10 @@ for atoms from local density terms.
 A separate script will be used to calculate reaction energies using the trained model.
 """
 
+
+
+
+
 import logging
 import argparse
 import os
@@ -71,9 +75,14 @@ K_rxn = 166.0 * (-0.5 * (1/4.0 - 1/80.0))  # eps_in = 4, eps_out = 80
 # RXN = K_rxn * qi * qj / r_Born
 
 # Constants
-Far_Radius = 15.0   # Far limit to count far local density
-Mid_Radius = 6.0    # Mid limit to count mid local density
-Near_Radius = 3.0   # Near limit to count near local density
+Far_Radius = 12.0   # Far limit to count far local density
+Mid_Radius = 8.0    # Mid limit to count mid local density
+Near_Radius = 4.0   # Near limit to count near local density
+# 3, 6, 15: R^2 score: 0.865; RMSE: 0.521
+# 4, 8, 16: R^2 score: 0.890; RMSE: 0.474
+# 6, 10, 16: R^2 score: 0.890; RMSE: 0.467
+# 5, 10, 20: R^2 score: 0.889; RMSE: 0.465
+# 4, 8, 12: R^2 score: 0.890; RMSE: 0.464
 
 CSV_OUTPUT_FILE = "local_density.csv"
 
@@ -332,40 +341,40 @@ def train_model(data):
     target = 'BORN_RADIUS'
     X = data[features]
     y = data[target]
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=int(random.random() * 1000))
     # Since local density is atom counts, we will not use scaler to standardize
 
-    # Train the model with Randowm Forest
-    rf_model = RandomForestRegressor(n_estimators=100, random_state=42)
-    rf_model.fit(X_train, y_train)
-    # Test the result and report the error
-    y_pred = rf_model.predict(X_test)
-    logging.info(f"Random Forest model test R^2 score: {r2_score(y_test, y_pred):.3f}")
-    logging.info(f"Random Forest model test RMSE: {np.sqrt(mean_squared_error(y_test, y_pred)):.3f}")
-    # Write out feature name and their importances in descending order
-    feature_importances = rf_model.feature_importances_
-    sorted_indices = np.argsort(feature_importances)[::-1]
-    for i in sorted_indices:
-        logging.info(f"Feature: {features[i]}, Importance: {feature_importances[i]:.3f}")
-    # Plot the predicted vs actual values
-    plt.figure(figsize=(10, 6))
-    sns.scatterplot(x=y_test, y=y_pred, alpha=0.5)
-    plt.grid(True)  # add grid lines
-    plt.plot([y.min(), y.max()], [y.min(), y.max()], 'g--', lw=2)  # Diagonal line
-    plt.xlabel("Actual Born Radius")
-    plt.ylabel("Modeled Born Radius")
-    plt.title(f"Random Forest Model")
+    # # Train the model with Random Forest
+    # rf_model = RandomForestRegressor(n_estimators=100, random_state=42)
+    # rf_model.fit(X_train, y_train)
+    # # Test the result and report the error
+    # y_pred = rf_model.predict(X_test)
+    # logging.info(f"Random Forest model test R^2 score: {r2_score(y_test, y_pred):.3f}")
+    # logging.info(f"Random Forest model test RMSE: {np.sqrt(mean_squared_error(y_test, y_pred)):.3f}")
+    # # Write out feature name and their importances in descending order
+    # feature_importances = rf_model.feature_importances_
+    # sorted_indices = np.argsort(feature_importances)[::-1]
+    # for i in sorted_indices:
+    #     logging.info(f"Feature: {features[i]}, Importance: {feature_importances[i]:.3f}")
+    # # Plot the predicted vs actual values
+    # plt.figure(figsize=(10, 6))
+    # sns.scatterplot(x=y_test, y=y_pred, alpha=0.5)
+    # plt.grid(True)  # add grid lines
+    # plt.plot([y.min(), y.max()], [y.min(), y.max()], 'g--', lw=2)  # Diagonal line
+    # plt.xlabel("Delphi Born Radius")
+    # plt.ylabel("Modeled Born Radius")
+    # plt.title(f"Random Forest Model")
 
-    # print the R^2 and RMSE on the plot
-    plt.text(0.05, 0.95, f"R^2: {r2_score(y_test, y_pred):.3f}", ha='left', va='top', transform=plt.gca().transAxes)
-    plt.text(0.05, 0.90, f"RMSE: {np.sqrt(mean_squared_error(y_test, y_pred)):.3f}", ha='left', va='top', transform=plt.gca().transAxes)
+    # # print the R^2 and RMSE on the plot
+    # plt.text(0.05, 0.95, f"R^2: {r2_score(y_test, y_pred):.3f}", ha='left', va='top', transform=plt.gca().transAxes)
+    # plt.text(0.05, 0.90, f"RMSE: {np.sqrt(mean_squared_error(y_test, y_pred)):.3f}", ha='left', va='top', transform=plt.gca().transAxes)
 
     # print feature name and importance on the plot in descending order
     # Print feature name and importance on the plot in descending order, under RMSE
     # We'll position the text below the RMSE text, with a small vertical offset for each feature
-    base_y = 0.85  # Start below RMSE (which is at 0.90)
-    for idx, i in enumerate(sorted_indices):
-        plt.text(0.05, base_y - idx * 0.04, f"{features[i]}: {feature_importances[i]:.3f}", ha='left', va='top', transform=plt.gca().transAxes)
+    # base_y = 0.85  # Start below RMSE (which is at 0.90)
+    # for idx, i in enumerate(sorted_indices):
+    #     plt.text(0.05, base_y - idx * 0.04, f"{features[i]}: {feature_importances[i]:.3f}", ha='left', va='top', transform=plt.gca().transAxes)
 
     
     # Train with Neural Network
@@ -374,7 +383,7 @@ def train_model(data):
     X_train_scaled = X_scaler.fit_transform(X_train)
     X_test_scaled = X_scaler.transform(X_test)
     # nn_model = MLPRegressor(hidden_layer_sizes=(100,), max_iter=1000, random_state=42)
-    nn_model = MLPRegressor(hidden_layer_sizes=(50, 20), alpha=0.01, learning_rate_init=0.001, learning_rate='adaptive', max_iter=500, random_state=42)
+    nn_model = MLPRegressor(hidden_layer_sizes=(50, 20), alpha=0.01, learning_rate_init=0.001, learning_rate='adaptive', max_iter=500, random_state=int(random.random() * 1000))
 
     nn_model.fit(X_train_scaled, y_train)
     # Test the result and report the error
@@ -386,7 +395,7 @@ def train_model(data):
     sns.scatterplot(x=y_test, y=y_pred, alpha=0.5)
     plt.grid(True)  # add grid lines
     plt.plot([y.min(), y.max()], [y.min(), y.max()], 'g--', lw=2)  # Diagonal line
-    plt.xlabel("Actual Born Radius")
+    plt.xlabel("Delphi Born Radius")
     plt.ylabel("Modeled Born Radius")
     plt.title(f"Neural Network Model")
 
