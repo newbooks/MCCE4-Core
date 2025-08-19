@@ -53,7 +53,7 @@ import joblib
 from matplotlib import pyplot as plt
 import seaborn as sns
 from mcce.geom import Vector
-import atexit
+\
 
 DEFAULT_TRAINING = "trainingset"
 
@@ -115,6 +115,7 @@ class Atom:
         - Density_Mid
         - Density_Far
         - D2Surface
+        - SAS
         - RXN
         - Radius_Born
         """
@@ -129,7 +130,7 @@ class Atom:
 
         self.radius_born = K_rxn / self.rxn
 
-        return f"{self.density_near},{self.density_mid},{self.density_far},{self.d2surface:.3f},{self.rxn:.3f},{self.radius_born:.3f}\n"
+        return f"{self.density_near},{self.density_mid},{self.density_far},{self.d2surface:.3f},{self.sas:.3f},{self.rxn:.3f},{self.radius_born:.3f}\n"
 
 
 class Protein:
@@ -192,6 +193,13 @@ class Protein:
             dist, _ = tree.query(atom.xyz.to_np())
             atom.d2surface = dist
 
+    def calculate_sas(self, probe_radius=1.4, n_points=960):
+        atom_coords = np.array([atom.xyz.to_np() for atom in self.atoms])
+        atom_radii = np.array([atom.radius for atom in self.atoms])
+        atom_sas = sas(atom_coords, atom_radii, probe_radius=probe_radius, n_points=n_points)
+        for i, atom in enumerate(self.atoms):
+            atom.sas = atom_sas[i]
+
     def write_pqr(self, filename):
         """
         Write the protein atoms to a PQR file.
@@ -201,6 +209,37 @@ class Protein:
             for atom in self.atoms:
                 line = f"{atom.line[:54]}{atom.radius:8.3f}{atom.charge:12.3f}{atom.line[74:].rstrip()}\n"
                 f.write(line)
+
+
+def sas(atom_coords, atom_radii, probe_radius=1.4, n_points=960):
+    N = len(atom_coords)
+    # Generate sphere points once
+    phi = (1 + np.sqrt(5)) / 2
+    points = []
+    for i in range(n_points):
+        z = 1 - (2*i+1)/n_points
+        x = np.sqrt(1 - z*z) * np.cos(2*np.pi*i/phi)
+        y = np.sqrt(1 - z*z) * np.sin(2*np.pi*i/phi)
+        points.append((x,y,z))
+    sphere_points = np.array(points)
+
+    # Build KD-tree for neighbors
+    tree = cKDTree(atom_coords)
+    sas = np.zeros(N)
+
+    max_radius = atom_radii.max()
+    for i in range(N):
+        r = atom_radii[i] + probe_radius
+        pts = atom_coords[i] + r*sphere_points
+        neighbors = tree.query_ball_point(atom_coords[i], r + max_radius)
+        mask = np.ones(len(pts), dtype=bool)
+        for j in neighbors:
+            if j == i: continue
+            d2 = np.sum((pts - atom_coords[j])**2, axis=1)
+            mask &= d2 > (atom_radii[j] + probe_radius)**2
+        sas[i] = mask.sum()/n_points
+
+    return sas
 
 
 def parse_args():
@@ -249,6 +288,9 @@ def pdb2csv(pdb_file):
     protein.load_pdb("microstate.pdb")
     protein.calculate_local_density()
     protein.calculate_distance_to_surface()
+    start_time = time.time()
+    protein.calculate_sas(probe_radius=1.4, n_points=122)
+    logging.info(f"Finished calculating SAS in {time.time() - start_time:.2f} seconds.")
 
     # Set up delphi calculation and get reaction field energy
     logging.info(f"Setting up delphi calculation for {pdb_file} ...")
@@ -337,44 +379,40 @@ def pdb2csv(pdb_file):
 def train_model(data):
     # Placeholder function for training the model
     logging.info("Training model to predict Born radii from local density...")
-    features = ['Density_Near', 'Density_Mid', 'Density_Far', 'D2Surface']
+    features = ['Density_Near', 'Density_Mid', 'Density_Far', 'D2Surface', 'SAS']
     target = 'BORN_RADIUS'
     X = data[features]
     y = data[target]
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=int(random.random() * 1000))
     # Since local density is atom counts, we will not use scaler to standardize
 
-    # # Train the model with Random Forest
-    # rf_model = RandomForestRegressor(n_estimators=100, random_state=42)
-    # rf_model.fit(X_train, y_train)
-    # # Test the result and report the error
-    # y_pred = rf_model.predict(X_test)
-    # logging.info(f"Random Forest model test R^2 score: {r2_score(y_test, y_pred):.3f}")
-    # logging.info(f"Random Forest model test RMSE: {np.sqrt(mean_squared_error(y_test, y_pred)):.3f}")
-    # # Write out feature name and their importances in descending order
-    # feature_importances = rf_model.feature_importances_
-    # sorted_indices = np.argsort(feature_importances)[::-1]
-    # for i in sorted_indices:
-    #     logging.info(f"Feature: {features[i]}, Importance: {feature_importances[i]:.3f}")
-    # # Plot the predicted vs actual values
-    # plt.figure(figsize=(10, 6))
-    # sns.scatterplot(x=y_test, y=y_pred, alpha=0.5)
-    # plt.grid(True)  # add grid lines
-    # plt.plot([y.min(), y.max()], [y.min(), y.max()], 'g--', lw=2)  # Diagonal line
-    # plt.xlabel("Delphi Born Radius")
-    # plt.ylabel("Modeled Born Radius")
-    # plt.title(f"Random Forest Model")
+    # Train the model with Random Forest
+    rf_model = RandomForestRegressor(n_estimators=100, random_state=42)
+    rf_model.fit(X_train, y_train)
+    # Test the result and report the error
+    y_pred = rf_model.predict(X_test)
+    logging.info(f"Random Forest model test R^2 score: {r2_score(y_test, y_pred):.3f}")
+    logging.info(f"Random Forest model test RMSE: {np.sqrt(mean_squared_error(y_test, y_pred)):.3f}")
+    # Write out feature name and their importances in descending order
+    feature_importances = rf_model.feature_importances_
+    sorted_indices = np.argsort(feature_importances)[::-1]
+    for i in sorted_indices:
+        logging.info(f"Feature: {features[i]}, Importance: {feature_importances[i]:.3f}")
+    # Plot the predicted vs actual values
+    plt.figure(figsize=(10, 6))
+    sns.scatterplot(x=y_test, y=y_pred, alpha=0.5)
+    plt.grid(True)  # add grid lines
+    plt.plot([y.min(), y.max()], [y.min(), y.max()], 'g--', lw=2)  # Diagonal line
+    plt.xlabel("Delphi Born Radius")
+    plt.ylabel("Modeled Born Radius")
+    plt.title(f"Random Forest Model")
 
-    # # print the R^2 and RMSE on the plot
-    # plt.text(0.05, 0.95, f"R^2: {r2_score(y_test, y_pred):.3f}", ha='left', va='top', transform=plt.gca().transAxes)
-    # plt.text(0.05, 0.90, f"RMSE: {np.sqrt(mean_squared_error(y_test, y_pred)):.3f}", ha='left', va='top', transform=plt.gca().transAxes)
-
-    # print feature name and importance on the plot in descending order
-    # Print feature name and importance on the plot in descending order, under RMSE
-    # We'll position the text below the RMSE text, with a small vertical offset for each feature
-    # base_y = 0.85  # Start below RMSE (which is at 0.90)
-    # for idx, i in enumerate(sorted_indices):
-    #     plt.text(0.05, base_y - idx * 0.04, f"{features[i]}: {feature_importances[i]:.3f}", ha='left', va='top', transform=plt.gca().transAxes)
+    # print the R^2 and RMSE on the plot
+    plt.text(0.05, 0.95, f"R^2: {r2_score(y_test, y_pred):.3f}", ha='left', va='top', transform=plt.gca().transAxes)
+    plt.text(0.05, 0.90, f"RMSE: {np.sqrt(mean_squared_error(y_test, y_pred)):.3f}", ha='left', va='top', transform=plt.gca().transAxes)
+    base_y = 0.85  # Start below RMSE (which is at 0.90)
+    for idx, i in enumerate(sorted_indices):
+        plt.text(0.05, base_y - idx * 0.04, f"{features[i]}: {feature_importances[i]:.3f}", ha='left', va='top', transform=plt.gca().transAxes)
 
     
     # Train with Neural Network
@@ -397,12 +435,11 @@ def train_model(data):
     plt.plot([y.min(), y.max()], [y.min(), y.max()], 'g--', lw=2)  # Diagonal line
     plt.xlabel("Delphi Born Radius")
     plt.ylabel("Modeled Born Radius")
-    plt.title(f"Neural Network Model")
+    plt.title(f"Neural Network Model: D2Surface + SAS")
 
     # print the R^2 and RMSE on the plot
     plt.text(0.05, 0.95, f"R^2: {r2_score(y_test, y_pred):.3f}", ha='left', va='top', transform=plt.gca().transAxes)
     plt.text(0.05, 0.90, f"RMSE: {np.sqrt(mean_squared_error(y_test, y_pred)):.3f}", ha='left', va='top', transform=plt.gca().transAxes)
-
     plt.show()
 
     # Save Neural Network model together with feature names and scaler in the same pkl file
@@ -417,7 +454,7 @@ if __name__ == "__main__":
     logging.basicConfig(format='%(asctime)s %(levelname)s: %(message)s', datefmt='%Y-%m-%d %H:%M:%S', level=logging.INFO)
 
     # Check which input to use, either from PDB files or from a precompiled CSV file
-    csv_header = "Density_Near,Density_Mid,Density_Far,D2Surface,RXN,BORN_RADIUS\n"
+    csv_header = "Density_Near,Density_Mid,Density_Far,D2Surface,SAS,RXN,BORN_RADIUS\n"
     csv_all_lines = [csv_header]
     training_from_pdb = False
     if args.from_pdb is None and args.from_csv is None:
