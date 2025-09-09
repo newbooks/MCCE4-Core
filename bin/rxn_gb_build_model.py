@@ -444,7 +444,12 @@ def train_model(data):
 
     # Save Neural Network model together with feature names and scaler in the same pkl file
     model_fname = "nn_model_with_features_and_scaler.pkl"
-    joblib.dump((nn_model, features, X_scaler), model_fname)
+    model_dict = {
+        "model": nn_model,
+        "features": features,
+        "scaler": X_scaler
+    }
+    joblib.dump(model_dict, model_fname)
 
     return model_fname
 
