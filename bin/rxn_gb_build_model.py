@@ -69,9 +69,9 @@ ATOM_RADII = {
 ATOM_RADIUS_UNKNOWN = 1.80  # Default radius for unknown elements
 
 # Conversion factors
-# RXN = 166 * (-0.5 * (1/eps_in - 1/eps_out) * qi * qj / r_Born)
-# where 166 is the conversion factor to calculate RXN in kcal/mol from unit charge and distance in Angstroms.
-K_rxn = 166.0 * (-0.5 * (1/4.0 - 1/80.0))  # eps_in = 4, eps_out = 80 
+# RXN = 332 * (-0.5 * (1/eps_in - 1/eps_out) * qi * qj / r_Born)
+# where 332 is the conversion factor to calculate RXN in kcal/mol from unit charge and distance in Angstroms.
+K_rxn = 332.0 * (-0.5 * (1/4.0 - 1/80.0))  # eps_in = 4, eps_out = 80
 # RXN = K_rxn * qi * qj / r_Born
 
 # Constants
